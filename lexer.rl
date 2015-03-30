@@ -2,14 +2,20 @@
 #include <algorithm>
 #include <cctype>
 
+#include "Machine.h"
+#include "Instruction.h"
+#include "Opcode.h"
+
 namespace {
 
 	struct Cookie {
 		// Line data..
 		std::string *label;
 
-		Mnemonic mnemonic;
+		Instruction instruction;
 		AddressMode mode;
+		bool explicit_mode;
+		
 		unsigned instruction_size;
 		unsigned mx; // mx bits...
 		expression_ptr operands[2];
@@ -59,6 +65,24 @@ namespace {
 			}
 		);
 
+	}
+
+	std::string *intern(const std::string &s) {
+
+		static std::unordered_multimap<size_t, std::string *> ht;
+		std::hash<std::string> fx;
+
+		size_t h = fx(s);
+
+		auto iter = ht.find(h);
+		while (iter != ht.end()) {
+			if (iter->first != h) break;
+			if (*iter->second == s) return iter->second;
+		}
+
+		std::string *sp = new std::string(s);
+		ht.emplace(h, sp);
+		return sp;
 	}
 }
 
@@ -183,6 +207,21 @@ namespace {
 			// mvp or mvn generate tkOPCODE_2.
 			// all others generate tkOPCODE.
 			// check opcode table
+
+			std::string s(ts, te);
+			Instruction instr(m65816, s);
+			if (instr) {
+				// just insert the instruction directly into the cookie.
+				// since lemon doesn't like c++ that much.
+
+				cookie.instruction = instr;
+				unsigned tk = tkOPCODE;
+				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
+				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
+				Parse(parser, tk, 0, cookie);
+			} else {
+				Parse(parser, tkIDENTIFIER, intern(s), cookie);
+			}
 		};
 
 

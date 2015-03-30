@@ -32,6 +32,7 @@ public:
     // constructors
     Instruction();
     Instruction(const Instruction & rhs);
+    Instruction(Machine machine, const std::string &s) : Instruction(machine, s.c_str()) {}
     Instruction(Machine machine, const char *name);
     Instruction(Machine machine, Mnemonic mnemonic);
     
