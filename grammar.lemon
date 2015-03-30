@@ -1,0 +1,88 @@
+
+%start_symbol  line
+
+line ::= label EOL.
+line ::= label opcode EOL.
+line ::= opcode EOL.
+line ::= EOL.
+
+label ::= IDENTIFIER.
+
+/* mvn or mvp  -- two parameters.*/
+opcode ::= OPCODE_BLOCKMOVE expr COMMA expr.
+
+opcode ::= OPCODE operand.
+
+/* implied */
+operand ::= . 
+
+/* relative, abs, abslong, etc */
+operand ::= modifier expr.
+operand ::= expr.
+
+/* dp,x abs, x abslong,x etc */
+operand ::= modifier expr COMMA REGISTER_X.
+operand ::= expr COMMA REGISTER_X.
+
+/* dp,y abs,y */
+operand ::= modifier expr COMMA REGISTER_Y.
+operand ::= expr COMMA REGISTER_Y.
+
+/* (dp,x) (abs,x) */
+operand ::= LPAREN expr COMMA REGISTER_X RPAREN.
+
+/* (dp) (abs) */
+operand ::= LPAREN expr RPAREN.
+
+/* (dp),y */
+operand ::= LPAREN dp expr RPAREN COMMA REGISTER_Y.
+operand ::= LPAREN expr RPAREN COMMA REGISTER_Y.
+
+
+/* #immediate */
+operand ::= HASH expr.
+
+/* sr,s */
+operand ::= expr COMMA REGISTER_S.
+
+/* (sr,s),y */
+operand ::= LPAREN expr COMMA REGISTER_S RPAREN COMMA REGISTER_Y.
+
+/* [dp] */
+operand ::= LBRACKET dp expr RBRACKET.
+operand ::= LBRACKET expr RBRACKET.
+
+/* [dp],y */
+operand ::= LBRACKET dp expr RBRACKET COMMA REGISTER_Y.
+operand ::= LBRACKET expr RBRACKET COMMA REGISTER_Y.
+
+
+
+dp ::= LT.
+
+/* modifier -  <, >, | */
+modifier ::= LT.
+modifier ::= GT.
+modifier ::= PIPE.
+
+
+expr ::= dp_register.
+expr ::= unary.
+
+
+unary ::= PLUS unary.
+unary ::= MINUS unary.
+unary ::= CARET unary.
+unary ::= term.
+
+term ::= IDENTIFIER.
+term ::= INTEGER.
+term ::= STAR.
+
+dp_register ::= DP_REGISTER.
+dp_register(rv) ::= DP_REGISTER(dp) PLUS INTEGER(n). {
+	dp.number += n;
+	rv = dp;
+}
+
+
