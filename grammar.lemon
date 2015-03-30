@@ -1,69 +1,217 @@
 
 %start_symbol  line
 
+
 line ::= label EOL.
 line ::= label opcode EOL.
 line ::= opcode EOL.
 line ::= EOL.
 
-label ::= IDENTIFIER.
+label ::= IDENTIFIER(id). {
+	cookie->label = id;
+}
 
 /* mvn or mvp  -- two parameters.*/
-opcode ::= OPCODE_BLOCKMOVE expr COMMA expr.
+opcode ::= OPCODE_BLOCKMOVE expr(a) COMMA expr(b). {
+	cookie->operands[0] = a;
+	cookie->operands[1] = b;
+}
 
-opcode ::= OPCODE operand.
+opcode ::= OPCODE operand(op). {
+	cookie->operand[0] = op;
+}
 
 /* implied */
-operand ::= . 
+operand(rv) ::= . {
+	cookie->mode = implied;
+	rv = NULL;
+}
+/* #immediate */
+operand(rv) ::= HASH expr(e). {
+	cookie->mode = immediate;
+	cookie->explicit_mode = true;
+	rv = e;
+}
 
 /* relative, abs, abslong, etc */
-operand ::= modifier expr.
+operand(rv) ::= modifier(m) expr(e). {
+	cookie->mode = m;
+	cookie->explicit_mode = true;
+	rv = e;
+}
+
 operand ::= expr.
 
 /* dp,x abs, x abslong,x etc */
-operand ::= modifier expr COMMA REGISTER_X.
-operand ::= expr COMMA REGISTER_X.
+operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_X. {
+
+	AddressMode mode = m;
+
+	switch(mode)
+	{
+	case zp: mode = zp_x; break;
+	case absolute: mode = absolute_x; break;
+	case absolute_long: mode = absolute_long_x; break;
+	}
+	cookie->explicit_mode = true;
+	cookie->mode = mode;
+	rv = e;
+}
+operand ::= expr COMMA REGISTER_X. {
+	cookie->mode = absolute_long_x;
+	rv = e;
+}
 
 /* dp,y abs,y */
-operand ::= modifier expr COMMA REGISTER_Y.
-operand ::= expr COMMA REGISTER_Y.
+operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_Y. {
+
+	AddressMode mode = m;
+	switch(mode)
+	{
+	case zp: mode = zp_y; break;
+	case absolute: mode = absolute_y; break;
+	case absolute_long: 
+		mode = absolute_y; 
+		error("invalid address mode: >absolute long,y")
+		break;
+	}
+
+	cookie->mode = mode;
+	cookie->explicit_mode = true;
+	rv = e;
+}
+
+operand(rv) ::= expr(e) COMMA REGISTER_Y. {
+	cookie->mode = absolute_y;
+	rv = e;
+}
 
 /* (dp,x) (abs,x) */
-operand ::= LPAREN expr COMMA REGISTER_X RPAREN.
+operand(rv) ::= LPAREN expr(e) COMMA REGISTER_X RPAREN. {
+	cookie->mode = absolute_indirect_x
+	rv = e;
+}
+
+operand(rv) ::= LPAREN modifier(m) expr(e) COMMA REGISTER_X RPAREN. {
+
+	AddressMode mode = m;
+	switch(mode)
+	{
+	case zp: mode = zp_indirect_x; break;
+	case absolute: mode = absolute_indirect_x; break;
+	case absolute_long: 
+		mode = absolute_indirect_x; 
+		error("invalid address mode: (>absolute long,x)")
+		break;
+	}
+
+	cookie->mode = mode;
+	cookie->explicit_mode = true;
+	rv = e;
+}
+
+
 
 /* (dp) (abs) */
-operand ::= LPAREN expr RPAREN.
+operand(rv) ::= LPAREN expr(e) RPAREN. {
+	cookie->mode = absolute_indirect;
+	rv = e;
+}
 
 /* (dp),y */
-operand ::= LPAREN dp expr RPAREN COMMA REGISTER_Y.
-operand ::= LPAREN expr RPAREN COMMA REGISTER_Y.
+operand(rv) ::= LPAREN modifier(m) expr(e) RPAREN COMMA REGISTER_Y. {
+
+	switch(m)
+	{
+	case zp: break;
+	case absolute: 
+		error("invalid address mode: (|absolute),y")
+		break;
+	case absolute_long: 
+		error("invalid address mode: (>absolute long),y")
+		break;
+	}
+
+	cookie->mode = zp_indirect_y;
+	cookie->explicit_mode = true;
+	rv = e;
+}
+
+operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Y. {
+	cookie->mode = zp_indirect_y;
+	rv = e;
+}
 
 
-/* #immediate */
-operand ::= HASH expr.
+
 
 /* sr,s */
-operand ::= expr COMMA REGISTER_S.
+/* optional < ? */
+operand(rv) ::= expr(e) COMMA REGISTER_S. {
+	cookie->mode = stack_relative;
+	rv = e;
+}
 
 /* (sr,s),y */
-operand ::= LPAREN expr COMMA REGISTER_S RPAREN COMMA REGISTER_Y.
+operand(rv) ::= LPAREN expr(e) COMMA REGISTER_S RPAREN COMMA REGISTER_Y. {
+	cookie->mode = stack_relative_y;
+	rv = e;
+}
 
 /* [dp] */
-operand ::= LBRACKET dp expr RBRACKET.
-operand ::= LBRACKET expr RBRACKET.
+operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET. {
+
+	AddressMode mode = m;
+	switch(mode)
+	{
+	case zp: mode = zp_indirect_long; break;
+	case absolute: mode = absolute_indirect_long; break;
+	case absolute_long: 
+		mode = absolute_indirect_long; 
+		error("invalid address mode: [>absolute long]")
+		break;
+	}
+
+	cookie->mode = mode;
+	cookie->explicit_mode = true;
+	rv = e;
+}
+
+operand(rv) ::= LBRACKET expr(e) RBRACKET. {
+	cookie->mode = zp_indirect_long;
+	rv = e;
+}
 
 /* [dp],y */
-operand ::= LBRACKET dp expr RBRACKET COMMA REGISTER_Y.
-operand ::= LBRACKET expr RBRACKET COMMA REGISTER_Y.
+operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET COMMA REGISTER_Y. {
+	
+	switch(m)
+	{
+	case zp: mode = break;
+	case absolute: 
+		error("invalid address mode: [|absolute],y")
+		break;
 
+	case absolute_long: 
+		error("invalid address mode: [>absolute long],y")
+		break;
+	}
 
+	cookie->mode = zp_indirect_long_y;
+	cookie->explicit_mode = true;
+	rv = e;	
+}
 
-dp ::= LT.
+operand(rv) ::= LBRACKET expr(e) RBRACKET COMMA REGISTER_Y. {
+	cookie->mode = zp_indirect_long_y;
+	rv = e;	
+}
+
 
 /* modifier -  <, >, | */
-modifier ::= LT.
-modifier ::= GT.
-modifier ::= PIPE.
+modifier(rv) ::= LT. { rv = zp; }
+modifier(rv) ::= GT. { rv = abslong_long; }
+modifier(rv) ::= PIPE. { rv = absolute; }
 
 
 expr ::= dp_register.
