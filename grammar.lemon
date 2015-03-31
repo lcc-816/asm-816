@@ -1,5 +1,7 @@
 
+
 %start_symbol  line
+
 %include {
 #include <string>
 #include <memory>
@@ -20,7 +22,8 @@
 }
 
 %extra_argument {Line *cookie}
-%token_type {Token*}
+%token_type {Token}
+%token_prefix tk
 
 
 %left PIPEPIPE.
@@ -50,7 +53,7 @@ label ::= IDENTIFIER(id) COLON. {
 }
 
 /* mvn or mvp  -- two parameters.*/
-opcode ::= OPCODE_BLOCKMOVE expr(a) COMMA expr(b). {
+opcode ::= OPCODE_2 expr(a) COMMA expr(b). {
 	cookie->operands[0] = a;
 	cookie->operands[1] = b;
 }

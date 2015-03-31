@@ -1,41 +1,28 @@
 #include <string>
 #include <algorithm>
+#include <numeric>
+#include <unordered_map>
+
 #include <cctype>
 #include <cerrno>
 
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <stdlib.h>
 
 #include "Machine.h"
 #include "Instruction.h"
 #include "Opcode.h"
+#include "Expression.h"
+#include "common.h"
+#include "grammar.h"
+
+
+
 
 namespace {
-
-	struct Cookie {
-		void reset() {
-			label = nullptr;
-			instruction = Instruction();
-			mode = kUndefinedAddressMode;
-			explicit_mode = false;
-			operands[0] = nullptr;
-			operands[1] = nullptr;
-		}
-
-		// Line data..
-		const std::string *label;
-
-		Instruction instruction;
-		AddressMode mode;
-		bool explicit_mode;
-
-		unsigned instruction_size;
-		unsigned mx; // mx bits...
-		expression_ptr operands[2];
-
-		unsigned directive;
-		// ...
-	};
-
 
 
 	int tox(char c)
@@ -100,6 +87,34 @@ namespace {
 	}
 }
 
+void *ParseAlloc(void *(*mallocProc)(size_t));
+void ParseFree(void *p, void (*freeProc)(void*));
+
+void Parse(void *yyp, int yymajor, Token yyminor, Line *cookie);
+
+void Parse(void *yyp, int yymajor, const std::string &string_value, Line *cookie)
+{
+	Token t;
+	t.string_value = intern(string_value);
+	Parse(yyp, yymajor, t, cookie);
+}
+
+void Parse(void *yyp, int yymajor, uint32_t int_value, Line *cookie)
+{
+	Token t;
+	t.int_value = int_value;
+	Parse(yyp, yymajor, t, cookie);
+}
+
+
+void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
+{
+	Token t;
+	t.register_value = register_value;
+	Parse(yyp, yymajor, t, cookie);
+}
+
+
 %%{
 	machine lexer;
 
@@ -128,7 +143,7 @@ namespace {
 		# comments
 		'*' {
 			if (!ws) fgoto comment;
-			Parse(parse, tkSTAR, 0, cookie);
+			Parse(parser, tkSTAR, 0, cookie);
 		};
 
 		';' {
@@ -140,7 +155,7 @@ namespace {
 		')' { Parse(parser, tkRPAREN, 0, cookie); };
 		'[' { Parse(parser, tkLBRACKET, 0, cookie); };
 		']' { Parse(parser, tkRBRACKET, 0, cookie); };
-		'=' { Parse(parser, tkEQ, 0, cookie); };
+		#'=' { Parse(parser, tkEQ, 0, cookie); };
 		'+' { Parse(parser, tkPLUS, 0, cookie); };
 		'-' { Parse(parser, tkMINUS, 0, cookie); };
 		'*' { Parse(parser, tkSTAR, 0, cookie); };
@@ -156,7 +171,7 @@ namespace {
 		'|' { Parse(parser, tkPIPE, 0, cookie); };
 		'#' { Parse(parser, tkHASH, 0, cookie); };
 		':' { Parse(parser, tkCOLON, 0, cookie); };
-		'.' { Parse(parser, tkPERIOD, 0, cookie); };
+		#'.' { Parse(parser, tkPERIOD, 0, cookie); };
 		',' { Parse(parser, tkCOMMA, 0, cookie); };
 
 		# dp-registers -- %t0, etc
@@ -167,7 +182,7 @@ namespace {
 		};
 
 		# real registers
-		'a'i { Parse(parser, tkREGISTER_A, 0, cookie); };
+		#'a'i { Parse(parser, tkREGISTER_A, 0, cookie); };
 		'x'i { Parse(parser, tkREGISTER_X, 0, cookie); };
 		'y'i { Parse(parser, tkREGISTER_Y, 0, cookie); };
 		's'i { Parse(parser, tkREGISTER_S, 0, cookie); };
@@ -228,13 +243,13 @@ namespace {
 				// just insert the instruction directly into the cookie.
 				// since lemon doesn't like c++ that much.
 
-				cookie.instruction = instr;
+				cookie->instruction = instr;
 				unsigned tk = tkOPCODE;
 				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
 				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
 				Parse(parser, tk, 0, cookie);
 			} else {
-				Parse(parser, tkIDENTIFIER, intern(s), cookie);
+				Parse(parser, tkIDENTIFIER, s, cookie);
 			}
 		};
 
@@ -248,44 +263,55 @@ namespace {
 
 bool parse_file(const std::string &filename)
 {
-	std::dequeue<ExpressionPtr> expr_stack; // expression stack -- for lemon.
-
 	int fd;
 	struct stat st;
-	void *map;
+	void *buffer;
 	int ok;
+
+	unsigned line = 1;
+	unsigned ws = 0;
+	Line *cookie;
+	Line *prevLine;
+	const std::string *prevLabel;
+	void *parser;
 
 	fd = open(filename.c_str(), O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "Unable to open file `%' : %s\n", filename.c_str(), strerror(errno));
+		fprintf(stderr, "Unable to open file `%s' : %s\n", filename.c_str(), strerror(errno));
 		return false;
 	}
 
 	ok = fstat(fd, &st);
 	if (ok < 0) {
-		fprintf(stderr, "Unable to fstat file `%' : %s\n", filename.c_str(), strerror(errno));
+		fprintf(stderr, "Unable to fstat file `%s' : %s\n", filename.c_str(), strerror(errno));
 		close(fd);
 		return false;
 	}
 
-	map = mmap(nullptr, st.st_size, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
-	if (map == MAP_FAILED) {
-		fprintf(stderr, "Unable to mmap file `%' : %s\n", filename.c_str(), strerror(errno));
+	buffer = mmap(nullptr, st.st_size, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
+	if (buffer == MAP_FAILED) {
+		fprintf(stderr, "Unable to mmap file `%s' : %s\n", filename.c_str(), strerror(errno));
 		close(fd);
 		return false;
 	}
 	close(fd);
 
-	//
+	parser = ParseAlloc(malloc);
+
+	const char *p = (const char *)buffer;
+	const char *pe = (const char *)buffer + st.st_size;
+	const char *eof = pe;
+	const char *ts;
+	const char *te;
+	int cs, act;
+
 	%% write init;
 	//
-
-	ts = (char *)map;
-	eof = ts + st.st_size;
-
 	%% write exec;
 
-	munmap(map, st.st_size);
+	ParseFree(parser, free);
+
+	munmap(buffer, st.st_size);
 	return true;
 
 }
