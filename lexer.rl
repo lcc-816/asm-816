@@ -310,6 +310,7 @@ bool parse_file(const std::string &filename)
 	//
 	%% write exec;
 
+	Parse(parser, 0, 0, cookie);
 	ParseFree(parser, free);
 
 	munmap(buffer, st.st_size);

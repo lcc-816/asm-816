@@ -6,6 +6,7 @@
 
 class Expression {
 
+public:
 	static Expression *Integer(uint32_t value);
 	static Expression *PC();
 	static Expression *Register(dp_register value);

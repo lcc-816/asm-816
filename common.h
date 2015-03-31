@@ -11,13 +11,13 @@ class Expression;
 
 struct dp_register {
 	unsigned type;
-	unsigned value;
+	unsigned number;
 };
 
 
 
 union Token {
-	const std::string *string_value = 0;
+	const std::string *string_value;
 	uint32_t int_value;
 	dp_register register_value;
 };

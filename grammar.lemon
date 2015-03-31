@@ -286,11 +286,11 @@ expr ::= binary.
 binary ::= unary.
 
 binary(rv) ::= binary(a) PLUS binary(b). {
-	rv = Expression::Binary('+', a, b)
+	rv = Expression::Binary('+', a, b);
 }
 
 binary(rv) ::= binary(a) MINUS binary(b). {
-	rv = Expression::Binary('-', a, b)
+	rv = Expression::Binary('-', a, b);
 }
 
 unary(rv) ::= PLUS unary(rhs). [BANG] {
