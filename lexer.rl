@@ -1,6 +1,9 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
+
+#include <sys/mman.h>
 
 #include "Machine.h"
 #include "Instruction.h"
@@ -250,10 +253,42 @@ bool parse_file(const std::string &filename)
 {
 	std::dequeue<ExpressionPtr> expr_stack; // expression stack -- for lemon.
 
+	int fd;
+	struct stat st;
+	void *map;
+	int ok;
+
+	fd = open(filename.c_str(), O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "Unable to open file `%' : %s\n", filename.c_str(), strerror(errno));
+		return false;
+	}
+
+	ok = fstat(fd, &st);
+	if (ok < 0) {
+		fprintf(stderr, "Unable to fstat file `%' : %s\n", filename.c_str(), strerror(errno));
+		close(fd);
+		return false;
+	}
+
+	map = mmap(nullptr, st.st_size, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
+	if (map == MAP_FAILED) {
+		fprintf(stderr, "Unable to mmap file `%' : %s\n", filename.c_str(), strerror(errno));
+		close(fd);
+		return false;
+	}
+	close(fd);
+
 	//
 	%% write init;
 	//
 
+	ts = (char *)map;
+	eof = ts + st.st_size;
+
 	%% write exec;
+
+	munmap(map, st.st_size);
+	return true;
 
 }
