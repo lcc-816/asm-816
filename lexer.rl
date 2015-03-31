@@ -178,7 +178,8 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 		'%' [ptv] digit+ {
 			unsigned type = ts[1];
 			unsigned number = scan10(ts+2, te);
-			Parse(parser, tkDP_REGISTER, 0, cookie);
+			dp_register dp = {type, number };
+			Parse(parser, tkDP_REGISTER, dp, cookie);
 		};
 
 		# real registers
