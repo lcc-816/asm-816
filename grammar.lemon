@@ -7,41 +7,23 @@
 #include "Machine.h"
 #include "Instruction.h"
 
-	#define CopyExpression(rv, e) new (&(rv)) ExpressionPtr(e)
+#include "Expression.h"
 
 	extern void error(const std::string &);
 	extern void warn(const std::string &);
 
-	class Expression;
-	typedef std::shared_ptr<Expression> ExpressionPtr;
 
-	struct {
-	AddressMode mode;
-	Instruction instruction;
-	bool explicit_mode;
-	const std::string *label;
-	ExpressionPtr operands[2];
-	} *cookie;
-
-// add to YYMINORTYPE
-/*
-  YYMINORTYPE() { std::memset(this, 0, sizeof(*this)); }
-  YYMINORTYPE(const YYMINORTYPE &rhs) { std::memcpy(this, &rhs, sizeof(*this)); }
-  ~YYMINORTYPE();
-
-  YYMINORTYPE& operator=(const YYMINORTYPE& rhs) {
-    std::memcpy(this, &rhs, sizeof(*this));
-    return *this;
-  }
-*/
-	typedef struct Token {
+	union Token {
 		const std::string *string_value;
 		uint32_t int_value;
+		dp_register register_value;
 	} Token;
+
+#define CopyExpression(a, b) a = b
 }
 
-
-   %token_type    {Token*}
+%extra_argument {Line *cookie}
+%token_type {Token*}
 
 
 line ::= label EOL.
@@ -49,12 +31,10 @@ line ::= label opcode EOL.
 line ::= opcode EOL.
 line ::= EOL.
 
-//%type IDENTIFIER {const std::string *}
-//%type INTEGER { uint32_t }
 
-%type label {const std::string *}
+
 label ::= IDENTIFIER(id) COLON. {
-	cookie->label = id->string_value;
+	cookie->label = id.string_value;
 }
 
 /* mvn or mvp  -- two parameters.*/
@@ -67,14 +47,14 @@ opcode ::= OPCODE operand(op). {
 	cookie->operands[0] = op;
 }
 
-%type operand {ExpressionPtr}
-%destructor operand { $$.~ExpressionPtr(); }
+%type operand {Expression *}
 
 /* implied */
 operand(rv) ::= . {
 	cookie->mode = implied;
 	CopyExpression(rv, nullptr);
 }
+
 /* #immediate */
 operand(rv) ::= HASH expr(e). {
 	cookie->mode = immediate;
@@ -277,26 +257,47 @@ modifier(rv) ::= LT. { rv = zp; }
 modifier(rv) ::= GT. { rv = absolute_long; }
 modifier(rv) ::= PIPE. { rv = absolute; }
 
-%type   expr  {ExpressionPtr}
-%destructor expr { $$.~ExpressionPtr(); }
+%type expr {Expression *}
+%type unary {Expression *}
+%type term {Expression *}
+%type dp_register {Expression *}
 
 expr ::= dp_register.
 expr ::= unary.
 
 
-unary ::= PLUS unary.
-unary ::= MINUS unary.
-unary ::= CARET unary.
+unary(rv) ::= PLUS unary(rhs). {
+	rv = rhs;
+}
+unary(rv) ::= MINUS unary(rhs). {
+	rv = Expression::Unary('-', rhs);
+}
+
+unary(rv) ::= CARET unary(rhs). {
+	rv = Expression::Unary('^', rhs);
+}
+
 unary ::= term.
 
-term ::= IDENTIFIER.
-term ::= INTEGER.
-term ::= STAR.
+term(rv) ::= IDENTIFIER(a). {
+	rv = Expression::Variable(a.string_value);
+}
 
-dp_register ::= DP_REGISTER.
-dp_register(rv) ::= DP_REGISTER(dp) PLUS INTEGER(n). {
-	dp.number += n->intValue;
-	rv = dp;
+term(rv) ::= INTEGER(a). {
+	rv = Expression::Integer(a.int_value);
+}
+term(rv) ::= STAR. {
+	rv = Expression::PC();
+}
+
+dp_register(rv) ::= DP_REGISTER(a). {
+	rv = Expression::Register(a.register_value);
+}
+
+dp_register(rv) ::= DP_REGISTER(a) PLUS INTEGER(n). {
+	dp_register dp = a.register_value;
+	dp.number += n.int_value;
+	rv = Expression::Register(dp);
 }
 
 

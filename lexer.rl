@@ -36,10 +36,7 @@ namespace {
 		// ...
 	};
 
-	struct dp_register {
-		char type = 0;
-		unsigned value = 0;
-	};
+
 
 	int tox(char c)
 	{
