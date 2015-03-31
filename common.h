@@ -10,7 +10,7 @@
 class Expression;
 
 struct dp_register {
-	char type = 0;
+	unsigned type = 0;
 	unsigned value = 0;
 };
 

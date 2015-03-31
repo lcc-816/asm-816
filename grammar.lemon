@@ -4,26 +4,38 @@
 #include <string>
 #include <memory>
 #include <cstdint>
+
 #include "Machine.h"
 #include "Instruction.h"
-
 #include "Expression.h"
+#include "common.h"
 
 	extern void error(const std::string &);
 	extern void warn(const std::string &);
 
 
-	union Token {
-		const std::string *string_value;
-		uint32_t int_value;
-		dp_register register_value;
-	} Token;
+
 
 #define CopyExpression(a, b) a = b
 }
 
 %extra_argument {Line *cookie}
 %token_type {Token*}
+
+
+%left PIPEPIPE.
+%left AMPAMP.
+%left PIPE.
+%left CARET.
+%left AMP.
+%left EQEQ BANGEQ.
+%left LT LTEQ GT GTEQ.  
+%left LTLT GTGT.
+%left PLUS MINUS. 
+%left STAR SLASH PERCENT.
+%right BANG TILDE.
+
+
 
 
 line ::= label EOL.
@@ -257,23 +269,35 @@ modifier(rv) ::= LT. { rv = zp; }
 modifier(rv) ::= GT. { rv = absolute_long; }
 modifier(rv) ::= PIPE. { rv = absolute; }
 
+/* expressions */
+
 %type expr {Expression *}
+%type binary {Expression *}
 %type unary {Expression *}
 %type term {Expression *}
 %type dp_register {Expression *}
 
 expr ::= dp_register.
-expr ::= unary.
+expr ::= binary.
 
+binary ::= unary.
 
-unary(rv) ::= PLUS unary(rhs). {
+binary(rv) ::= binary(a) PLUS binary(b). {
+	rv = Expression::Binary('+', a, b)
+}
+
+binary(rv) ::= binary(a) MINUS binary(b). {
+	rv = Expression::Binary('-', a, b)
+}
+
+unary(rv) ::= PLUS unary(rhs). [BANG] {
 	rv = rhs;
 }
-unary(rv) ::= MINUS unary(rhs). {
+unary(rv) ::= MINUS unary(rhs). [BANG] {
 	rv = Expression::Unary('-', rhs);
 }
 
-unary(rv) ::= CARET unary(rhs). {
+unary(rv) ::= CARET unary(rhs). [BANG] {
 	rv = Expression::Unary('^', rhs);
 }
 
