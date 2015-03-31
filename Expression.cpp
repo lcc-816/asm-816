@@ -1,70 +1,30 @@
 
 //#include "Expression.h"
 
-#include <dequeue>
+#include <deque>
 #include <string>
 #include <algorithm>
 #include <memory>
 
+#include "Expression.h"
+
 namespace {
 
-	std::dequeue<Expression *> Pool;
+	std::deque<Expression *> Pool;
 
 }
 
 
-class Expression {
+void Expression::ErasePool(void) {
 
-public:
-
-
-	Expression *simplify();
-	Expression *evaluate(uint32_t pc, const std::unordered_map<std::string, uint32_t> &map);
-	Expression *clone();
-
-	bool operator==(const Expression &other);
-	bool operator!=(const Expression &other);
-
-	~Expression();
-private:
-
-	unsigned type = 0;
-	Expression *children[2] = {0, 0};
-
-	union {
-		uint32_t int_value = 0;
-		uint32_t op = 0;
-		std::string *string_value;
-	};
-
-
-	enum {
-		type_integer,
-		type_unary,
-		type_binary,
-		type_variable,
-		type_pc,
-		type_register
-	}
-
-	Expression(unsigned t) type(t) {}
-
-	Expression *simplify_binary();
-	Expression *simplify_unary();
-};
-
-void Expression::ClearPool(void) {
-
-	for(Expression e : Pool) {
-		e->delete();
+	for(Expression *e : Pool) {
+		delete e;
 	}
 
 	Pool.clear();
 }
 
-Expression::~Expression()
-{
-}
+
 Expression *Expression::PC() {
 	static Expression pc(type_pc);
 
@@ -72,22 +32,31 @@ Expression *Expression::PC() {
 }
 
 Expression *Expression::Integer(uint32_t value) {
-	std::unique_ptr<IntegerExpression> e = std::make_unique(type_integer);
-	auto ptr = e->get();
+	Expression *e = new Expression(value);
+	Pool.push_back(e);
+	return e;
+}
 
-	Arena.emplace_back(e);
-	return ptr;
+Expression *Expression::Register(dp_register value) {
+	Expression *e = new Expression(value);
+	Pool.push_back(e);
+	return e;
 }
 
 Expression *Expression::Unary(unsigned op, Expression *child) {
-	std::unique_ptr<Expression> e = std::make_unique(type_unary);
-	auto ptr = e->get();
-	ptr->op = op;
-	ptr->child[0] = child;
+	Expression *e = new Expression(op, child);
 
-	Arena.emplace_back(e);
-	return ptr;
+	Pool.push_back(e);
+	return e;
 }
+
+Expression *Expression::Binary(unsigned op, Expression *a, Expression *b) {
+	Expression *e = new Expression(op, a, b);
+
+	Pool.push_back(e);
+	return e;
+}
+
 
 Expression *Expression::simplify() {
 	switch(_type) {
@@ -95,45 +64,79 @@ Expression *Expression::simplify() {
 			return this;
 		case type_unary:
 			return simplify_unary();
-		case type_binary():
+		case type_binary:
 			return simplify_binary();
 	}
 }
 
 Expression *Expression::simplify_unary() {
-	child = children[0]->simplify();
+	Expression *child = children[0]->simplify();
 	children[0] = child;
-	if (child->type() == type_integer()) {
-		uint32_t value = child->int_value();
-		switch (_op) {
-			case '+': break;
+	uint32_t value;
+
+	if (child->is_integer(value)) {
+		switch (op) {
+			case '+': return child;
 			case '-': value = -value; break;
 			case '^': value = value >> 16; break;
+			case '!': value = !value; break;
+			case '~': value = ~value; break;
 		}
 		return Expression::Integer(value);
 	}
 	return this;
 }
 
-Expression::simplify_binary() {
+Expression *Expression::simplify_binary() {
 	Expression *lhs = children[0]->simplify();
 	Expression *rhs = children[1]->simplify();
 
 	children[0] = lhs;
 	children[1] = rhs;
-	if (lhs->type == type_integer && rhs->type == type_integer) {
-		uint32_t a = lhs.int_value();
-		uint32_t b = rhs.int_value();
+
+	uint32_t a, b;
+
+	if (lhs->is_integer(a) && rhs->is_integer(b)) {
 		uint32_t value = 0;
-		switch (_op) {
+		switch (op) {
 			case '+': value = a + b; break;
 			case '-': value = a - b; break;
+			case '*': value = a * b; break;
+			case '/': value = a / b; break;
+			case '%': value = a % b; break;
+			case '^': value = a ^ b; break;
+			case '|': value = a | b; break;
+			case '&': value = a & b; break;
+			case '>>': value = a >> b; break;
+			case '<<': value = a << b; break;
+			case '&&': value = a && b; break;
+			case '||': value = a || b; break;
 		}
 		return Expression::Integer(value);
 	}
 	return this;
 }
 
+#pragma mark - clone
+
+Expression *Expression::clone() {
+
+	switch (_type) {
+		default: return this;
+		case type_binary: return clone_binary();
+		case type_unary: return clone_unary();
+	}
+}
+
+Expression *Expression::clone_unary() {
+	return Expression::Unary(op, children[0]->clone());
+}
+
+Expression *Expression::clone_binary() {
+	return Expression::Binary(op, children[0]->clone(), children[1]->clone());
+}
+
+#if 0
 Expression *Expression::evaluate(uint32_t pc, const varmap &map) {
 
 	switch(_op) {
@@ -154,24 +157,7 @@ Expression *Expression::evaluate(uint32_t pc, const varmap &map) {
 	}
 }
 
-#pragma mark - clone
 
-Expression *Expression::clone() {
-
-	switch (type) {
-		default: return this;
-		case type_binary: return clone_binary();
-		case type_unary: return clone_unary();
-	}
-}
-
-Expression *Expression::clone_unary() {
-	return Expression::Unary(op, children[0]->clone());
-}
-
-Expression *Expression::clone_binary() {
-	return Expression::Binary(op, children[0]->clone(), children[1]->clone());
-}
 
 # pragma mark - ==
 
@@ -199,3 +185,5 @@ bool Expression::operator==(const Expression &other) {
 			return false;
 	}
 }
+
+#endif

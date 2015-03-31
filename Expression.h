@@ -1,113 +1,113 @@
 
-class Expression;
-typedef std::shared_ptr<Expression> ExpressionPtr;
+#ifndef __expression_h__
+#define __expression_h__
+
+#include "common.h"
 
 class Expression {
 
-	enum {
-		TypeInteger = 1,
-		TypeUnary,
-		TypeBinary,
-		TypeVariable,
-		TypeRegister
+	static Expression *Integer(uint32_t value);
+	static Expression *PC();
+	static Expression *Register(dp_register value);
+	static Expression *Variable(const std::string *name);
+	static Expression *Unary(unsigned op, Expression *a);
+	static Expression *Binary(unsigned op, Expression *a, Expression *b);
+
+	static void ErasePool();
+
+	enum expression_type {
+		type_unknown = 0,
+		type_integer,
+		type_register,
+		type_pc,
+		type_variable,
+		type_unary,
+		type_binary,
 	};
 
-	unsigned type() const {
+	expression_type type() const {
 		return _type;
 	}
 
-	bool is_integer() const { return _type = TypeInteger; }
-	bool is_register() const { return _type == TypeRegister; }
-	bool is_variable() const { return _type == TypeVariable; }
-	bool is_unary() const { return _type == TypeUnary; }
+	bool is_integer() const { return _type == type_integer; }
+	bool is_register() const { return _type == type_register; }
+	bool is_variable() const { return _type == type_variable; }
+	bool is_unary() const { return _type == type_unary; }
+	bool is_binary() const { return _type == type_binary; }
+	bool is_pc() const { return _type == type_pc; }
 
-	void simplify();
+	bool is_integer(uint32_t &rv) {
+		if (_type == type_integer) {
+			rv = int_value;
+			return true;
+		}
+		return false;
+	}
+
+	bool is_register(dp_register &rv) {
+		if (_type == type_register) {
+			rv = register_value;
+			return true;
+		}
+		return false;
+	}
+
+	bool is_variable(const std::string * &rv) {
+		if (_type == type_variable) {
+			rv = string_value;
+			return true;
+		}
+		return false;
+	}
 
 
-	virtual ~Expression();
-	virtual bool operator==(const Expression &rhs);
+	Expression *simplify();
+	Expression *clone();
+
+
 
 protected:
-	Expression(unsigned type) : _type(type)
+	Expression(expression_type type) : 
+		_type(type)
 	{}
 
+	Expression(uint32_t value) : 
+		_type(type_integer), int_value(value)
+	{}
+	
+	Expression(dp_register value) : 
+		_type(type_register), register_value(value)
+	{}
+
+	Expression(const std::string *value) : 
+		_type(type_variable), string_value(value)
+	{}
+
+	Expression(unsigned op, Expression *e) : 
+		_type(type_unary), children{e, 0}
+	{}
+
+	Expression(unsigned op, Expression *a, Expression *b) : 
+		_type(type_binary), children{a, b}
+	{}
+
+	~Expression() {}
+
 private:
-	unsigned _type;
+
+	Expression *simplify_unary();
+	Expression *simplify_binary();
+	Expression *clone_unary();
+	Expression *clone_binary();
+
+	expression_type _type = type_unknown;
+	Expression *children[2] = {0, 0};
+	union {
+		const std::string *string_value = 0;
+		unsigned op;
+		uint32_t int_value;
+		dp_register register_value;
+	};
 };
 
-
-class IntegerExpression : public Expression {
-	uint32_t value;
-
-	static IntegerExpression *New(uint32_t value) {
-		IntegerExpression *e = new IntegerExpression(value);
-		Arena.push_back(e);
-		return e;
-	}
-
-	virtual bool operator==(const Expression &rhs) {
-		if (&rhs == this) return true;
-
-		if (rhs.type() != type()) return false;
-
-		const IntegerExpression &e = reinterpret_cast<IntegerExpression &>(rhs);
-
-		return (e.value == value);
-	}
-
-	virtual Expression *simplify() {
-		return *this;
-	}
-};
-
-// includes pc - *
-class VariableExpression : public Expression {
-	const std::string *value;
-};
-
-class RegisterExpression : public Expression {
-	character type;
-	unsigned value;
-};
-
-class UnaryExpression : public Expression {
-	typedef UnaryExpression Type;
-
-	unsigned op;
-	ExpressionPtr e;
-
-	virtual bool operator==(const Expression &rhs) {
-		if (&rhs == this) return true;
-		if (rhs.type() != type()) return false;
-
-		Type &other = static_cast<Type &>(rhs);
-
-		return (other.op == op && other->e == e);
-	}
-
-
-	virtual Expression *simplify() {
-		child = simplify(child);
-		IntegerExpression e = e->as_integer();
-		if (!e) return this;
-
-		if (e->is_integer()) {
-			uint32_t value = e->value();
-			switch(op){
-				case '-': value = -value; break;
-				case '+': value = +value; break;
-				case '!': value = !value; break;
-				case '~': value = ~value; break;
-			}
-			return IntegerExpression::New(value);
-		}
-		return this;
-	}
-};
-
-
-class BinaryExpression : public Expression {
-	unsigned op;
-	ExpressionPtr lhs;
-	ExpressionPtr rhs;
-};
+#endif

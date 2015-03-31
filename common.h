@@ -5,6 +5,7 @@
 #include <string>
 
 #include "Machine.h"
+#include "Instruction.h"
 
 class Expression;
 
@@ -17,7 +18,7 @@ struct dp_register {
 
 union Token {
 	const std::string *string_value = 0;
-	uint32_t int_value = 0;
+	uint32_t int_value;
 	dp_register register_value;
 };
 
@@ -27,7 +28,7 @@ struct Line {
 	const std::string *label = nullptr;
 
 	Instruction instruction;
-	AddressMode mode = kUndefinedAddressMode
+	AddressMode mode = kUndefinedAddressMode;
 	bool explicit_mode = false;
 
 	Expression *operands[2] = {0, 0};
