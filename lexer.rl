@@ -9,19 +9,33 @@
 namespace {
 
 	struct Cookie {
+		void reset() {
+			label = nullptr;
+			instruction = Instruction();
+			mode = kUndefinedAddressMode;
+			explicit_mode = false;
+			operands[0] = nullptr;
+			operands[1] = nullptr;
+		}
+
 		// Line data..
-		std::string *label;
+		const std::string *label;
 
 		Instruction instruction;
 		AddressMode mode;
 		bool explicit_mode;
-		
+
 		unsigned instruction_size;
 		unsigned mx; // mx bits...
 		expression_ptr operands[2];
 
 		unsigned directive;
 		// ...
+	};
+
+	struct dp_register {
+		char type = 0;
+		unsigned value = 0;
 	};
 
 	int tox(char c)
@@ -67,7 +81,7 @@ namespace {
 
 	}
 
-	std::string *intern(const std::string &s) {
+	const std::string *intern(const std::string &s) {
 
 		static std::unordered_multimap<size_t, std::string *> ht;
 		std::hash<std::string> fx;
@@ -234,7 +248,7 @@ namespace {
 
 bool parse_file(const std::string &filename)
 {
-	
+	std::dequeue<ExpressionPtr> expr_stack; // expression stack -- for lemon.
 
 	//
 	%% write init;
