@@ -130,7 +130,7 @@ operand(rv) ::= modifier(m) expr(e). {
 	rv = e;
 }
 
-operand ::= expr.
+operand(rv) ::= expr(a). { rv = a; }
 
 /* dp,x abs, x abslong,x etc */
 operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_X. {
@@ -326,10 +326,10 @@ modifier(rv) ::= PIPE. { rv = absolute; }
 %type term {Expression *}
 %type dp_register {Expression *}
 
-expr ::= dp_register.
-expr ::= binary.
+expr(rv) ::= dp_register(a). { rv = a; }
+expr(rv) ::= binary(a). { rv = a; }
 
-binary ::= unary.
+binary(rv) ::= unary(a). { rv = a; }
 
 binary(rv) ::= binary(a) PLUS binary(b). {
 	rv = Expression::Binary('+', a, b);
@@ -350,7 +350,7 @@ unary(rv) ::= CARET unary(rhs). [BANG] {
 	rv = Expression::Unary('^', rhs);
 }
 
-unary ::= term.
+unary(rv) ::= term(a). { rv = a; }
 
 term(rv) ::= IDENTIFIER(a). {
 	rv = Expression::Variable(a.string_value);
