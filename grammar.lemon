@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <cstdint>
+#include <cassert>
 
 #include "Machine.h"
 #include "Instruction.h"
@@ -16,12 +17,11 @@
 	extern void warn(const std::string &);
 
 
-	static ScratchLine scratch;
 
 #define CopyExpression(a, b) a = b
 }
 
-%extra_argument {Line *cookie}
+%extra_argument {Cookie *cookie}
 %token_type {Token}
 %token_prefix tk
 
@@ -40,29 +40,46 @@
 
 %parse_failure {
 	error("parse error");
-	scratch = ScratchLine();
+
+	cookie->scratch = Line();
 }
 
 %parse_accept {
-	printf("parsing complete!\n");
+	//printf("parsing complete!\n");
 
-	scratch = ScratchLine();
+	cookie->scratch = Line();
 }
 
+%include {
+
+	static void AddLine(Cookie *cookie) {
+		Line *tmp = new Line(cookie->scratch);
+		cookie->scratch = Line();
+
+		if (cookie->tail) {
+			cookie->tail->next = tmp;
+			cookie->tail = tmp;
+		} else {
+			cookie->head = cookie->tail = tmp;
+		}
+	}
+}
 
 line ::= label EOL. {
 
 	// add to list...
+	AddLine(cookie);
 }
 
 line ::= label opcode EOL. {
-
+	AddLine(cookie);
 }
 
 line ::= opcode EOL. {
-	
+	AddLine(cookie);
 }
-line ::= EOL.
+
+line ::= EOL. /* do nothing for blank lines */
 
 /*
 line ::= error EOL. {
@@ -78,39 +95,38 @@ line ::= error. {
 
 
 label ::= IDENTIFIER(id) COLON. {
-	printf("label %s\n", id.string_value->c_str());
-	cookie->label = id.string_value;
+	cookie->scratch.label = id.string_value;
 }
 
 /* mvn or mvp  -- two parameters.*/
 opcode ::= OPCODE_2 expr(a) COMMA expr(b). {
-	cookie->operands[0] = a;
-	cookie->operands[1] = b;
+	cookie->scratch.operands[0] = a;
+	cookie->scratch.operands[1] = b;
 }
 
 opcode ::= OPCODE operand(op). {
-	cookie->operands[0] = op;
+	cookie->scratch.operands[0] = op;
 }
 
 %type operand {Expression *}
 
 /* implied */
 operand(rv) ::= . {
-	cookie->mode = implied;
+	cookie->scratch.mode = implied;
 	CopyExpression(rv, nullptr);
 }
 
 /* #immediate */
 operand(rv) ::= HASH expr(e). {
-	cookie->mode = immediate;
-	cookie->explicit_mode = true;
+	cookie->scratch.mode = immediate;
+	cookie->scratch.explicit_mode = true;
 	rv = e;
 }
 
 /* relative, abs, abslong, etc */
 operand(rv) ::= modifier(m) expr(e). {
-	cookie->mode = m;
-	cookie->explicit_mode = true;
+	cookie->scratch.mode = m;
+	cookie->scratch.explicit_mode = true;
 	rv = e;
 }
 
@@ -129,13 +145,13 @@ operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_X. {
 	case absolute: mode = absolute_x; break;
 	case absolute_long: mode = absolute_long_x; break;
 	}
-	cookie->explicit_mode = true;
-	cookie->mode = mode;
+	cookie->scratch.explicit_mode = true;
+	cookie->scratch.mode = mode;
 	rv = e;
 }
 
 operand(rv) ::= expr(e) COMMA REGISTER_X. {
-	cookie->mode = absolute_long_x;
+	cookie->scratch.mode = absolute_long_x;
 	rv = e;
 }
 
@@ -156,19 +172,19 @@ operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_Y. {
 
 	}
 
-	cookie->mode = mode;
-	cookie->explicit_mode = true;
+	cookie->scratch.mode = mode;
+	cookie->scratch.explicit_mode = true;
 	rv = e;
 }
 
 operand(rv) ::= expr(e) COMMA REGISTER_Y. {
-	cookie->mode = absolute_y;
+	cookie->scratch.mode = absolute_y;
 	rv = e;
 }
 
 /* (dp,x) (abs,x) */
 operand(rv) ::= LPAREN expr(e) COMMA REGISTER_X RPAREN. {
-	cookie->mode = absolute_indirect_x;
+	cookie->scratch.mode = absolute_indirect_x;
 	rv = e;
 }
 
@@ -187,8 +203,8 @@ operand(rv) ::= LPAREN modifier(m) expr(e) COMMA REGISTER_X RPAREN. {
 		break;
 	}
 
-	cookie->mode = mode;
-	cookie->explicit_mode = true;
+	cookie->scratch.mode = mode;
+	cookie->scratch.explicit_mode = true;
 	rv = e;
 }
 
@@ -196,7 +212,7 @@ operand(rv) ::= LPAREN modifier(m) expr(e) COMMA REGISTER_X RPAREN. {
 
 /* (dp) (abs) */
 operand(rv) ::= LPAREN expr(e) RPAREN. {
-	cookie->mode = absolute_indirect;
+	cookie->scratch.mode = absolute_indirect;
 	rv = e;
 }
 
@@ -216,13 +232,13 @@ operand(rv) ::= LPAREN modifier(m) expr(e) RPAREN COMMA REGISTER_Y. {
 		break;
 	}
 
-	cookie->mode = zp_indirect_y;
-	cookie->explicit_mode = true;
+	cookie->scratch.mode = zp_indirect_y;
+	cookie->scratch.explicit_mode = true;
 	rv = e;
 }
 
 operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Y. {
-	cookie->mode = zp_indirect_y;
+	cookie->scratch.mode = zp_indirect_y;
 	rv = e;
 }
 
@@ -232,13 +248,13 @@ operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Y. {
 /* sr,s */
 /* optional < ? */
 operand(rv) ::= expr(e) COMMA REGISTER_S. {
-	cookie->mode = stack_relative;
+	cookie->scratch.mode = stack_relative;
 	rv = e;
 }
 
 /* (sr,s),y */
 operand(rv) ::= LPAREN expr(e) COMMA REGISTER_S RPAREN COMMA REGISTER_Y. {
-	cookie->mode = stack_relative_y;
+	cookie->scratch.mode = stack_relative_y;
 	rv = e;
 }
 
@@ -258,13 +274,13 @@ operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET. {
 		break;
 	}
 
-	cookie->mode = mode;
-	cookie->explicit_mode = true;
+	cookie->scratch.mode = mode;
+	cookie->scratch.explicit_mode = true;
 	rv = e;
 }
 
 operand(rv) ::= LBRACKET expr(e) RBRACKET. {
-	cookie->mode = zp_indirect_long;
+	cookie->scratch.mode = zp_indirect_long;
 	rv = e;
 }
 
@@ -285,13 +301,13 @@ operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET COMMA REGISTER_Y. {
 		break;
 	}
 
-	cookie->mode = zp_indirect_long_y;
-	cookie->explicit_mode = true;
+	cookie->scratch.mode = zp_indirect_long_y;
+	cookie->scratch.explicit_mode = true;
 	rv = e;	
 }
 
 operand(rv) ::= LBRACKET expr(e) RBRACKET COMMA REGISTER_Y. {
-	cookie->mode = zp_indirect_long_y;
+	cookie->scratch.mode = zp_indirect_long_y;
 	rv = e;	
 }
 

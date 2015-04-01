@@ -88,6 +88,7 @@ namespace {
 
 
 	const char *line_start = nullptr;
+	const char *eof = nullptr;
 	unsigned line = 0;
 
 }
@@ -95,9 +96,9 @@ namespace {
 void *ParseAlloc(void *(*mallocProc)(size_t));
 void ParseFree(void *p, void (*freeProc)(void*));
 
-void Parse(void *yyp, int yymajor, Token yyminor, Line *cookie);
+void Parse(void *yyp, int yymajor, Token yyminor, Cookie *cookie);
 
-void Parse(void *yyp, int yymajor, const std::string &string_value, Line *cookie)
+void Parse(void *yyp, int yymajor, const std::string &string_value, Cookie *cookie)
 {
 	Token t;
 	t.line = line;
@@ -105,7 +106,7 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, Line *cookie
 	Parse(yyp, yymajor, t, cookie);
 }
 
-void Parse(void *yyp, int yymajor, uint32_t int_value, Line *cookie)
+void Parse(void *yyp, int yymajor, uint32_t int_value, Cookie *cookie)
 {
 	Token t;
 	t.line = line;
@@ -114,7 +115,7 @@ void Parse(void *yyp, int yymajor, uint32_t int_value, Line *cookie)
 }
 
 
-void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
+void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 {
 	Token t;
 	t.line = line;
@@ -128,8 +129,8 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 
 	action eol {
 
-			Parse(parser, tkEOL, 0, cookie);
-			Parse(parser, 0, 0, cookie);
+			Parse(parser, tkEOL, 0, &cookie);
+			Parse(parser, 0, 0, &cookie);
 
 			line_start = te;
 			ws = 0;
@@ -148,7 +149,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 
 		'\r'|'\n'|'\r\n' {
 			// slightly modified version of eol.
-			// Parse(parser, 0, 0, cookie); happens before we enter.
+			// Parse(parser, 0, 0, &cookie); happens before we enter.
 	
 			line++;
 			line_start = te;
@@ -173,7 +174,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 		# comments
 		'*' {
 			if (!ws) fgoto comment;
-			Parse(parser, tkSTAR, 0, cookie);
+			Parse(parser, tkSTAR, 0, &cookie);
 		};
 
 		';' {
@@ -181,77 +182,77 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 		};
 
 		# single-char ops
-		'(' { Parse(parser, tkLPAREN, 0, cookie); };
-		')' { Parse(parser, tkRPAREN, 0, cookie); };
-		'[' { Parse(parser, tkLBRACKET, 0, cookie); };
-		']' { Parse(parser, tkRBRACKET, 0, cookie); };
-		#'=' { Parse(parser, tkEQ, 0, cookie); };
-		'+' { Parse(parser, tkPLUS, 0, cookie); };
-		'-' { Parse(parser, tkMINUS, 0, cookie); };
-		'*' { Parse(parser, tkSTAR, 0, cookie); };
-		'/' { Parse(parser, tkSLASH, 0, cookie); };
-		'%' { Parse(parser, tkPERCENT, 0, cookie); };
-		'~' { Parse(parser, tkTILDE, 0, cookie); };
-		'!' { Parse(parser, tkBANG, 0, cookie); };
-		'^' { Parse(parser, tkCARET, 0, cookie); };
-		'&' { Parse(parser, tkAMP, 0, cookie); };
-		'|' { Parse(parser, tkPIPE, 0, cookie); };
-		'<' { Parse(parser, tkLT, 0, cookie); };
-		'>' { Parse(parser, tkGT, 0, cookie); };
-		'|' { Parse(parser, tkPIPE, 0, cookie); };
-		'#' { Parse(parser, tkHASH, 0, cookie); };
-		':' { Parse(parser, tkCOLON, 0, cookie); };
-		#'.' { Parse(parser, tkPERIOD, 0, cookie); };
-		',' { Parse(parser, tkCOMMA, 0, cookie); };
+		'(' { Parse(parser, tkLPAREN, 0, &cookie); };
+		')' { Parse(parser, tkRPAREN, 0, &cookie); };
+		'[' { Parse(parser, tkLBRACKET, 0, &cookie); };
+		']' { Parse(parser, tkRBRACKET, 0, &cookie); };
+		#'=' { Parse(parser, tkEQ, 0, &cookie); };
+		'+' { Parse(parser, tkPLUS, 0, &cookie); };
+		'-' { Parse(parser, tkMINUS, 0, &cookie); };
+		'*' { Parse(parser, tkSTAR, 0, &cookie); };
+		'/' { Parse(parser, tkSLASH, 0, &cookie); };
+		'%' { Parse(parser, tkPERCENT, 0, &cookie); };
+		'~' { Parse(parser, tkTILDE, 0, &cookie); };
+		'!' { Parse(parser, tkBANG, 0, &cookie); };
+		'^' { Parse(parser, tkCARET, 0, &cookie); };
+		'&' { Parse(parser, tkAMP, 0, &cookie); };
+		'|' { Parse(parser, tkPIPE, 0, &cookie); };
+		'<' { Parse(parser, tkLT, 0, &cookie); };
+		'>' { Parse(parser, tkGT, 0, &cookie); };
+		'|' { Parse(parser, tkPIPE, 0, &cookie); };
+		'#' { Parse(parser, tkHASH, 0, &cookie); };
+		':' { Parse(parser, tkCOLON, 0, &cookie); };
+		#'.' { Parse(parser, tkPERIOD, 0, &cookie); };
+		',' { Parse(parser, tkCOMMA, 0, &cookie); };
 
 		# dp-registers -- %t0, etc
 		'%' [ptv] digit+ {
 			unsigned type = ts[1];
 			unsigned number = scan10(ts+2, te);
 			dp_register dp = {type, number };
-			Parse(parser, tkDP_REGISTER, dp, cookie);
+			Parse(parser, tkDP_REGISTER, dp, &cookie);
 		};
 
 		# real registers
-		#'a'i { Parse(parser, tkREGISTER_A, 0, cookie); };
-		'x'i { Parse(parser, tkREGISTER_X, 0, cookie); };
-		'y'i { Parse(parser, tkREGISTER_Y, 0, cookie); };
-		's'i { Parse(parser, tkREGISTER_S, 0, cookie); };
+		#'a'i { Parse(parser, tkREGISTER_A, 0, &cookie); };
+		'x'i { Parse(parser, tkREGISTER_X, 0, &cookie); };
+		'y'i { Parse(parser, tkREGISTER_Y, 0, &cookie); };
+		's'i { Parse(parser, tkREGISTER_S, 0, &cookie); };
 
 		# numbers
 		'$' xdigit + {
 			uint32_t value = scan16(ts + 1, te);
-			Parse(parser, tkINTEGER, value, cookie);
+			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
 		'0x'i xdigit+ {
 			// hexadecimal
 			uint32_t value = scan16(ts + 2, te);
-			Parse(parser, tkINTEGER, value, cookie);
+			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
 		'0b'i [01]+ {
 			// binary
 			uint32_t value = scan2(ts + 2, te);
-			Parse(parser, tkINTEGER, value, cookie);
+			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
 		'%' [01]+ {
 			// binary
 			uint32_t value = scan2(ts + 1, te);
-			Parse(parser, tkINTEGER, value, cookie);
+			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
 		digit+ {
 			uint32_t value = scan10(ts, te);
-			Parse(parser, tkINTEGER, value, cookie);
+			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
 		['] [^']{1,4} ['] {
 			// 4 cc code
 
 			uint32_t value = scancc(ts + 1, te - 1);
-			Parse(parser, tkINTEGER, value, cookie);
+			Parse(parser, tkINTEGER, value, &cookie);
 
 		};
 
@@ -272,15 +273,15 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 			Instruction instr(m65816, s);
 			if (instr) {
 				// just insert the instruction directly into the cookie.
-				// since lemon doesn't like c++ that much.
+				// since it's easier than dealing with c++ unions.
 
-				cookie->instruction = instr;
+				cookie.scratch.instruction = instr;
 				unsigned tk = tkOPCODE;
 				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
 				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
-				Parse(parser, tk, 0, cookie);
+				Parse(parser, tk, 0, &cookie);
 			} else {
-				Parse(parser, tkIDENTIFIER, s, cookie);
+				Parse(parser, tkIDENTIFIER, s, &cookie);
 			}
 		};
 
@@ -288,7 +289,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 		any {
 			fprintf(stderr, "Unable to lex!\n");
 			// clear out the parser
-			Parse(parser, 0, 0, cookie);
+			Parse(parser, 0, 0, &cookie);
 			fgoto error;
 		};
 
@@ -299,14 +300,15 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 %% write data;
 
 void error(const std::string &s) {
-	fprintf(stderr, "Error: %s\n", s.c_str());
-	// todo -- add line, file etc.
-	// pretty-print with 
+	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
+
 	const char *p = line_start;
-	// eof should be global...
-	while (*p != '\r' && *p != '\n') {
-		fputc(*p++, stderr);
+	while (p != eof) {
+		char c = *p++;
+		if (c == '\r' || c == '\n') break;
+		fputc(c, stderr);
 	}
+
 	fprintf(stderr, "\n");
 }
 
@@ -318,8 +320,10 @@ bool parse_file(const std::string &filename)
 	int ok;
 
 	unsigned ws = 0;
-	Line *cookie = nullptr;
-	Line *prevLine = nullptr;
+
+	Cookie cookie;
+
+
 	const std::string *prevLabel;
 	void *parser;
 
@@ -348,7 +352,8 @@ bool parse_file(const std::string &filename)
 
 	const char *p = (const char *)buffer;
 	const char *pe = (const char *)buffer + st.st_size;
-	const char *eof = pe;
+	//const char *eof = pe;
+	eof = pe;
 	const char *ts;
 	const char *te;
 	int cs, act;
@@ -358,11 +363,10 @@ bool parse_file(const std::string &filename)
 
 	%% write init;
 	//
-	cookie = new Line;
 	%% write exec;
 
-	Parse(parser, tkEOL, 0, cookie);
-	Parse(parser, 0, 0, cookie);
+	Parse(parser, tkEOL, 0, &cookie);
+	Parse(parser, 0, 0, &cookie);
 	ParseFree(parser, free);
 
 	munmap(buffer, st.st_size);

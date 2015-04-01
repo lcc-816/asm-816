@@ -15,16 +15,6 @@ struct dp_register {
 };
 
 
-struct ScratchLine {
-	unsigned line = 0;
-
-	const std::string *label = nullptr;
-	Instruction instruction;
-	Expression *operands[2] = { nullptr };
-	AddressMode mode = kUndefinedAddressMode;
-	bool explicit_mode = false;
-};
-
 struct Token {
 	unsigned line;
 	union {
@@ -46,9 +36,9 @@ struct Line {
 
 	Expression *operands[2] = {0, 0};
 
-
 	// add these in later?
 	unsigned instruction_size = 0;
+	unsigned pc = 0;
 	unsigned mx = 0;
 
 	// other data... directive, etc?
@@ -56,5 +46,12 @@ struct Line {
 	Line *next = nullptr;
 };
 
+struct Cookie {
+
+	Line scratch;
+	Line *head = nullptr;
+	Line *tail = nullptr;
+
+};
 
 #endif
