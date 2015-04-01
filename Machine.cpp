@@ -8,9 +8,12 @@
 
 #include "Machine.h"
 
+#ifdef __OBJC__
 #include <Foundation/NSString.h>
 #include <CoreFoundation/CFString.h>
+#endif
 
+#include <cstddef>
 
 #include "gen-m-table.h"
 
@@ -81,6 +84,7 @@ const char *AddressModeToString(AddressMode mode)
     return NULL;
 }
 
+#ifdef __OBJC__
 NSString *AddressModeToNSString(AddressMode mode)
 {
     switch (mode)
@@ -146,8 +150,9 @@ NSString *AddressModeToNSString(AddressMode mode)
     }
     return NULL;
 }
+#endif
 
-
+#ifdef __COREFOUNDATION_CFSTRING__
 CFStringRef AddressModeToCFString(AddressMode mode)
 {
     switch (mode)
@@ -214,9 +219,9 @@ CFStringRef AddressModeToCFString(AddressMode mode)
     }
     return NULL;
 }
+#endif
 
-
-
+#ifdef __OBJC__
 NSString *HexTable[256] = {
 
     @"00", @"01", @"02", @"03", @"04", @"05", @"06", @"07", 
@@ -259,3 +264,4 @@ NSString *HexChars[16] = {
     @"8", @"9", @"A", @"B",
     @"C", @"D", @"E", @"F",
 };
+#endif

@@ -133,6 +133,7 @@ const char *MnemonicToString(Mnemonic mnemonic)
   return NULL;
 }
 
+#ifdef __COREFOUNDATION_CFSTRING__
 CFStringRef MnemonicToCFString(Mnemonic mnemonic)
 {
   switch(mnemonic)
@@ -265,7 +266,9 @@ CFStringRef MnemonicToCFString(Mnemonic mnemonic)
   }
   return NULL;
 }
+#endif
 
+#ifdef __OBJC__
 NSString *MnemonicToNSString(Mnemonic mnemonic)
 {
   switch(mnemonic)
@@ -398,3 +401,4 @@ NSString *MnemonicToNSString(Mnemonic mnemonic)
   }
   return nil;
 }
+#endif

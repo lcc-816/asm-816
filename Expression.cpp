@@ -43,6 +43,12 @@ Expression *Expression::Register(dp_register value) {
 	return e;
 }
 
+Expression *Expression::Variable(const std::string *value) {
+	Expression *e = new Expression(value);
+	Pool.push_back(e);
+	return e;
+}
+
 Expression *Expression::Unary(unsigned op, Expression *child) {
 	Expression *e = new Expression(op, child);
 

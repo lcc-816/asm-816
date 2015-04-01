@@ -61,6 +61,7 @@ public:
 		return false;
 	}
 
+	Expression *rename(const std::string *oldname, const std::string *newname);
 
 	Expression *simplify();
 	Expression *clone();
@@ -100,6 +101,10 @@ private:
 	Expression *simplify_binary();
 	Expression *clone_unary();
 	Expression *clone_binary();
+
+	Expression *rename_unary(const std::string *oldname, const std::string *newname);
+	Expression *rename_binary(const std::string *oldname, const std::string *newname);
+
 
 	expression_type _type = type_unknown;
 	Expression *children[2] = {0, 0};

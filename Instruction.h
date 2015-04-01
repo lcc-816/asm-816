@@ -11,6 +11,7 @@
 
 #include "Machine.h"
 
+#include <string>
 #include <stdint.h>
 
 #include "const_vector.h"

@@ -15,11 +15,24 @@ struct dp_register {
 };
 
 
+struct ScratchLine {
+	unsigned line = 0;
 
-union Token {
-	const std::string *string_value;
-	uint32_t int_value;
-	dp_register register_value;
+	const std::string *label = nullptr;
+	Instruction instruction;
+	Expression *operands[2] = { nullptr };
+	AddressMode mode = kUndefinedAddressMode;
+	bool explicit_mode = false;
+};
+
+struct Token {
+	unsigned line;
+	union {
+		const std::string *string_value;
+		uint32_t int_value;
+		dp_register register_value;
+		Mnemonic mnemonic_value;
+	};
 };
 
 struct Line {

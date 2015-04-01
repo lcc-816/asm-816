@@ -7,7 +7,9 @@
 //
 
 #include "Instruction.h"
+#ifdef __OBJC__
 #include <Foundation/NSString.h>
+#endif
 
 #include <utility>
 
@@ -387,6 +389,7 @@ unsigned Instruction::bytes(AddressMode addressMode, bool longM, bool longXY) co
     
 }
 
+#ifdef __OBJC__
 NSString *Instruction::formatOperand(uint32_t operand, AddressMode addressMode, uint16_t address, bool longM, bool longX)
 {
     unsigned b;
@@ -540,7 +543,7 @@ NSString *Instruction::formatOperand(uint32_t operand, AddressMode addressMode, 
     return nil;
     
 }
-
+#endif
 
 static uint_least32_t NameToInt(const char *cp)
 {
