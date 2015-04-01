@@ -85,6 +85,11 @@ namespace {
 		ht.emplace(h, sp);
 		return sp;
 	}
+
+
+	const char *line_start = nullptr;
+	unsigned line = 0;
+
 }
 
 void *ParseAlloc(void *(*mallocProc)(size_t));
@@ -95,6 +100,7 @@ void Parse(void *yyp, int yymajor, Token yyminor, Line *cookie);
 void Parse(void *yyp, int yymajor, const std::string &string_value, Line *cookie)
 {
 	Token t;
+	t.line = line;
 	t.string_value = intern(string_value);
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -102,6 +108,7 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, Line *cookie
 void Parse(void *yyp, int yymajor, uint32_t int_value, Line *cookie)
 {
 	Token t;
+	t.line = line;
 	t.int_value = int_value;
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -110,6 +117,7 @@ void Parse(void *yyp, int yymajor, uint32_t int_value, Line *cookie)
 void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 {
 	Token t;
+	t.line = line;
 	t.register_value = register_value;
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -119,14 +127,36 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 	machine lexer;
 
 	action eol {
-			line++;
-			ws = 0;
+
 			Parse(parser, tkEOL, 0, cookie);
+			Parse(parser, 0, 0, cookie);
+
+			line_start = te;
+			ws = 0;
+			line++;
+
 			fgoto main;
 	}
 
 	comment := |*
-		[\r|\n|\r\n] => eol;
+		'\r'|'\n'|'\r\n' => eol;
+
+		any {};
+	*|;
+
+	error := |*
+
+		'\r'|'\n'|'\r\n' {
+			// slightly modified version of eol.
+			// Parse(parser, 0, 0, cookie); happens before we enter.
+	
+			line++;
+			line_start = te;
+
+			ws = 0;
+			fgoto main;
+
+		};
 
 		any {};
 	*|;
@@ -134,7 +164,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 	main := |*
 
 		# white space
-		[\r|\n|\r\n] => eol;
+		'\r'|'\n'|'\r\n' => eol;
 
 		[\t ] {
 			ws++;
@@ -255,12 +285,30 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Line *cookie)
 		};
 
 
+		any {
+			fprintf(stderr, "Unable to lex!\n");
+			// clear out the parser
+			Parse(parser, 0, 0, cookie);
+			fgoto error;
+		};
 
 	*|;
 }%%
 
 
 %% write data;
+
+void error(const std::string &s) {
+	fprintf(stderr, "Error: %s\n", s.c_str());
+	// todo -- add line, file etc.
+	// pretty-print with 
+	const char *p = line_start;
+	// eof should be global...
+	while (*p != '\r' && *p != '\n') {
+		fputc(*p++, stderr);
+	}
+	fprintf(stderr, "\n");
+}
 
 bool parse_file(const std::string &filename)
 {
@@ -269,10 +317,9 @@ bool parse_file(const std::string &filename)
 	void *buffer;
 	int ok;
 
-	unsigned line = 1;
 	unsigned ws = 0;
-	Line *cookie;
-	Line *prevLine;
+	Line *cookie = nullptr;
+	Line *prevLine = nullptr;
 	const std::string *prevLabel;
 	void *parser;
 
@@ -306,10 +353,15 @@ bool parse_file(const std::string &filename)
 	const char *te;
 	int cs, act;
 
+	line_start = p;
+	line = 1;
+
 	%% write init;
 	//
+	cookie = new Line;
 	%% write exec;
 
+	Parse(parser, tkEOL, 0, cookie);
 	Parse(parser, 0, 0, cookie);
 	ParseFree(parser, free);
 

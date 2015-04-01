@@ -16,7 +16,7 @@
 	extern void warn(const std::string &);
 
 
-
+	static ScratchLine scratch;
 
 #define CopyExpression(a, b) a = b
 }
@@ -38,17 +38,47 @@
 %left STAR SLASH PERCENT.
 %right BANG TILDE.
 
+%parse_failure {
+	error("parse error");
+	scratch = ScratchLine();
+}
+
+%parse_accept {
+	printf("parsing complete!\n");
+
+	scratch = ScratchLine();
+}
 
 
+line ::= label EOL. {
 
-line ::= label EOL.
-line ::= label opcode EOL.
-line ::= opcode EOL.
+	// add to list...
+}
+
+line ::= label opcode EOL. {
+
+}
+
+line ::= opcode EOL. {
+	
+}
 line ::= EOL.
 
+/*
+line ::= error EOL. {
+	
+	fprintf(stderr, "error encountered\n");
+}
+
+line ::= error. {
+	
+	fprintf(stderr, "error encountered\n");
+}
+*/
 
 
 label ::= IDENTIFIER(id) COLON. {
+	printf("label %s\n", id.string_value->c_str());
 	cookie->label = id.string_value;
 }
 
