@@ -14,6 +14,10 @@ struct dp_register {
 	unsigned number;
 };
 
+bool operator==(const dp_register &a, const dp_register &b) {
+	return a.type == b.type && a.number == b.number;
+}
+
 
 struct Token {
 	unsigned line;

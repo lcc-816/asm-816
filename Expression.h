@@ -62,6 +62,15 @@ public:
 	}
 
 	Expression *rename(const std::string *oldname, const std::string *newname);
+	Expression *rename(dp_register oldreg, dp_register newreg);
+
+	// currently, register is top-level only -- not part of an expression.
+
+	/*
+	 * void collect_variables(variable_set);
+	 * void collect_registers(register_set); //?
+	 */
+
 
 	Expression *simplify();
 	Expression *clone();

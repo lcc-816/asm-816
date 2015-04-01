@@ -312,7 +312,7 @@ void error(const std::string &s) {
 	fprintf(stderr, "\n");
 }
 
-bool parse_file(const std::string &filename)
+Line *parse_file(const std::string &filename)
 {
 	int fd;
 	struct stat st;
@@ -330,21 +330,21 @@ bool parse_file(const std::string &filename)
 	fd = open(filename.c_str(), O_RDONLY);
 	if (fd < 0) {
 		fprintf(stderr, "Unable to open file `%s' : %s\n", filename.c_str(), strerror(errno));
-		return false;
+		return nullptr;
 	}
 
 	ok = fstat(fd, &st);
 	if (ok < 0) {
 		fprintf(stderr, "Unable to fstat file `%s' : %s\n", filename.c_str(), strerror(errno));
 		close(fd);
-		return false;
+		return nullptr;
 	}
 
 	buffer = mmap(nullptr, st.st_size, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
 	if (buffer == MAP_FAILED) {
 		fprintf(stderr, "Unable to mmap file `%s' : %s\n", filename.c_str(), strerror(errno));
 		close(fd);
-		return false;
+		return nullptr;
 	}
 	close(fd);
 
@@ -370,6 +370,6 @@ bool parse_file(const std::string &filename)
 	ParseFree(parser, free);
 
 	munmap(buffer, st.st_size);
-	return true;
+	return cookie.head;
 
 }
