@@ -566,7 +566,7 @@ Instruction Instruction::m65816_instructions[] = {
      | 1 << absolute_long_x | 1 << immediate | 1 << stack_relative | 1 << zp
      | 1 << zp_x | 1 << zp_indirect_long | 1 << zp_indirect_long_y),
   Instruction(m65816, PEA, 1 << absolute),
-  Instruction(m65816, PEI, 1 << zp),
+  Instruction(m65816, PEI, 1 << zp_indirect),
   Instruction(m65816, PER, 1 << relative),
   Instruction(m65816, PHA, 1 << implied),
   Instruction(m65816, PHB, 1 << implied),
@@ -604,8 +604,7 @@ Instruction Instruction::m65816_instructions[] = {
   Instruction(m65816, STP, 1 << implied),
   Instruction(m65816, STX, 1 << absolute | 1 << zp | 1 << zp_y),
   Instruction(m65816, STY, 1 << absolute | 1 << zp | 1 << zp_x),
-  Instruction(m65816, STZ, 1 << absolute | 1 << absolute_x | 1 << zp | 1 << zp_x
-    ),
+  Instruction(m65816, STZ, 1 << absolute | 1 << absolute_x | 1 << zp | 1 << zp_x),
   Instruction(m65816, TAX, 1 << implied),
   Instruction(m65816, TAY, 1 << implied),
   Instruction(m65816, TCD, 1 << implied),

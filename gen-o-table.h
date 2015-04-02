@@ -1249,7 +1249,7 @@ OpCode OpCode::m65816_opcodes[256] = {
   OpCode(0xD1, m65816, CMP, zp_indirect_y, 2, 5),
   OpCode(0xD2, m65816, CMP, zp_indirect, 2, 5),
   OpCode(0xD3, m65816, CMP, stack_relative_y, 2, 7),
-  OpCode(0xD4, m65816, PEI, zp, 2, 6),
+  OpCode(0xD4, m65816, PEI, zp_indirect, 2, 6),
   OpCode(0xD5, m65816, CMP, zp_x, 2, 4),
   OpCode(0xD6, m65816, DEC, zp_x, 2, 6),
   OpCode(0xD7, m65816, CMP, zp_indirect_long_y, 2, 6),

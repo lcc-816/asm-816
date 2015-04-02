@@ -123,11 +123,19 @@ bool Instruction::coerce(Instruction &instruction, AddressMode &addressMode, boo
         }
         else if (mnemonic == PEI)
         {
-            // todo -- zp_indirect is actually the /correct/ form.
-            if (addressMode == zp_indirect || absolute_indirect)
+            // zp_indirect is actually the /correct/ form.
+            if (addressMode == zp)
             {
-                addressMode = zp;
+                addressMode = zp_indirect;
                 return true;
+            }
+            if (!explicitAddress)
+            {
+                if (addressMode == absolute || addressMode == absolute_long)
+                {
+                    addressMode = zp_indirect;
+                    return true;
+                }
             }
         }
     }
