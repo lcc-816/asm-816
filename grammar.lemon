@@ -52,7 +52,88 @@
 
 %include {
 
+	bool is_zp(AddressMode mode) {
+		switch(mode)
+		{
+		case zp:
+		case zp_x:
+		case zp_y:
+		case zp_indirect:
+		case zp_indirect_x:
+		case zp_indirect_y:
+		case zp_relative: // bbr/bbs
+		case zp_indirect_long:
+		case zp_indirect_long_y:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	AddressMode to_zp(AddressMode mode) {
+		switch(mode)
+		{
+		case absolute_long:
+		case absolute:
+			return zp;
+
+		case absolute_long_x:
+		case absolute_x:
+			return zp_x;
+
+		case absolute_y:
+			return zp_y;
+
+		case absolute_indirect:
+			return zp_indirect;
+
+		case absolute_indirect_x:
+			return zp_indirect_x;
+
+		case absolute_indirect_long:
+			return zp_indirect_long;
+
+			default:
+				return mode;
+		}
+	}
+
 	static void AddLine(Cookie *cookie) {
+
+
+		Line &scratch = cookie->scratch;
+
+		// 1. verify address mode.
+		if (scratch.instruction) {
+
+			Expression *e = scratch.operands[0];
+
+			// dp_register is #immediate or <zp only.
+			// immediate is explicit, though.
+
+			if (e && e->is_register() && scratch.mode != immediate) {
+				if (!is_zp(scratch.mode)) {
+					if (scratch.explicit_mode) {
+						error("Invalid address mode for dp register.");
+					} else {
+						scratch.mode = to_zp(scratch.mode);
+					}
+				}
+			}
+
+
+			bool ok = Instruction::coerce(scratch.instruction, 
+				scratch.mode,  scratch.explicit_mode);
+
+			if (!ok) {
+				error("Invalid address mode for this instruction.");
+				return;
+			}
+
+		}
+
+
+
 		Line *tmp = new Line(cookie->scratch);
 		cookie->scratch = Line();
 
@@ -66,7 +147,6 @@
 }
 
 line ::= label EOL. {
-
 	// add to list...
 	AddLine(cookie);
 }
@@ -110,10 +190,17 @@ opcode ::= OPCODE operand(op). {
 
 %type operand {Expression *}
 
+%include {
+	
+
+}
+
+
 /* implied */
 operand(rv) ::= . {
 	cookie->scratch.mode = implied;
-	CopyExpression(rv, nullptr);
+	cookie->scratch.explicit_mode = true;
+	rv = nullptr;
 }
 
 /* #immediate */
@@ -130,7 +217,10 @@ operand(rv) ::= modifier(m) expr(e). {
 	rv = e;
 }
 
-operand(rv) ::= expr(a). { rv = a; }
+operand(rv) ::= expr(e). { 
+	cookie->scratch.mode = absolute_long;
+	rv = e;
+}
 
 /* dp,x abs, x abslong,x etc */
 operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_X. {
