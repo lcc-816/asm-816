@@ -25,6 +25,8 @@ void simplify(Line *line) {
 	}
 }
 
+Line *peephole(Line *line);
+#if 0
 void peephole(Line *line) {
 
 	// remove
@@ -162,6 +164,7 @@ void peephole(Line *line) {
 	}
 
 }
+#endif
 
 
 void print(Line *line) {
@@ -196,7 +199,7 @@ int main(int argc, char **argv) {
 		if (line) {
 			simplify(line);
 			print(line);
-			peephole(line);
+			line = peephole(line);
 			print(line);
 		}
 	}
