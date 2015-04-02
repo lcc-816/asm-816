@@ -42,6 +42,80 @@ void peephole(Line *line) {
 
 		if (instr) {
 
+			// todo -- create DSL for these.
+
+			// these could be generated from __builtin functions.
+
+			/*
+			 *   pea xxx
+			 *   pla
+			 *   ---
+			 *   lda #xxx
+			 */
+			if (instr.mnemonic() == PEA && nextInstr.mnemonic() == PLA) {
+				line->instruction = Instruction(instr.machine(), LDA);
+				line->mode = immediate;
+				line->explicit_mode = true;
+				line->next = next->next;
+				delete next;
+				continue;
+			}
+
+			/*
+			 *  pha
+			 *  pla
+			 *  ---
+			 *  (nop)
+			 */
+
+			 if (instr.mnemonic() == PHA && nextInstr.mnemonic() == PLA) {
+			 	Line *nn = next->next;
+
+			 	prev->next = nn;
+			 	delete line;
+			 	delete next;
+			 	line = nn;
+			 	continue;
+			 }
+
+
+			/*
+			 *  pei xxx
+			 *  pla
+			 *  ---
+			 *  lda <xxx
+			 */
+
+			if (instr.mnemonic() == PEI && nextInstr.mnemonic() == PLA) {
+				line->instruction = Instruction(instr.machine(), LDA);
+				line->mode = zp;
+				line->explicit_mode = true;
+
+				line->next = next->next;
+				delete next;
+				continue;
+			}
+
+			/*
+			 *  lda #const
+			 *  xba
+			 *  ---
+			 *  lda #(swapped const)
+			 *  // nb -- affects cc bits?
+			 */
+
+			if (instr.mnemonic() == LDA && line->mode == immediate && nextInstr.mnemonic() == XBA) {
+				// only if expression is integer...
+				uint32_t i;
+				if (line->operands[0]->is_integer(i)) {
+
+					line->operands[0] = Expression::Integer((i >> 8) | (i << 8));
+					line->next = next->next;
+					delete next;
+					continue;
+				}
+			}
+
 
 			/*
 			 *          (BRA|BRL) label
