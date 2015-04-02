@@ -97,7 +97,10 @@ void print(Line *line) {
 		if (line->label) { printf("%s:\n", line->label->c_str()); }
 
 		if (line->instruction) {
-			printf("    %s\n", line->instruction.toString());
+			printf("    %s %s\n", 
+				line->instruction.toString(), 
+				AddressModeToString(line->mode)
+			);
 		}
 
 		line = line->next;
