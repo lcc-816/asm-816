@@ -1,0 +1,7 @@
+*.o
+*.d
+grammar.cpp
+grammar.h
+grammar.out
+lexer.cpp
+

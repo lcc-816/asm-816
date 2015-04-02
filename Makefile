@@ -1,12 +1,17 @@
 CXX = clang++
-CXXFLAGS = -std=c++11 -stdlib=libc++ -g
-OBJECTS = main.o lexer.o grammar.o Expression.o Instruction.o Machine.o
+CXXFLAGS = -std=c++11 -stdlib=libc++ -g -MMD
 
-asm816: $(OBJECTS)
+SRC = main.cpp lexer.cpp grammar.cpp Expression.cpp Instruction.cpp Machine.cpp
+OBJ = $(SRC:.cpp=.o)
+DEP = $(SRC:.cpp=.d)
+
+asm816: $(OBJ)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
+-include $(DEP)
+
 clean:
-	$(RM) $(OBJECTS) grammar.cpp lexer.cpp
+	$(RM) $(OBJ) $(DEP) grammar.cpp lexer.cpp
 
 lexer.cpp: lexer.rl
 	ragel -G1 -L -C $^ -o $@
