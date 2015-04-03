@@ -1,4 +1,6 @@
 
+#include <array>
+
 #include "common.h"
 #include "Instruction.h"
 #include "Machine.h"
@@ -192,3 +194,112 @@ Line *peephole(Line *head) {
 
 	return newHead;
 }
+
+/*
+
+enum {
+	match_fail,
+	match_nop,
+	match_delete,
+} match_type;
+
+// helper function that checks return type?
+
+template<unsigned Size, class FX>
+std::enable_if< std::is_same<Line *, std::result_of<fx(Line *[Size])>::type > >::type
+invoke(std::deque<Line *> &dq, Lines *lines[Size]) {
+	Line *line = fx(lines);
+	if (line) {
+		for (unsigned i = 0; i < Size; ++i) {
+			delete dq.front();
+			dq.pop_front();
+		}
+		dq.push_front(line);
+		return true;
+	}
+	return false;
+}
+
+template<unsigned Size, class FX>
+std::enable_if< std::is_same<match_type, std::result_of<fx(Line *[Size])>::type > >::type
+invoke(std::deque<Line *> &dq, Lines *lines[Size]) {
+	match_type mt = fx(lines);
+	switch (mt)
+	{
+	case match_nop:
+		return true;
+	case match_fail:
+		return false;
+	case match_delete:
+		for (unsigned i = 0; i < Size; ++i) {
+			delete dq.front();
+			dq.pop_front();
+		}
+		return true;	
+	}
+}
+
+bool match(std::deque<Line> &dq, Mnemonic m1, Mnemonic m2, FX fx){
+	const Size = 2;
+	if (lines.size() < 2) return false;
+
+	Lines *lines[Size] = {};
+	Mnemonic mm[Size] = { m1, m2};
+
+	for (unsigned i = 0; i < Size; ++i) {
+		lines[i] = dq[i];
+		if (lines[i]->instruction.mnemonic() != mm[i]) return false;
+	}
+
+	auto st = fx(dq, lines);
+	if (st == match_nop) return true;
+	if (st == match_delete) {
+		for (unsigned i = 0; i < Size; ++i) {
+			delete lines[i];
+			dq.pop_front();
+		}
+		return true;
+	}
+
+	if (st == match_fail) return false;
+	return false;
+}
+
+std::deque<Line> peephole(std::deque<Line> dq) {
+	
+	std::deque<Line> out;
+
+	while(!dq.empty()) {
+
+
+		if (match(dq, PHA, PLA [&lines](){
+			return match_delete;
+		})) continue;
+
+		if (match(line, PEA, PLA, [](Line *a, Line *b){
+
+			Line *ll = new Line;
+			ll->instruction = Instruction(m65816, LDA);
+			ll->operands[0] = a->operands[0];
+			ll->address_mode = immediate;
+			ll->explicit_mode = true;
+			return ll;
+		})) continue;
+
+		if (match(line, PEI, PLA, [](Line *lines[2]){
+			Line *ll = new Line;
+			//...
+			return ll;
+		})) continue;
+
+
+		Line line = dq.front();
+		dq.pop_front();
+		out.push_back(line);
+	}
+
+	return out;
+}
+
+*/
+
