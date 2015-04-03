@@ -6,12 +6,31 @@
 #include <algorithm>
 #include <memory>
 
+#include <cstdio>
+
 #include "Expression.h"
 
 namespace {
 
 	std::deque<Expression *> Pool;
 
+	std::string to_string(uint32_t value)
+	{
+		char buffer[10] = {0};
+		if (value <= 0xffff) {
+			snprintf(buffer, sizeof(buffer), "$%04x", value);
+		} else {
+			snprintf(buffer, sizeof(buffer), "$%08x", value);			
+		}
+		return buffer;
+	}
+
+	std::string to_string(dp_register reg) {
+		char buffer[10] = {0};
+
+		snprintf(buffer, sizeof(buffer), "%%%c%u", reg.type, reg.number);
+		return buffer;
+	}
 }
 
 
@@ -141,6 +160,51 @@ Expression *Expression::clone_unary() {
 Expression *Expression::clone_binary() {
 	return Expression::Binary(op, children[0]->clone(), children[1]->clone());
 }
+
+
+std::string Expression::to_string() const {
+
+	switch(_type)
+	{
+		case type_binary:
+			return to_string_binary();
+		case type_unary:
+			return to_string_unary();
+		case type_pc:
+			return "*";
+		case type_integer:
+			return ::to_string(int_value);
+		case type_variable:
+			return *string_value;
+		case type_register:
+			return ::to_string(register_value);
+		default:
+			return "";
+	}
+
+}
+
+std::string Expression::to_string_unary() const {
+	std::string rv;
+
+	rv.push_back(op);
+	rv.append(children[0]->to_string());
+	
+	return rv;
+}
+
+std::string Expression::to_string_binary() const {
+	std::string rv;
+	
+	// doesn't handle () precedence. 
+	// (but neither does the parser)
+	rv.append(children[0]->to_string());
+	rv.push_back(op);
+	rv.append(children[1]->to_string());
+
+	return rv;
+}
+
 
 #if 0
 Expression *Expression::evaluate(uint32_t pc, const varmap &map) {

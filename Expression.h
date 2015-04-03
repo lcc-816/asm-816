@@ -3,6 +3,7 @@
 #define __expression_h__
 
 #include "common.h"
+enum AddressMode;
 
 class Expression {
 
@@ -75,6 +76,7 @@ public:
 	Expression *simplify();
 	Expression *clone();
 
+	std::string to_string() const;
 
 
 protected:
@@ -113,6 +115,10 @@ private:
 
 	Expression *rename_unary(const std::string *oldname, const std::string *newname);
 	Expression *rename_binary(const std::string *oldname, const std::string *newname);
+
+
+	std::string to_string_unary() const;
+	std::string to_string_binary() const;
 
 
 	expression_type _type = type_unknown;
