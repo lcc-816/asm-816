@@ -59,6 +59,14 @@ public:
         return _data + _length;
     }
     
+
+    T *front() const {
+        return _data[0];
+    }
+
+    T *back() const {
+        return _data[_length - 1];
+    }
 };
 
 
