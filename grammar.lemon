@@ -53,8 +53,7 @@
 %include {
 
 	bool is_zp(AddressMode mode) {
-		switch(mode)
-		{
+		switch(mode) {
 		case zp:
 		case zp_x:
 		case zp_y:
@@ -71,8 +70,7 @@
 	}
 
 	AddressMode to_zp(AddressMode mode) {
-		switch(mode)
-		{
+		switch(mode) {
 		case absolute_long:
 		case absolute:
 			return zp;
@@ -98,10 +96,47 @@
 		}
 	}
 
+	AddressMode to_abs(AddressMode mode) {
+		switch(mode) {
+
+		case zp:
+		case absolute_long:
+			return absolute;
+
+		case zp_x:
+		case absolute_long_x:
+			return absolute_x;
+
+		case zp_y:
+			return absolute_y;
+
+		case zp_indirect:
+			return absolute_indirect;
+
+		case zp_indirect_x:
+			return absolute_indirect_x;
+
+		case zp_indirect_long:
+			return absolute_indirect_long;
+
+
+		default:
+			return mode;
+		}
+	}
+
+
 	static void AddLine(Cookie *cookie) {
 
 
 		Line &scratch = cookie->scratch;
+
+		if (scratch.operands[0]) 
+			scratch.operands[0] = scratch.operands[0]->simplify();
+
+		if (scratch.operands[1]) 
+			scratch.operands[1] = scratch.operands[1]->simplify();
+
 
 		// 1. verify address mode.
 		if (scratch.instruction) {
@@ -121,6 +156,14 @@
 				}
 			}
 
+			// numeric arguments < 256 should be direct page.
+			// immediate and implied have explicit_mode set.
+			uint32_t value;
+			if (!scratch.explicit_mode && scratch.operands[0]->is_integer(value)) {
+				if (value >= 0 && value <= 256) {
+					scratch.mode = to_zp(scratch.mode);
+				}
+			}
 
 			bool ok = Instruction::coerce(scratch.instruction, 
 				scratch.mode,  scratch.explicit_mode);
@@ -180,6 +223,16 @@ label ::= IDENTIFIER(id) COLON. {
 
 /* mvn or mvp  -- two parameters.*/
 opcode ::= OPCODE_2 expr(a) COMMA expr(b). {
+
+	if (cookie->scratch.instruction.hasAddressMode(block)) {
+		cookie->scratch.mode = block;
+	}
+
+	if (cookie->scratch.instruction.hasAddressMode(zp_relative)) {
+		cookie->scratch.mode = zp_relative;
+	}
+
+
 	cookie->scratch.operands[0] = a;
 	cookie->scratch.operands[1] = b;
 }
