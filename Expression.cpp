@@ -17,8 +17,12 @@ namespace {
 	std::string to_string(uint32_t value)
 	{
 		char buffer[10] = {0};
-		if (value <= 0xffff) {
+		if (value <= 0xff) {
+			snprintf(buffer, sizeof(buffer), "$%02x", value);			
+		} else if (value <= 0xffff) {
 			snprintf(buffer, sizeof(buffer), "$%04x", value);
+		} else if (value <= 0xffffff) {
+			snprintf(buffer, sizeof(buffer), "$%06x", value);			
 		} else {
 			snprintf(buffer, sizeof(buffer), "$%08x", value);			
 		}
@@ -189,7 +193,7 @@ std::string Expression::to_string_unary() const {
 
 	rv.push_back(op);
 	rv.append(children[0]->to_string());
-	
+
 	return rv;
 }
 
