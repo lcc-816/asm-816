@@ -1,7 +1,9 @@
 CXX = clang++
 CXXFLAGS = -std=c++11 -stdlib=libc++ -g -MMD
 
-SRC = grammar.cpp main.cpp lexer.cpp peephole.cpp Expression.cpp Instruction.cpp Machine.cpp
+SRC = grammar.cpp main.cpp lexer.cpp peephole.cpp Expression.cpp Instruction.cpp Machine.cpp \
+	register_set.cpp
+
 OBJ = $(SRC:.cpp=.o)
 DEP = $(SRC:.cpp=.d)
 
