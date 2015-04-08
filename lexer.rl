@@ -14,7 +14,7 @@
 
 #include "Machine.h"
 #include "Instruction.h"
-#include "Opcode.h"
+#include "OpCode.h"
 #include "Expression.h"
 #include "common.h"
 #include "grammar.h"

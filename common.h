@@ -12,10 +12,17 @@ class Expression;
 struct dp_register {
 	unsigned type;
 	unsigned number;
+
 };
+
 
 inline bool operator==(const dp_register &a, const dp_register &b) {
 	return a.type == b.type && a.number == b.number;
+}
+
+inline dp_register operator+(dp_register r, int i) {
+	r.number += i;
+	return r;
 }
 
 
