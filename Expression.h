@@ -3,6 +3,9 @@
 #define __expression_h__
 
 #include "common.h"
+#include <string>
+#include <vector>
+
 enum AddressMode;
 
 class Expression {
@@ -14,6 +17,8 @@ public:
 	static Expression *Variable(const std::string *name);
 	static Expression *Unary(unsigned op, Expression *a);
 	static Expression *Binary(unsigned op, Expression *a, Expression *b);
+	static Expression *Vector(Expression *child);
+	static Expression *Vector(Expression **children, unsigned count);
 
 	static void ErasePool();
 
@@ -25,6 +30,7 @@ public:
 		type_variable,
 		type_unary,
 		type_binary,
+		type_vector,
 	};
 
 	expression_type type() const {
@@ -37,6 +43,7 @@ public:
 	bool is_unary() const { return _type == type_unary; }
 	bool is_binary() const { return _type == type_binary; }
 	bool is_pc() const { return _type == type_pc; }
+	bool is_vector() const {return _type == type_vector; }
 
 	bool is_integer(uint32_t &rv) {
 		if (_type == type_integer) {
@@ -61,6 +68,17 @@ public:
 		}
 		return false;
 	}
+
+	bool is_vector(std::vector<Expression *> &rv) {
+		if (_type == type_vector) {
+			rv = vector_value;
+			return true;
+		}
+		rv.clear();
+		return false;
+	}
+
+	Expression *append(Expression *child);
 
 	Expression *rename(const std::string *oldname, const std::string *newname);
 	Expression *rename(dp_register oldreg, dp_register newreg);
@@ -104,22 +122,31 @@ protected:
 		_type(type_binary), children{a, b}
 	{}
 
-	~Expression() {}
+	~Expression() {
+		if (_type == type_vector) {
+			vector_value.~vector();
+		}
+	}
 
 private:
 
+	void append_vector_element(Expression *);
+
 	Expression *simplify_unary();
 	Expression *simplify_binary();
+	Expression *simplify_vector();
+
 	Expression *clone_unary();
 	Expression *clone_binary();
+	Expression *clone_vector();
 
 	Expression *rename_unary(const std::string *oldname, const std::string *newname);
 	Expression *rename_binary(const std::string *oldname, const std::string *newname);
-
+	Expression *rename_vector(const std::string *oldname, const std::string *newname);
 
 	std::string to_string_unary() const;
 	std::string to_string_binary() const;
-
+	std::string to_string_vector() const;
 
 	expression_type _type = type_unknown;
 	Expression *children[2] = {0, 0};
@@ -128,6 +155,8 @@ private:
 		unsigned op;
 		uint32_t int_value;
 		dp_register register_value;
+		std::vector<Expression *> vector_value;
+
 	};
 };
 
