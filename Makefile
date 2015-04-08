@@ -1,5 +1,18 @@
+
+OS := $(shell uname -s)
+
+
+ifeq ($(OS),Linux)
+CXX = g++
+CXXFLAGS = -std=c++11 -g -MMD
+endif
+
+
+ifeq ($(OS),Darwin)
 CXX = clang++
 CXXFLAGS = -std=c++11 -stdlib=libc++ -g -MMD
+endif
+
 
 SRC = grammar.cpp main.cpp lexer.cpp peephole.cpp Expression.cpp Instruction.cpp Machine.cpp \
 	register_set.cpp classify.cpp
