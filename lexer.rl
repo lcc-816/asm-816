@@ -5,6 +5,7 @@
 
 #include <cctype>
 #include <cerrno>
+#include <cstring>
 
 #include <unistd.h>
 #include <fcntl.h>
