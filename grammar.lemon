@@ -50,6 +50,14 @@
 	cookie->scratch = Line();
 }
 
+%syntax_error {
+	error("parse error.");
+	// todo -- flag the line?
+	// error should prevent further processing, anyhow.
+}
+
+
+
 %include {
 
 	bool is_zp(AddressMode mode) {
@@ -239,6 +247,35 @@ opcode ::= OPCODE_2 expr(a) COMMA expr(b). {
 
 opcode ::= OPCODE operand(op). {
 	cookie->scratch.operands[0] = op;
+}
+
+/* dc.b expression [, expression] */
+
+opcode ::= DCB expr_list(list). {
+	cookie->scratch.directive = DCB;
+	cookie->scratch.operands[0] = list;	
+}
+
+opcode ::= DCW expr_list(list). {
+	cookie->scratch.directive = DCW;
+	cookie->scratch.operands[0] = list;	
+}
+
+opcode ::= DCL expr_list(list). {
+	cookie->scratch.directive = DCL;
+	cookie->scratch.operands[0] = list;	
+}
+
+%type expr_list {Expression *}
+
+expr_list(rv) ::= expr(e). {
+	Expression *tmp = Expression::Vector(e);
+	rv = tmp;
+}
+
+expr_list(rv) ::= expr_list(l) COMMA expr(e). {
+	l->append(e);
+	rv = l;
 }
 
 %type operand {Expression *}

@@ -15,6 +15,12 @@ struct dp_register {
 
 };
 
+enum Directive {
+	kUndefinedDirective = 0,
+	DCB,
+	DCW,
+	DCL
+};
 
 inline bool operator==(const dp_register &a, const dp_register &b) {
 	return a.type == b.type && a.number == b.number;
@@ -40,6 +46,7 @@ struct Line {
 
 	// Line data..
 	const std::string *label = nullptr;
+	Directive directive = kUndefinedDirective;
 
 	Instruction instruction;
 	AddressMode mode = kUndefinedAddressMode;

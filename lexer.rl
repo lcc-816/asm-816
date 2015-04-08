@@ -263,6 +263,22 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			// @ is appended to the current label.
 		};
 
+		# todo -- separate .b / .l / .w tokens?
+		'dc.b'i {
+			//std::string s(ts, te);
+			Parse(parser, tkDCB, 0, &cookie);
+		};
+
+		'dc.w'i {
+			//std::string s(ts, te);
+			Parse(parser, tkDCW, 0, &cookie);
+		};
+
+		'dc.l'i {
+			//std::string s(ts, te);
+			Parse(parser, tkDCL, 0, &cookie);
+		};
+
 
 		[A-Za-z_][A-Za-z0-9_]* {
 			// this may be a label or an opcode...

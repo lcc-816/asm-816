@@ -174,6 +174,14 @@ void print(Line *line) {
 
 		if (line->label) { printf("%s:\n", line->label->c_str()); }
 
+		if (line->directive) {
+			std::string s;
+			if (line->operands[0]) {
+				s = line->operands[0]->to_string();
+			}
+			printf("\t dc.x %s\n", s.c_str());
+		}
+
 		if (line->instruction) {
 			std::string op;
 			AddressMode mode = line->mode;
@@ -322,8 +330,10 @@ int main(int argc, char **argv) {
 		if (line) {
 			simplify(line);
 			print(line);
+			printf("-------\n");
 			line = peephole(line);
 			print(line);
+			printf("-------\n");
 		}
 	}
 
