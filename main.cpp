@@ -184,6 +184,8 @@ void print(const LineQueue &lines) {
 	}
 }
 
+void peephole(LineQueue &);
+
 int main(int argc, char **argv) {
 
 	int c;
@@ -203,7 +205,7 @@ int main(int argc, char **argv) {
 			simplify(lines);
 			print(lines);
 			printf("-------\n");
-			//line = peephole(lines);
+			peephole(lines);
 			print(lines);
 			printf("-------\n");
 		}

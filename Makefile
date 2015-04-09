@@ -15,7 +15,7 @@ endif
 
 
 SRC = grammar.cpp main.cpp lexer.cpp Expression.cpp Instruction.cpp Machine.cpp OpCode.cpp \
-	register_set.cpp classify.cpp # peephole.cpp
+	register_set.cpp classify.cpp peephole.cpp
 
 OBJ = $(SRC:.cpp=.o)
 DEP = $(SRC:.cpp=.d)
