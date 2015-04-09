@@ -356,3 +356,38 @@ Expression *Expression::append(Expression *child) {
 	Expression *children[2] = {this, child};
 	return Expression::Vector(children, 2);
 }
+
+#pragma mark - collect_variables
+
+std::vector<const std::string *> Expression::collect_variables() {
+	std::vector<const std::string *> rv;
+	collect_variables(rv);
+	return rv;
+}
+
+
+void Expression::collect_variables(std::vector<const std::string *> &v) {
+	switch(_type) {
+		case type_unary: collect_variables_unary(v); break;
+		case type_binary: collect_variables_binary(v); break;
+		case type_vector: collect_variables_vector(v); break;
+		case type_variable: v.push_back(string_value); break;
+		default: break;
+	}
+}
+
+void Expression::collect_variables_unary(std::vector<const std::string *> &v) {
+	children[0]->collect_variables(v);
+}
+
+void Expression::collect_variables_binary(std::vector<const std::string *> &v) {
+	children[0]->collect_variables(v);
+	children[1]->collect_variables(v);
+}
+
+void Expression::collect_variables_vector(std::vector<const std::string *> &v) {
+	for (Expression *e : vector_value)
+		e->collect_variables(v);
+}
+
+

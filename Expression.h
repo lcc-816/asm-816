@@ -48,6 +48,8 @@ public:
 	bool is_vector() const {return _type == type_vector; }
 	bool is_string() const {return _type == type_string; }
 
+	std::vector<const std::string *> collect_variables();
+
 	bool is_integer(uint32_t &rv) {
 		if (_type == type_integer) {
 			rv = int_value;
@@ -158,6 +160,12 @@ private:
 	std::string to_string_unary() const;
 	std::string to_string_binary() const;
 	std::string to_string_vector() const;
+
+
+	void collect_variables(std::vector<const std::string *> &);
+	void collect_variables_unary(std::vector<const std::string *> &);
+	void collect_variables_binary(std::vector<const std::string *> &);
+	void collect_variables_vector(std::vector<const std::string *> &);
 
 	expression_type _type = type_unknown;
 	Expression *children[2] = {0, 0};
