@@ -77,6 +77,14 @@ register_set &register_set::operator -= (const register_set &r) {
 	return *this;
 }
 
+register_set::operator bool() const {
+	for (unsigned ix = 0; ix < 3; ++ix) {
+		if (_data[ix].any()) return true;
+	}
+	return false;
+}
+
+
 #else
 
 

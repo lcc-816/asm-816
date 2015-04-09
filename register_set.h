@@ -1,9 +1,26 @@
+#ifndef __register_set_h__
+#define __register_set_h__
 
 #include <array>
 #include <bitset>
 #include <vector>
 
-#include "common.h"
+
+struct dp_register {
+	unsigned type;
+	unsigned number;
+
+	operator bool() const { return (bool)type; }
+};
+
+inline bool operator==(const dp_register &a, const dp_register &b) {
+	return a.type == b.type && a.number == b.number;
+}
+
+inline dp_register operator+(dp_register r, int i) {
+	r.number += i;
+	return r;
+}
 
 class register_set
 {
@@ -31,6 +48,7 @@ public:
 	friend bool operator != (const register_set &, const register_set &);
 	friend bool operator < (const register_set &, const register_set &);
 
+	operator bool() const;
 
 private:
 	#define RS_BITSET
@@ -42,3 +60,5 @@ private:
 	std::array< std::vector<bool>, 3> _data;
 	#endif
 };
+
+#endif
