@@ -8,15 +8,10 @@
 #include "Machine.h"
 #include "Instruction.h"
 #include "OpCode.h"
+#include "register_set.h"
 
 class Expression;
 
-struct dp_register {
-	unsigned type;
-	unsigned number;
-
-	operator bool() const { return (bool)type; }
-};
 
 enum Directive {
 	kUndefinedDirective = 0,
@@ -33,14 +28,7 @@ enum Directive {
 	EPILOGUE,
 };
 
-inline bool operator==(const dp_register &a, const dp_register &b) {
-	return a.type == b.type && a.number == b.number;
-}
 
-inline dp_register operator+(dp_register r, int i) {
-	r.number += i;
-	return r;
-}
 
 
 struct Token {
@@ -68,6 +56,13 @@ struct Line {
 };
 
 
+enum {
+	reg_none = 0,
+	reg_read = 1,
+	reg_write = 2,
+	reg_rw = 3
+};
+
 struct BasicLine {
 	// Line data while analyzing.
 
@@ -80,10 +75,41 @@ struct BasicLine {
 
 	uint32_t pc = 0;
 	// live registers, etc.
-};
 
+	register_set reg_live;
+	dp_register reg; // from operands.
+	unsigned reg_status = reg_none;
+};
 typedef std::deque<BasicLine *> LineQueue;
 
+struct BasicBlock {
+
+	unsigned size = 0;
+	unsigned id = 0;
+
+	const std::string *label = nullptr;
+
+	LineQueue lines;
+
+
+	register_set reg_import;
+	register_set reg_export;
+	bool processed = false;
+
+	std::vector<BasicBlock *> next_set;
+	std::vector<BasicBlock *> prev_set;
+
+};
+typedef std::deque<BasicBlock *> BlockQueue;
+
+
+struct Segment {
+
+	const std::string *name;
+	unsigned type;
+	// attributes -- parameter size, private, cdecl, pascal, etc.
+	BlockQueue blocks;
+};
 
 struct Cookie {
 
@@ -91,5 +117,14 @@ struct Cookie {
 
 	std::deque<BasicLine *> lines;
 };
+
+void peephole(LineQueue &);
+void print(const LineQueue &lines);
+void simplify(LineQueue &lines);
+bool parse_file(const std::string &filename, LineQueue &lines);
+
+unsigned classify(Mnemonic);
+
+LineQueue basic_block(LineQueue &&lines);
 
 #endif

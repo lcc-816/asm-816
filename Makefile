@@ -15,7 +15,7 @@ endif
 
 
 SRC = grammar.cpp main.cpp lexer.cpp Expression.cpp Instruction.cpp Machine.cpp OpCode.cpp \
-	register_set.cpp classify.cpp peephole.cpp
+	register_set.cpp classify.cpp peephole.cpp classify.cpp basic_block.cpp
 
 OBJ = $(SRC:.cpp=.o)
 DEP = $(SRC:.cpp=.d)
@@ -31,6 +31,6 @@ clean:
 lexer.cpp: lexer.rl
 	ragel -G1 -L -C $^ -o $@
 
-grammar.cpp grammar.h: grammar.lemon
+grammar.cpp: grammar.lemon
 	lemon $^ 
 	mv grammar.c grammar.cpp

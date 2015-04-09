@@ -184,7 +184,6 @@ void print(const LineQueue &lines) {
 	}
 }
 
-void peephole(LineQueue &);
 
 int main(int argc, char **argv) {
 
@@ -208,7 +207,16 @@ int main(int argc, char **argv) {
 			peephole(lines);
 			print(lines);
 			printf("-------\n");
+			lines = basic_block(std::move(lines));
+			print(lines);
+			printf("-------\n");
+			peephole(lines); // second round of peephole -after- basic block.
+			print(lines);
+			printf("-------\n");
+
 		}
+
+
 
 		for (BasicLine *tmp : lines) { delete tmp; }
 		lines.clear();
