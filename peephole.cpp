@@ -56,6 +56,24 @@ void peephole(LineQueue &list) {
 				}
 				return false;
 			})) continue;
+
+			/* lda xxx, CMP #0 -> lda xxx */
+			// not safe... doesn't set carry flag 
+			#if 0
+			if (match(list, LDA, CMP, [&](BasicLine *a, BasicLine *b){
+				uint32_t value;
+				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
+					if (value == 0) {
+						list.pop_front();
+						list.pop_front();
+						delete b;
+						list.push_front(a);
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+			#endif
 			break;
 
 		case PEA:
