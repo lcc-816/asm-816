@@ -19,6 +19,7 @@ public:
 	static Expression *Binary(unsigned op, Expression *a, Expression *b);
 	static Expression *Vector(Expression *child);
 	static Expression *Vector(Expression **children, unsigned count);
+	static Expression *String(const std::string *name);
 
 	static void ErasePool();
 
@@ -31,6 +32,7 @@ public:
 		type_unary,
 		type_binary,
 		type_vector,
+		type_string,
 	};
 
 	expression_type type() const {
@@ -44,6 +46,7 @@ public:
 	bool is_binary() const { return _type == type_binary; }
 	bool is_pc() const { return _type == type_pc; }
 	bool is_vector() const {return _type == type_vector; }
+	bool is_string() const {return _type == type_string; }
 
 	bool is_integer(uint32_t &rv) {
 		if (_type == type_integer) {
@@ -63,6 +66,14 @@ public:
 
 	bool is_variable(const std::string * &rv) {
 		if (_type == type_variable) {
+			rv = string_value;
+			return true;
+		}
+		return false;
+	}
+
+	bool is_string(const std::string * &rv) {
+		if (_type == type_string) {
 			rv = string_value;
 			return true;
 		}
@@ -110,8 +121,8 @@ protected:
 		_type(type_register), register_value(value)
 	{}
 
-	Expression(const std::string *value) : 
-		_type(type_variable), string_value(value)
+	Expression(expression_type type, const std::string *value) : 
+		_type(type), string_value(value)
 	{}
 
 	Expression(unsigned op, Expression *e) : 

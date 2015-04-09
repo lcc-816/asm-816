@@ -67,10 +67,17 @@ Expression *Expression::Register(dp_register value) {
 }
 
 Expression *Expression::Variable(const std::string *value) {
-	Expression *e = new Expression(value);
+	Expression *e = new Expression(type_variable, value);
 	Pool.push_back(e);
 	return e;
 }
+
+Expression *Expression::String(const std::string *value) {
+	Expression *e = new Expression(type_string, value);
+	Pool.push_back(e);
+	return e;
+}
+
 
 Expression *Expression::Unary(unsigned op, Expression *child) {
 	Expression *e = new Expression(op, child);
@@ -236,6 +243,15 @@ std::string Expression::to_string() const {
 			return ::to_string(register_value);
 		case type_vector:
 			return to_string_vector();
+		case type_string:
+			{
+				std::string s;
+				s.push_back('"');
+				s.append(*string_value);
+				s.push_back('"');
+				return s;
+			}
+
 		default:
 			return "";
 	}
