@@ -409,10 +409,10 @@ void error(const std::string &s) {
 		if (c == '\r' || c == '\n') break;
 		fputc(c, stderr);
 	}
+	fprintf(stderr, "\n");
 
 	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
 
-	fprintf(stderr, "\n");
 	error_count++;
 }
 
