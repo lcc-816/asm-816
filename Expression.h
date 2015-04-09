@@ -125,12 +125,12 @@ protected:
 		_type(type), string_value(value)
 	{}
 
-	Expression(unsigned op, Expression *e) : 
-		_type(type_unary), children{e, 0}
+	Expression(unsigned o, Expression *e) : 
+		_type(type_unary), op(o), children{e, 0}
 	{}
 
-	Expression(unsigned op, Expression *a, Expression *b) : 
-		_type(type_binary), children{a, b}
+	Expression(unsigned o, Expression *a, Expression *b) : 
+		_type(type_binary), op(o), children{a, b}
 	{}
 
 	~Expression() {
