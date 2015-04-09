@@ -69,13 +69,13 @@ bool Instruction::coerce(Instruction &instruction, AddressMode &addressMode, boo
     if (instruction.hasAddressMode(addressMode)) return true;
 
     // handle relative here as it is somewhat common.
-    if (instruction.hasAddressMode(relative) || instruction.hasAddressMode(relative_long))
+    if (instruction.isRelative())
     {
-        if (addressMode == zp || addressMode == absolute)
+        if (addressMode == zp || addressMode == absolute || addressMode == absolute_long)
         {
             if (explicitAddress) return false;
             
-            addressMode = relative;
+            addressMode = instruction.hasAddressMode(relative_long) ? relative_long : relative;
             return true;
         }
     }
