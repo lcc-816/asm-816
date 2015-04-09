@@ -3,9 +3,11 @@
 #define __common_h__
 
 #include <string>
+#include <deque>
 
 #include "Machine.h"
 #include "Instruction.h"
+#include "OpCode.h"
 
 class Expression;
 
@@ -13,6 +15,7 @@ struct dp_register {
 	unsigned type;
 	unsigned number;
 
+	operator bool() const { return (bool)type; }
 };
 
 enum Directive {
@@ -24,7 +27,10 @@ enum Directive {
 	PRAGMA,
 	DCB,
 	DCW,
-	DCL
+	DCL,
+	DS,
+	PROLOGUE,
+	EPILOGUE,
 };
 
 inline bool operator==(const dp_register &a, const dp_register &b) {
@@ -49,32 +55,41 @@ struct Token {
 
 struct Line {
 
-	// Line data..
+	// Line data while parsing.
 	const std::string *label = nullptr;
 	Directive directive = kUndefinedDirective;
 
 	Instruction instruction;
 	AddressMode mode = kUndefinedAddressMode;
 	bool explicit_mode = false;
+	bool error = false;
+
+	Expression *operands[2] = {0, 0};
+};
+
+
+struct BasicLine {
+	// Line data while analyzing.
+
+	const std::string *label = nullptr;
+	Directive directive = kUndefinedDirective;
+
+	OpCode opcode;
 
 	Expression *operands[2] = {0, 0};
 
-	// add these in later?
-	unsigned instruction_size = 0;
-	unsigned pc = 0;
-	unsigned mx = 0;
-
-	// other data... directive, etc?
-
-	Line *next = nullptr;
+	uint32_t pc = 0;
+	// live registers, etc.
 };
+
+typedef std::deque<BasicLine *> LineQueue;
+
 
 struct Cookie {
 
 	Line scratch;
-	Line *head = nullptr;
-	Line *tail = nullptr;
 
+	std::deque<BasicLine *> lines;
 };
 
 #endif

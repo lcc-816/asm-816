@@ -91,6 +91,8 @@ namespace {
 	const char *line_start = nullptr;
 	const char *eof = nullptr;
 	unsigned line = 0;
+	unsigned error_count = 0;
+	unsigned warn_count = 0;
 
 }
 
@@ -277,50 +279,53 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		# white space
 		'\r'|'\n'|'\r\n' => eol;
 
-		[\t ] {};
+		[\t ]+ { fgoto operand; };
 
 		';' { fgoto comment; };
-		# this is here so we can have label:
-		# maybe we should just drop the :
-		':' { Parse(parser, tkCOLON, 0, &cookie); };
-
-
 
 
 
 		'dc.b'i {
 			//std::string s(ts, te);
 			Parse(parser, tkDCB, 0, &cookie);
-			fgoto operand;
+			//fgoto operand;
 		};
 
 		'dc.w'i {
 			//std::string s(ts, te);
 			Parse(parser, tkDCW, 0, &cookie);
-			fgoto operand;
+			//fgoto operand;
 		};
 
 		'dc.l'i {
 			//std::string s(ts, te);
 			Parse(parser, tkDCL, 0, &cookie);
-			fgoto operand;
+			//fgoto operand;
 		};
+
+		'ds'i {
+			Parse(parser, tkDS, 0, &cookie);
+		};
+
+		#'pragma'i {
+		#	Parse(parser, tkDS, 0, &cookie);
+		#};
 
 		# create a separate context for first token vs
 		# checking whitespace?
 		'start'i {
 			Parse(parser, tkSTART, 0, &cookie);
-			fgoto operand;
+			//fgoto operand;
 		};
 
 		'data'i {
 			Parse(parser, tkDATA, 0, &cookie);
-			fgoto operand;
+			//fgoto operand;
 		};
 
 		'end'i {
 			Parse(parser, tkEND, 0, &cookie);
-			fgoto operand;
+			//fgoto operand;
 		};
 
 
@@ -341,7 +346,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
 				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
 				Parse(parser, tk, 0, &cookie);
-				fgoto operand;
+				//fgoto operand;
 
 			} else {
 				error("Invalid opcode/directive");
@@ -358,7 +363,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		# white space
 		'\r'|'\n'|'\r\n' => eol;
 
-		[\t ] { fgoto opcode; };
+		[\t ]+ { fgoto opcode; };
 
 		# comments
 		'*' { fgoto comment; };
@@ -371,7 +376,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 
 			std::string s(ts, te);
 			Parse(parser, tkIDENTIFIER, s, &cookie);
-			fgoto opcode;
+			//fgoto opcode;
 		};
 
 		# identifier
@@ -379,6 +384,9 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			// @ is appended to the current label.
 		};
 
+		# this is here so we can have label:
+		# maybe we should just drop the :
+		':' { Parse(parser, tkCOLON, 0, &cookie); };
 
 		any {
 			fprintf(stderr, "Unable to lex!\n");
@@ -394,7 +402,6 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 %% write data;
 
 void error(const std::string &s) {
-	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
 
 	const char *p = line_start;
 	while (p != eof) {
@@ -403,10 +410,13 @@ void error(const std::string &s) {
 		fputc(c, stderr);
 	}
 
+	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
+
 	fprintf(stderr, "\n");
+	error_count++;
 }
 
-Line *parse_file(const std::string &filename)
+bool parse_file(const std::string &filename, std::deque<BasicLine *> &rv)
 {
 	int fd;
 	struct stat st;
@@ -423,21 +433,21 @@ Line *parse_file(const std::string &filename)
 	fd = open(filename.c_str(), O_RDONLY);
 	if (fd < 0) {
 		fprintf(stderr, "Unable to open file `%s' : %s\n", filename.c_str(), strerror(errno));
-		return nullptr;
+		return false;
 	}
 
 	ok = fstat(fd, &st);
 	if (ok < 0) {
 		fprintf(stderr, "Unable to fstat file `%s' : %s\n", filename.c_str(), strerror(errno));
 		close(fd);
-		return nullptr;
+		return false;
 	}
 
 	buffer = mmap(nullptr, st.st_size, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
 	if (buffer == MAP_FAILED) {
 		fprintf(stderr, "Unable to mmap file `%s' : %s\n", filename.c_str(), strerror(errno));
 		close(fd);
-		return nullptr;
+		return false;
 	}
 	close(fd);
 
@@ -463,6 +473,13 @@ Line *parse_file(const std::string &filename)
 	ParseFree(parser, free);
 
 	munmap(buffer, st.st_size);
-	return cookie.head;
-
+	if (error_count > 0) {
+		for (BasicLine *tmp : cookie.lines) {
+			delete tmp;
+		}
+		cookie.lines.clear();
+		return false;
+	}
+	rv = std::move(cookie.lines);
+	return true;
 }

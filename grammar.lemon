@@ -47,6 +47,8 @@
 
 %syntax_error {
 	error("parse error.");
+	cookie->scratch.error = true;
+
 	// todo -- flag the line?
 	// error should prevent further processing, anyhow.
 }
@@ -134,6 +136,8 @@
 
 		Line &scratch = cookie->scratch;
 
+		if (scratch.error) return;
+
 		// todo -- add line label by itself ... unless start directive.
 
 		if (!scratch.instruction && !scratch.label && !scratch.directive) return;
@@ -143,6 +147,27 @@
 
 		if (scratch.operands[1]) 
 			scratch.operands[1] = scratch.operands[1]->simplify();
+
+
+		if (scratch.directive) {
+
+			BasicLine *tmp = new BasicLine;
+			tmp->directive = scratch.directive;
+			tmp->operands[0] = scratch.operands[0];
+			tmp->operands[1] = scratch.operands[1];
+			tmp->label = scratch.label;
+			cookie->lines.push_back(tmp);
+
+			return;
+			// if this is an start/data/end directive, handle segments?
+		}
+
+		// labels go on their own line (except start/data, etc)
+		if (scratch.label) {
+			BasicLine *tmp = new BasicLine;
+			tmp->label = scratch.label;
+			cookie->lines.push_back(tmp);
+		}
 
 
 		// 1. verify address mode.
@@ -180,19 +205,13 @@
 				return;
 			}
 
+			BasicLine *tmp = new BasicLine;
+			tmp->opcode = OpCode(scratch.instruction, scratch.mode);
+			tmp->operands[0] = scratch.operands[0];
+			tmp->operands[1] = scratch.operands[1];
+			cookie->lines.push_back(tmp);
 		}
 
-
-
-		Line *tmp = new Line(cookie->scratch);
-		cookie->scratch = Line();
-
-		if (cookie->tail) {
-			cookie->tail->next = tmp;
-			cookie->tail = tmp;
-		} else {
-			cookie->head = cookie->tail = tmp;
-		}
 	}
 }
 
@@ -230,18 +249,6 @@ line ::= END EOL. {
 	cookie->scratch.directive = END;
 }
 
-/*
-line ::= error EOL. {
-	
-	fprintf(stderr, "error encountered\n");
-}
-
-line ::= error. {
-	
-	fprintf(stderr, "error encountered\n");
-}
-*/
-
 
 label ::= IDENTIFIER(id) COLON. {
 	cookie->scratch.label = id.string_value;
@@ -276,13 +283,19 @@ opcode ::= DCB expr_list(list). {
 
 opcode ::= DCW expr_list(list). {
 	cookie->scratch.directive = DCW;
-	cookie->scratch.operands[0] = list;	
+	cookie->scratch.operands[0] = list;
 }
 
 opcode ::= DCL expr_list(list). {
 	cookie->scratch.directive = DCL;
-	cookie->scratch.operands[0] = list;	
+	cookie->scratch.operands[0] = list;
 }
+
+opcode ::= DS expr(e). {
+	cookie->scratch.directive = DS;
+	cookie->scratch.operands[0] = e;
+}
+
 
 %type expr_list {Expression *}
 
@@ -326,7 +339,7 @@ operand(rv) ::= modifier(m) expr(e). {
 }
 
 operand(rv) ::= expr(e). { 
-	cookie->scratch.mode = absolute_long;
+	cookie->scratch.mode = absolute;
 	rv = e;
 }
 
@@ -349,7 +362,7 @@ operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_X. {
 }
 
 operand(rv) ::= expr(e) COMMA REGISTER_X. {
-	cookie->scratch.mode = absolute_long_x;
+	cookie->scratch.mode = absolute_x;
 	rv = e;
 }
 

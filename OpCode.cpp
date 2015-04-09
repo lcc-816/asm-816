@@ -209,6 +209,7 @@ int OpCode::opcode(Machine machine, Mnemonic mnemonic, AddressMode addressMode)
     return iter->second.opcode();
 }
 
+#ifdef __OBJC__
 
 NSString *OpCode::formatOperand(uint32_t operand, uint16_t address, bool longM, bool longX) const
 {
@@ -418,7 +419,7 @@ NSString *OpCode::formatHex(uint32_t operand, bool longM, bool longX) const
     return [NSString stringWithCharacters: tmp length: length];
     
 }
-
+#endif
 
 unsigned OpCode::bytes(bool longM, bool longXY) const
 {
