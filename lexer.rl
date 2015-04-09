@@ -134,10 +134,16 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			Parse(parser, 0, 0, &cookie);
 
 			line_start = te;
-			ws = 0;
 			line++;
 
 			fgoto main;
+	}
+
+	action error {
+			fprintf(stderr, "Unable to lex!\n");
+			// clear out the parser
+			Parse(parser, 0, 0, &cookie);
+			fgoto error;
 	}
 
 	comment := |*
@@ -150,12 +156,11 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 
 		'\r'|'\n'|'\r\n' {
 			// slightly modified version of eol.
-			// Parse(parser, 0, 0, &cookie); happens before we enter.
+			//Parse(parser, 0, 0, &cookie); happens before we enter.
 	
 			line++;
 			line_start = te;
 
-			ws = 0;
 			fgoto main;
 
 		};
@@ -163,18 +168,17 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		any {};
 	*|;
 
-	main := |*
+
+
+	operand := |*
 
 		# white space
 		'\r'|'\n'|'\r\n' => eol;
 
-		[\t ] {
-			ws++;
-		};
+		[\t ] {};
 
 		# comments
 		'*' {
-			if (!ws) fgoto comment;
 			Parse(parser, tkSTAR, 0, &cookie);
 		};
 
@@ -258,30 +262,70 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		};
 
 
-		# identifier
-		'@' [A-Za-z0-9_]+ {
-			// @ is appended to the current label.
+		[A-Za-z_][A-Za-z0-9_]* {
+			std::string s(ts, te);
+			Parse(parser, tkIDENTIFIER, s, &cookie);
 		};
 
-		# todo -- separate .b / .l / .w tokens?
+
+		any => error;
+
+	*|;
+
+	opcode := |*
+
+		# white space
+		'\r'|'\n'|'\r\n' => eol;
+
+		[\t ] {};
+
+		';' { fgoto comment; };
+		# this is here so we can have label:
+		# maybe we should just drop the :
+		':' { Parse(parser, tkCOLON, 0, &cookie); };
+
+
+
+
+
 		'dc.b'i {
 			//std::string s(ts, te);
 			Parse(parser, tkDCB, 0, &cookie);
+			fgoto operand;
 		};
 
 		'dc.w'i {
 			//std::string s(ts, te);
 			Parse(parser, tkDCW, 0, &cookie);
+			fgoto operand;
 		};
 
 		'dc.l'i {
 			//std::string s(ts, te);
 			Parse(parser, tkDCL, 0, &cookie);
+			fgoto operand;
+		};
+
+		# create a separate context for first token vs
+		# checking whitespace?
+		'start'i {
+			Parse(parser, tkSTART, 0, &cookie);
+			fgoto operand;
+		};
+
+		'data'i {
+			Parse(parser, tkDATA, 0, &cookie);
+			fgoto operand;
+		};
+
+		'end'i {
+			Parse(parser, tkEND, 0, &cookie);
+			fgoto operand;
 		};
 
 
 		[A-Za-z_][A-Za-z0-9_]* {
-			// this may be a label or an opcode...
+
 			// mvp or mvn generate tkOPCODE_2.
 			// all others generate tkOPCODE.
 			// check opcode table
@@ -297,9 +341,42 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
 				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
 				Parse(parser, tk, 0, &cookie);
+				fgoto operand;
+
 			} else {
-				Parse(parser, tkIDENTIFIER, s, &cookie);
+				error("Invalid opcode/directive");
+				Parse(parser, 0, 0, &cookie);
+				fgoto error;
 			}
+		};
+
+		any => error;
+	*|;
+
+
+	main := |*
+		# white space
+		'\r'|'\n'|'\r\n' => eol;
+
+		[\t ] { fgoto opcode; };
+
+		# comments
+		'*' { fgoto comment; };
+
+		';' {
+			fgoto comment;
+		};
+
+		[A-Za-z_][A-Za-z0-9_]* {
+
+			std::string s(ts, te);
+			Parse(parser, tkIDENTIFIER, s, &cookie);
+			fgoto opcode;
+		};
+
+		# identifier
+		'@' [A-Za-z0-9_]+ {
+			// @ is appended to the current label.
 		};
 
 
@@ -336,7 +413,6 @@ Line *parse_file(const std::string &filename)
 	void *buffer;
 	int ok;
 
-	unsigned ws = 0;
 
 	Cookie cookie;
 
