@@ -44,11 +44,6 @@
 	cookie->scratch = Line();
 }
 
-%parse_accept {
-	//printf("parsing complete!\n");
-
-	cookie->scratch = Line();
-}
 
 %syntax_error {
 	error("parse error.");
@@ -139,6 +134,10 @@
 
 		Line &scratch = cookie->scratch;
 
+		// todo -- add line label by itself ... unless start directive.
+
+		if (!scratch.instruction && !scratch.label && !scratch.directive) return;
+
 		if (scratch.operands[0]) 
 			scratch.operands[0] = scratch.operands[0]->simplify();
 
@@ -197,20 +196,39 @@
 	}
 }
 
-line ::= label EOL. {
-	// add to list...
+
+%parse_accept {
+	//printf("parsing complete!\n");
+	// todo -- move AddLine call here.
+
 	AddLine(cookie);
+	cookie->scratch = Line();
+}
+
+line ::= label EOL. {
 }
 
 line ::= label opcode EOL. {
-	AddLine(cookie);
 }
 
 line ::= opcode EOL. {
-	AddLine(cookie);
 }
 
 line ::= EOL. /* do nothing for blank lines */
+
+line ::= IDENTIFIER(id) START EOL. {
+	cookie->scratch.directive = START;
+	cookie->scratch.label = id.string_value;
+}
+
+line ::= IDENTIFIER(id) DATA EOL. {
+	cookie->scratch.directive = DATA;
+	cookie->scratch.label = id.string_value;
+}
+
+line ::= END EOL. {
+	cookie->scratch.directive = END;
+}
 
 /*
 line ::= error EOL. {

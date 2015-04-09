@@ -17,6 +17,11 @@ struct dp_register {
 
 enum Directive {
 	kUndefinedDirective = 0,
+	START,
+	END,
+	DATA,
+	EXPORT,
+	PRAGMA,
 	DCB,
 	DCW,
 	DCL
