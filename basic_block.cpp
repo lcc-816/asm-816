@@ -253,6 +253,48 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 	block->reg_export = reg_export;
 }
 
+void analyze_block_2(BasicBlock *block) {
+
+	// second round of analysis.  import set has been calculated at this point.
+
+	LineQueue newLines;
+	LineQueue lines = std::move(block->lines);
+	register_set reg_live = block->reg_import;
+
+	while(!lines.empty()) {
+
+		BasicLine *line = lines.back();
+		lines.pop_back();
+
+		bool dead = false;
+
+		dp_register reg = line->reg;
+
+		switch (line->reg_status) {
+
+			case reg_none:
+				break;
+
+			case reg_read:
+			case reg_rw:
+				reg_live += reg;
+				break;
+
+			case reg_write:
+				// drop the write if not live.
+				if (!reg_live.contains(reg))
+					dead = true;
+				break;
+		}
+
+
+		if (dead) delete line;
+		else newLines.push_front(line);
+	}
+	block->lines = std::move(newLines);
+
+}
+
 void dead_code_eliminate(BlockQueue &bq) {
 	bool first = true;
 	BlockQueue out;
