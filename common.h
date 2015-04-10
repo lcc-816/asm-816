@@ -95,8 +95,10 @@ struct BasicBlock {
 
 	register_set reg_import;
 	register_set reg_export;
+
 	bool processed = false;
-	bool dead = false;
+	bool dead = false; // mark for dead-code elimination.
+	bool entry = false; // this is an entry point (can't dead-code eliminate)
 
 	std::vector<BasicBlock *> next_set;
 	std::vector<BasicBlock *> prev_set;

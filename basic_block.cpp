@@ -101,7 +101,7 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 				}
 				if (fallthrough) old->next_set.push_back(current);
 
-			}
+			} 
 
 			//continue;
 
@@ -116,6 +116,7 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 
 	if (current) out.push_back(current);
 
+	if (!out.empty()) out.front()->entry = true;
 	return out;
 }
 
@@ -298,7 +299,7 @@ void analyze_block_2(BasicBlock *block) {
 template<class T>
 static void remove_from_vector(T t, std::vector<T> &v){
 
-	v.erase(std::remove(v.begin(), v.end(), t));
+	v.erase(std::remove(v.begin(), v.end(), t), v.end());
 
 }
 
@@ -310,9 +311,8 @@ void dead_code_eliminate(BlockQueue &bq) {
 	bool delta = false;
 	do {
 		delta = false;
-		bool first = true;
 		for (BasicBlock *block : bq) {
-			if (first) { first = false; continue; }
+			if (block->entry) continue;
 			if (block->dead) continue;
 			if (block->prev_set.empty()) {
 				delta = true;
@@ -332,7 +332,7 @@ void dead_code_eliminate(BlockQueue &bq) {
 
 	bq.erase(std::remove_if(bq.begin(), bq.end(), [](BasicBlock *block) {
 		return block->dead;
-	}));
+	}), bq.end());
 }
 
 static void build_imports(BasicBlock *block, register_set imports) {
