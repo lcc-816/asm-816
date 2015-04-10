@@ -198,6 +198,12 @@ bool Instruction::coerce(Instruction &instruction, AddressMode &addressMode, boo
                 addressMode = absolute;
                 return true;
             }
+            if (instruction.hasAddressMode(absolute_long))
+            {
+                addressMode = absolute_long;
+                return true;
+            }
+
             break;
             
         case immediate:
@@ -209,6 +215,15 @@ bool Instruction::coerce(Instruction &instruction, AddressMode &addressMode, boo
             }
             break;   
             
+        case absolute:
+            // JML, JSL
+            if (instruction.hasAddressMode(absolute_long))
+            {
+                addressMode = absolute_long;
+                return true;
+            }
+            break;
+
         case absolute_long:
             if (instruction.hasAddressMode(absolute))
             {
