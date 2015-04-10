@@ -95,6 +95,7 @@ struct BasicBlock {
 	register_set reg_import;
 	register_set reg_export;
 	bool processed = false;
+	bool dead = false;
 
 	std::vector<BasicBlock *> next_set;
 	std::vector<BasicBlock *> prev_set;

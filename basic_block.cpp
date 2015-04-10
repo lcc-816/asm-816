@@ -295,26 +295,44 @@ void analyze_block_2(BasicBlock *block) {
 
 }
 
+template<class T>
+static void remove_from_vector(T t, std::vector<T> &v){
+
+	v.erase(std::remove(v.begin(), v.end(), t));
+
+}
+
 void dead_code_eliminate(BlockQueue &bq) {
-	bool first = true;
-	BlockQueue out;
 
-	std::copy_if(bq.begin(), bq.end(), std::back_inserter(out), [&first](BasicBlock *block){
-		if (block->prev_set.empty() && !first) {
+	// need to scan multiple times
+	// since removing one block can propogate
+	// to others.
+	bool delta = false;
+	do {
+		delta = false;
+		bool first = true;
+		for (BasicBlock *block : bq) {
+			if (first) { first = false; continue; }
+			if (block->dead) continue;
+			if (block->prev_set.empty()) {
+				delta = true;
+				block->dead = true;
 
-			for (BasicLine *line : block->lines) {
-				delete line;
+				for (BasicLine *line : block->lines) delete line;
+				block->lines.clear();
+
+				// remove self from the next set.
+				for (BasicBlock *next : block->next_set) {
+					remove_from_vector(block, next->prev_set);
+				}
 			}
-			block->lines.clear();
-
-			return false;
 		}
 
-		first = false;
-		return true;
-	});
+	} while (delta);
 
-	bq = std::move(out);
+	bq.erase(std::remove_if(bq.begin(), bq.end(), [](BasicBlock *block) {
+		return block->dead;
+	}));
 }
 
 static void build_imports(BasicBlock *block, register_set imports) {
