@@ -146,7 +146,18 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 		if (!line->operands[0]->is_register(reg)) continue;
 
 		line->reg = reg;
-		int status = line->reg_status = classify(line->opcode.mnemonic());
+		int status = line->reg_status = classify(line->opcode);
+
+		if (status == reg_read_long) { // register pair.
+
+			dp_register reg2 = reg + 2;
+
+			if (!reg_live.contains(reg2))
+				reg_import += reg2;
+
+			reg_live += reg2;
+			status = reg_read; // handle below.
+		}
 
 		if (status == reg_read || status == reg_rw) {
 			if (!reg_live.contains(reg))
@@ -155,6 +166,7 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 		if (status == reg_write || status == reg_rw) {
 			reg_export += reg;
 		}
+
 		reg_live += reg;
 	}
 
@@ -231,6 +243,15 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 			case reg_none:
 				break;
 
+
+			case reg_read_long:
+				{
+					dp_register reg2 = reg + 2;
+					reg_dead -= reg2;
+					line->reg_live += reg2;
+				}
+				// fallthrough
+
 			case reg_read:
 			case reg_rw:
 				reg_dead -= reg;
@@ -261,6 +282,14 @@ void analyze_block_2(BasicBlock *block) {
 	LineQueue newLines;
 	LineQueue lines = std::move(block->lines);
 	register_set reg_live = block->reg_import;
+	//reg_live += block->reg_export;
+
+
+	// only need to export registers imported by next blocks.
+	for (BasicBlock *block : block->next_set) {
+		reg_live += block->reg_import;
+	}
+
 
 	while(!lines.empty()) {
 
@@ -275,6 +304,13 @@ void analyze_block_2(BasicBlock *block) {
 
 			case reg_none:
 				break;
+
+			case reg_read_long:
+				{
+					dp_register reg2 = reg + 2;
+					reg_live += reg;
+				}
+				// fallthrough
 
 			case reg_read:
 			case reg_rw:

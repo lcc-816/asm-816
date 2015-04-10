@@ -11,6 +11,7 @@ struct dp_register {
 	unsigned number;
 
 	operator bool() const { return (bool)type; }
+	dp_register &operator += (int i) { number += i; return *this;}
 };
 
 inline bool operator==(const dp_register &a, const dp_register &b) {
