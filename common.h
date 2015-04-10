@@ -60,7 +60,8 @@ enum {
 	reg_none = 0,
 	reg_read = 1,
 	reg_write = 2,
-	reg_rw = 3
+	reg_rw = 3,
+	reg_read_long = 5
 };
 
 struct BasicLine {
@@ -125,6 +126,7 @@ void simplify(LineQueue &lines);
 bool parse_file(const std::string &filename, LineQueue &lines);
 
 unsigned classify(Mnemonic);
+unsigned classify(OpCode);
 
 LineQueue basic_block(LineQueue &&lines);
 
