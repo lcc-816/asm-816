@@ -403,6 +403,8 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 
 void error(const std::string &s) {
 
+	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
+
 	const char *p = line_start;
 	while (p != eof) {
 		char c = *p++;
@@ -411,7 +413,6 @@ void error(const std::string &s) {
 	}
 	fprintf(stderr, "\n");
 
-	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
 
 	error_count++;
 }
