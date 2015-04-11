@@ -6,14 +6,44 @@
 #include <vector>
 #include <algorithm>
 
+#include <cassert>
+
 typedef std::unordered_map<const std::string *, BasicBlock *> BlockMap;
 
+namespace {
 template<class T>
 void remove_duplicates(std::vector<T> &t){
 	std::sort(t.begin(), t.end());
 	auto iter = std::unique(t.begin(), t.end());
 	t.erase(iter, t.end());
 }
+
+
+
+template<class T>
+void remove(std::vector<T> &v, T t){
+	v.erase(std::remove(v.begin(), v.end(), t), v.end());
+}
+
+template<class T, class FX>
+void remove_if(std::vector<T> &v, FX fx){
+	v.erase(std::remove_if(v.begin(), v.end(), fx), v.end());
+}
+
+template<class T, class FX>
+void remove_if(std::deque<T> &v, FX fx){
+	v.erase(std::remove_if(v.begin(), v.end(), fx), v.end());
+}
+
+template<class T>
+void replace(std::vector<T> &v, const T &old_value, const T &new_value){
+	std::replace(v.begin(), v.end(), old_value, new_value);
+}
+
+
+
+} // namespace
+
 
 static bool is_branch(Mnemonic m)
 {
@@ -332,13 +362,6 @@ void analyze_block_2(BasicBlock *block) {
 
 }
 
-template<class T>
-static void remove_from_vector(T t, std::vector<T> &v){
-
-	v.erase(std::remove(v.begin(), v.end(), t), v.end());
-
-}
-
 void dead_code_eliminate(BlockQueue &bq) {
 
 	// need to scan multiple times
@@ -359,16 +382,43 @@ void dead_code_eliminate(BlockQueue &bq) {
 
 				// remove self from the next set.
 				for (BasicBlock *next : block->next_set) {
-					remove_from_vector(block, next->prev_set);
+					remove(next->prev_set, block);
 				}
+				continue;
 			}
+
+			// if there are no lines, it can be eliminated.
+			// block->entry checked above.
+			if (0 && block->lines.size() == 1) { // line 0 is the label...
+				assert(block->next_set.size() <= 1);
+
+				if (block->next_set.size() == 1) {
+
+
+					BasicBlock *next = block->next_set.front();
+
+					remove(next->prev_set, block);
+
+					// update prev nodes to point to next.
+					for (BasicBlock *pb : block->prev_set) {
+						replace(pb->next_set, block, next);
+						next->prev_set.push_back(pb);
+					}
+
+					// also need to update references, eg bra label1 -> bra label2
+				}
+
+
+				block->dead = true;
+			}
+
 		}
 
 	} while (delta);
 
-	bq.erase(std::remove_if(bq.begin(), bq.end(), [](BasicBlock *block) {
+	remove_if(bq, [](BasicBlock *block) {
 		return block->dead;
-	}), bq.end());
+	});
 }
 
 static void build_imports(BasicBlock *block, register_set imports) {
