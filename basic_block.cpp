@@ -45,7 +45,7 @@ void replace(std::vector<T> &v, const T &old_value, const T &new_value){
 } // namespace
 
 
-static bool is_branch(Mnemonic m)
+static bool is_branch(Mnemonic m, bool include_jmp = true)
 {
 	switch(m) {
 
@@ -68,6 +68,9 @@ static bool is_branch(Mnemonic m)
 		case BBS7:
 		*/
 		case JMP: // JMP (address,x) used for switch statement.
+			if (include_jmp) return true;
+			return false;
+
 		case JML:
 		case BCC:
 		case BCS:
@@ -100,7 +103,101 @@ static bool unconditional_branch(Mnemonic m)
 }
 
 
+bool remove_branches(BlockQueue &bq) {
+	// returns true if any changes made
+	// returns false if no optimizations done.
 
+	bool delta = false;
+	for (auto iter = bq.begin(); iter != bq.end(); ++iter) {
+
+
+		auto nextIter = iter + 1;
+		if (nextIter == bq.end()) continue;
+
+		BasicBlock *block = *iter;
+		BasicBlock *next = *nextIter;
+
+
+		if (block->dead) continue;
+		if (block->lines.empty()) continue;
+
+		BasicLine *line = block->lines.back();
+		if (!is_branch(line->opcode.mnemonic(), false)) continue;
+		// jmp (|abs,x) cannot be optimized out.
+
+
+		if (block->next_set.size() != 1) continue;
+		//if (next->prev_set.size() != 1) continue;
+
+		// currently, must be the next in the queue... no re-ordering.
+
+		if (block->next_set.front() != next) continue;
+		//if (next->prev_set.front() != block) continue;
+
+		block->lines.pop_back();
+		delete line;
+		delta = true;
+	}
+
+	return delta;
+}
+
+
+bool merge_blocks(BlockQueue &bq) {
+
+	bool delta = false;
+
+
+	// returns true if any changes made.
+
+	for (BasicBlock * block : bq) {
+
+		if (block->dead) continue;
+		if (block->next_set.size() != 1) continue;
+
+		BasicBlock *next = block->next_set.front();
+		if (next->prev_set.size() != 1) continue;
+
+		assert(next->prev_set.front() == block);
+
+		if (next->entry) continue; // can't merge.
+
+		LineQueue &lines = block->lines;
+
+		// remove branch...
+		if (lines.size()) {
+			BasicLine *line = lines.back();
+			if (is_branch(line->opcode.mnemonic())) {
+				lines.pop_back();
+				delete line;
+			}
+		}
+
+		delta = true;
+		if (lines.empty()) lines = std::move(next->lines);
+		else lines.insert(lines.end(), next->lines.begin(), next->lines.end());
+
+
+		// shouldn't need to rename anything since branch was removed.
+
+		block->next_set = std::move(next->next_set);
+
+		for (BasicBlock *newnext : block->next_set) {
+			replace(newnext->prev_set, next, block);
+		}
+
+		next->dead = true;
+		next->lines.clear();
+		next->next_set.clear();
+		next->prev_set.clear();
+
+		// and peephole them.
+		while (peephole(lines));
+	}
+
+
+	return delta;
+}
 
 BlockQueue make_basic_blocks(LineQueue &&lines) {
 
@@ -133,7 +230,7 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 
 			} 
 
-			//continue;
+			continue;
 
 			// non-data directives should already be removed at this point.
 		}
@@ -403,6 +500,8 @@ void dead_code_eliminate(BlockQueue &bq) {
 					for (BasicBlock *pb : block->prev_set) {
 						replace(pb->next_set, block, next);
 						next->prev_set.push_back(pb);
+
+						// update all refs to label...
 					}
 
 					// also need to update references, eg bra label1 -> bra label2
@@ -446,6 +545,11 @@ static void build_imports(BlockQueue &bq) {
 
 	}
 
+}
+
+void print_block_set(const std::vector<BasicBlock *> &set) {
+	for (auto x : set) { if (x->label) printf("%s ", x->label->c_str()); }
+	printf("\n");
 }
 
 LineQueue basic_block(LineQueue &&lines) {
@@ -492,16 +596,44 @@ LineQueue basic_block(LineQueue &&lines) {
 		analyze_block_2(block);
 	}
 
+	// and peephole each block.
+	for (BasicBlock *block : bq) {
+		peephole(block->lines);
+	}
+
+	bool delta = false;
+	do {
+		delta = false;
+		if (merge_blocks(bq)) delta = true;
+
+
+	} while (delta);
+
+	// remove any redundant branches.
+	remove_branches(bq);
+
+	// todo -- remove trailing branch to next block
+	// if only 1 exit.
+	// if is_branch(list.back() && == next)..
+
+	// todo -- if next_set.size() == 1 && next_set->prev_set.size() == 1
+	// merge the blocks together and re-optimize.
+
 
 	LineQueue out;
 
 	for (BasicBlock *block : bq) {
 
-		for (BasicLine *line : block->lines) {
-			out.push_back(line);
-		}
-		block->lines.clear();
+		if (block->dead) continue;
 
+		if (block->label) {
+			BasicLine *tmp = new BasicLine;
+			tmp->label = block->label;
+			out.push_back(tmp);
+		}
+
+		out.insert(out.end(), block->lines.begin(), block->lines.end());
+		block->lines.clear();
 	}
 
 	return out;
