@@ -27,9 +27,11 @@ bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, FX fx) {
 }
 
 
-void peephole(LineQueue &list) {
+bool peephole(LineQueue &list) {
 
 	LineQueue optimized;
+
+	uint32_t starting_size = list.size();
 
 	while(!list.empty()) {
 
@@ -55,6 +57,15 @@ void peephole(LineQueue &list) {
 					return true;
 				}
 				return false;
+			})) continue;
+
+
+			/* LDA xxx, LDA yyy -> LDA yyy */
+			if (match(list, LDA, LDA, [&](BasicLine *a, BasicLine *b){
+				// what if volatile memory?
+				list.pop_front();
+				delete a;
+				return true;
 			})) continue;
 
 			/* lda xxx, CMP #0 -> lda xxx */
@@ -123,7 +134,43 @@ void peephole(LineQueue &list) {
 				delete b;
 				return true;
 			})) continue;
+
+			/* PHA, PLX -> TAX */
+			// nb. won't work if m/x doesn't match.
+			if (match(list, PHA, PLX, [&](BasicLine *a, BasicLine *b){
+
+
+				BasicLine *tmp = new BasicLine;
+				tmp->opcode = OpCode(Instruction(m65816, TAX), implied);
+
+				list.pop_front();
+				list.pop_front();
+				delete a;
+				delete b;
+				list.push_front(tmp);
+				return true;
+			})) continue;
+
+			/* PHA, PLY -> TAY */
+			// nb. won't work if m/x doesn't match.
+			if (match(list, PHA, PLY, [&](BasicLine *a, BasicLine *b){
+
+
+				BasicLine *tmp = new BasicLine;
+				tmp->opcode = OpCode(Instruction(m65816, TAY), implied);
+
+				list.pop_front();
+				list.pop_front();
+				delete a;
+				delete b;
+				list.push_front(tmp);
+				return true;
+			})) continue;
+
+
 			break;
+
+
 
 		case PHX:
 			/* PHX, PLX -> NOP */
@@ -151,6 +198,8 @@ void peephole(LineQueue &list) {
 		case STA:
 			/* STA %t0, LDA %t0 -> STA %t0 */
 			if (match(list, STA, LDA, [&](BasicLine *a, BasicLine *b){
+				//printf("STA %d/ LDA %d\n" , a->opcode.addressMode(), b->opcode.addressMode());
+
 				if (a->opcode.addressMode() == b->opcode.addressMode()) {
 
 					dp_register reg_a, reg_b;
@@ -224,4 +273,5 @@ void peephole(LineQueue &list) {
 
 
 	list = std::move(optimized);
+	return (list.size() != starting_size);
 }

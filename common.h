@@ -122,7 +122,7 @@ struct Cookie {
 	std::deque<BasicLine *> lines;
 };
 
-void peephole(LineQueue &);
+bool peephole(LineQueue &);
 void print(const LineQueue &lines);
 void simplify(LineQueue &lines);
 bool parse_file(const std::string &filename, LineQueue &lines);

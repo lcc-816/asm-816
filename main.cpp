@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
 			lines = basic_block(std::move(lines));
 			print(lines);
 			printf("-------\n");
-			peephole(lines); // second round of peephole -after- basic block.
+			//peephole(lines); // second round of peephole -after- basic block.
 			print(lines);
 			printf("-------\n");
 
