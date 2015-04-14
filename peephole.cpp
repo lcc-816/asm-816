@@ -26,8 +26,37 @@ bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, FX fx) {
 	return fx(lines[0], lines[1]);
 }
 
+template<class FX>
+bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, FX fx) {
+	const unsigned Size = 3;
+	Mnemonic mm[Size] = { m1, m2, m3};
+	BasicLine *lines[Size] = {0};
+
+	if (list.size() < Size) return false;
+
+	auto iter = list.begin();
+	for (unsigned i = 0; i < Size; ++i, ++iter) {
+		BasicLine *tmp = *iter;
+		if (tmp->opcode.mnemonic() != mm[i]) return false;
+		lines[i] = tmp;
+	}
+
+	return fx(lines[0], lines[1], lines[2]);
+}
+
 
 bool peephole(LineQueue &list) {
+
+
+	/*
+	 * n.b. - one pass can't catch everthing. consider:
+	 * lda 
+	 * 1 sta %t0
+	 * 2 lda xxx
+	 * 3 lda %t0
+	 * (which can happen after lifetime analysis).
+	 * pass 1 will kill line 2.  Pass 2 will kill line 3.
+	 */
 
 	LineQueue optimized;
 
@@ -39,6 +68,52 @@ bool peephole(LineQueue &list) {
 
 		switch(line->opcode.mnemonic()) {
 		default: break;
+
+		case ADC:
+
+			#if 0
+			if (match(list, ADC, INC, INC, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+				if (a->opcode.addressMode() != immediate) return false;
+				if (b->opcode.addressMode() != implied) return false;
+				if (c->opcode.addressMode() != implied) return false;
+
+				uint32_t value;
+				if (a->operands[0]->is_integer(value)) {
+					a->operands[0] = Expression::Integer(value + 2);
+					list.pop_front();
+					list.pop_front();
+					list.pop_front();
+					list.push_front(a);
+					delete b;
+					delete c;
+
+					return true;
+				}
+				return false;
+
+			})) continue;
+			#endif
+			/* ADC const, inc a -> adc const+1 */
+			// n.b. if carry flag is relevant, this could affect it */
+			if (match(list, ADC, INC,[&](BasicLine *a, BasicLine *b){
+				if (a->opcode.addressMode() != immediate) return false;
+				if (b->opcode.addressMode() != implied) return false;
+
+				uint32_t value;
+				if (a->operands[0]->is_integer(value)) {
+					a->operands[0] = Expression::Integer(value + 1);
+					list.pop_front();
+					list.pop_front();
+					list.push_front(a);
+					delete b;
+
+					return true;
+				}
+				return false;
+
+			})) continue;
+
+			break;
 
 		case LDA:
 			/* LDA #const, XBA -> LDA #tsnoc */
@@ -57,6 +132,14 @@ bool peephole(LineQueue &list) {
 					return true;
 				}
 				return false;
+			})) continue;
+
+			/* LDA xxx, PLA -> PLA */
+			if (match(list, LDA, PLA, [&](BasicLine *a, BasicLine *b){
+				// if a is immediate or zp ?
+				list.pop_front();
+				delete a;
+				return true;
 			})) continue;
 
 
@@ -215,6 +298,83 @@ bool peephole(LineQueue &list) {
 				}
 				return false;
 			})) continue;
+
+			/* STA %t0, PEI (<%t0) -> STA %t0, PHA */
+			if (match(list, STA, PEI, [&](BasicLine *a, BasicLine *b){
+				dp_register reg_a, reg_b;
+
+				if (a->opcode.addressMode() != zp) return false;
+
+				if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
+					if (reg_a == reg_b) {
+
+						BasicLine *tmp = new BasicLine;
+						tmp->opcode = OpCode(Instruction(m65816, PHA), implied);
+
+						list.pop_front(); // a
+						list.pop_front(); // b
+						delete b;
+						/*
+						list.push_front(tmp);
+						list.push_front(a);
+						*/
+						list.insert(list.begin(), {a, tmp});
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
+			/* STA %t0, PLY, LDA %t0  -> STA %t0, PLY */
+			/* PLY is used to clean the stack after a cdecl call */
+			if (match(list, STA, PLY, LDA, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+				dp_register reg_a, reg_c;
+
+				if (a->opcode.addressMode() != zp) return false;
+				if (c->opcode.addressMode() != zp) return false;
+
+				if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
+					if (reg_a == reg_c) {
+
+						list.pop_front(); // a
+						list.pop_front(); // b
+						list.pop_front(); //c
+						list.insert(list.begin(), {a, b});
+						delete c;
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
+
+			/* STA %t0, STA %t2, PEI %t0 */
+			// should handle this elsewhere?
+			if (match(list, STA, STA, PEI, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+				dp_register reg_a, reg_c;
+
+				if (a->opcode.addressMode() != zp) return false;
+
+				if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
+					if (reg_a == reg_c) {
+						BasicLine *tmp = new BasicLine;
+						tmp->opcode = OpCode(Instruction(m65816, PHA), implied);
+
+						list.pop_front(); // a
+						list.pop_front(); // b
+						list.pop_front(); //c
+
+						delete c;
+
+						list.insert(list.begin(), {a, b, tmp});
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
+
+
 			break;
 
 		case BRA:
