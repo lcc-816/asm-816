@@ -102,6 +102,9 @@ static bool unconditional_branch(Mnemonic m)
 	}	
 }
 
+bool analyze_block_2(BasicBlock *block);
+
+
 
 bool remove_branches(BlockQueue &bq) {
 	// returns true if any changes made
@@ -191,8 +194,25 @@ bool merge_blocks(BlockQueue &bq) {
 		next->next_set.clear();
 		next->prev_set.clear();
 
-		// and peephole them.
-		while (peephole(lines));
+
+		// reconcile the import/export sets.
+		// if next imports %t0 and block exports %t0,
+		// next no longer needs to import it.
+		register_set tmp = next->reg_import;
+		tmp -= block->reg_export;
+		block->reg_import += tmp;
+
+		block->reg_export += next->reg_export;
+
+		// and optimize them.
+		for(;;) {
+			bool delta = false;
+			if (peephole(lines)) delta = true;
+			if (analyze_block_2(block)) delta = true;
+
+			if (!delta) break;
+		}
+
 	}
 
 
@@ -402,15 +422,16 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 	block->reg_export = reg_export;
 }
 
-void analyze_block_2(BasicBlock *block) {
+bool analyze_block_2(BasicBlock *block) {
 
 	// second round of analysis.  import set has been calculated at this point.
 
 	LineQueue newLines;
 	LineQueue lines = std::move(block->lines);
-	register_set reg_live = block->reg_import;
+	register_set reg_live; // = block->reg_import;
 	//reg_live += block->reg_export;
 
+	bool delta = false;
 
 	// only need to export registers imported by next blocks.
 	for (BasicBlock *block : block->next_set) {
@@ -448,14 +469,16 @@ void analyze_block_2(BasicBlock *block) {
 				// drop the write if not live.
 				if (!reg_live.contains(reg))
 					dead = true;
+				reg_live -= reg; // any reason not tooo?
 				break;
 		}
 
 
-		if (dead) delete line;
+		if (dead) { delete line; delta = true; }
 		else newLines.push_front(line);
 	}
 	block->lines = std::move(newLines);
+	return delta;
 
 }
 
@@ -606,6 +629,11 @@ LineQueue basic_block(LineQueue &&lines) {
 		delta = false;
 		if (merge_blocks(bq)) delta = true;
 
+		if (delta) {
+			remove_if(bq, [](BasicBlock *block) {
+				return block->dead;
+			});
+		}
 
 	} while (delta);
 
