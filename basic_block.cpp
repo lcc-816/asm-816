@@ -615,15 +615,20 @@ LineQueue basic_block(LineQueue &&lines) {
 	// now do a second lifetime scan to remove dead writes
 	// across blocks.
 
-	for (BasicBlock *block : bq) {
-		analyze_block_2(block);
+	for (BasicBlock * block : bq) {
+		for(;;) {
+			bool delta = false;
+
+			if (peephole(block->lines)) delta = true;
+			if (analyze_block_2(block)) delta = true;
+
+			if (!delta) break;
+
+		}
 	}
 
-	// and peephole each block.
-	for (BasicBlock *block : bq) {
-		peephole(block->lines);
-	}
 
+	// merge and remove blocks.
 	bool delta = false;
 	do {
 		delta = false;
