@@ -45,6 +45,25 @@ bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, FX fx) {
 }
 
 
+template<class FX>
+bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Mnemonic m4, FX fx) {
+	const unsigned Size = 4;
+	Mnemonic mm[Size] = { m1, m2, m3, m4};
+	BasicLine *lines[Size] = {0};
+
+	if (list.size() < Size) return false;
+
+	auto iter = list.begin();
+	for (unsigned i = 0; i < Size; ++i, ++iter) {
+		BasicLine *tmp = *iter;
+		if (tmp->opcode.mnemonic() != mm[i]) return false;
+		lines[i] = tmp;
+	}
+
+	return fx(lines[0], lines[1], lines[2], lines[3]);
+}
+
+
 
 bool peephole(LineQueue &list) {
 
@@ -439,8 +458,53 @@ bool peephole(LineQueue &list) {
 			})) continue;
 
 
+			/* STA %t0, LDA xxx, CLC, ADC %t0 -> STA %t0, CLC, ADC xxx */
+			// works for dp or immediate (or absolute...)
+			if (match(list, STA, LDA, CLC, ADC, 
+				[&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d){
+					dp_register reg_a, reg_b, reg_d;
+					if (a->opcode.addressMode() != zp) return false;
+					//if (b->opcode.addressMode() != zp) return false;
+					if (d->opcode.addressMode() != zp) return false;
+
+					if (a->operands[0]->is_register(reg_a)
+						//&& b->operands[0]->is_register(reg_b)
+						&& d->operands[0]->is_register(reg_d)
+					) {
+						if (reg_a != reg_d) return false;
+
+						list.pop_front();
+						list.pop_front();
+						list.pop_front();
+						list.pop_front();
+
+						BasicLine *tmp = new BasicLine;
+						tmp->operands[0] = b->operands[0];
+						tmp->opcode = OpCode(Instruction(m65816, ADC), b->opcode.addressMode());
+						list.insert(list.begin(), {a, c, tmp});
+
+						delete b;
+						delete d;
+						return true;
+					}
+					return false;
+
+			})) continue;
+
+
 
 			break;
+
+
+		case TAX:
+			/* TAX, PLX -> PLX */
+			if (match(list, TAX, PLX, [&](BasicLine *a, BasicLine *b){
+
+				list.pop_front(); // a
+				delete a;
+
+				return true;
+			})) continue;	
 
 		case BRA:
 			/* bra label, label: -> label */
