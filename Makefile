@@ -4,13 +4,13 @@ OS := $(shell uname -s)
 
 ifeq ($(OS),Linux)
 CXX = g++
-CXXFLAGS = -std=c++11 -g -MMD
+CXXFLAGS = -std=c++11 -g -MMD -Wno-multichar
 endif
 
 
 ifeq ($(OS),Darwin)
 CXX = clang++
-CXXFLAGS = -std=c++11 -stdlib=libc++ -g -MMD
+CXXFLAGS = -std=c++11 -stdlib=libc++ -g -MMD -Wno-multichar
 endif
 
 
