@@ -122,6 +122,24 @@ struct Cookie {
 	std::deque<BasicLine *> lines;
 };
 
+
+struct CodeSegment {
+	const std::string *name = nullptr;
+	const std::string *segment = nullptr;
+
+	BlockQueue blocks;
+	// attributes
+	unsigned parm_size = 0;
+	bool dp_size = 0;
+	enum {
+		cdecl = 0,
+		pascal,
+		stdcall
+	} convention = cdecl;
+	// databank?
+	// short call?
+};
+
 bool peephole(LineQueue &);
 void print(const LineQueue &lines);
 void simplify(LineQueue &lines);
