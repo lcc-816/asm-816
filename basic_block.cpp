@@ -461,9 +461,18 @@ bool analyze_block_2(BasicBlock *block) {
 				// fallthrough
 
 			case reg_read:
-			case reg_rw:
 				reg_live += reg;
 				break;
+
+			case reg_rw:
+				// read, then write.
+				// if reg is live, it remains live.
+				// if reg is dead, it remains dead.
+				if (!reg_live.contains(reg))
+					dead = true;
+
+				break;				
+
 
 			case reg_write:
 				// drop the write if not live.
