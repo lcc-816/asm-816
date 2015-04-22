@@ -297,15 +297,16 @@ opcode ::= DS expr(e). {
 }
 
 
-%type expr_list {Expression *}
+%type expr_list {VectorExpression *}
 
 expr_list(rv) ::= expr(e). {
-	Expression *tmp = Expression::Vector(e);
+	VectorExpression *tmp = Expression::Vector();
+	tmp->push_back(e);
 	rv = tmp;
 }
 
 expr_list(rv) ::= expr_list(l) COMMA expr(e). {
-	l->append(e);
+	l->push_back(e);
 	rv = l;
 }
 
@@ -564,7 +565,7 @@ unary(rv) ::= CARET unary(rhs). [BANG] {
 unary(rv) ::= term(a). { rv = a; }
 
 term(rv) ::= IDENTIFIER(a). {
-	rv = Expression::Variable(a.string_value);
+	rv = Expression::Identifier(a.string_value);
 }
 
 term(rv) ::= INTEGER(a). {

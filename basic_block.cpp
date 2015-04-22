@@ -328,7 +328,7 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 
 		if (is_branch(line->opcode.mnemonic())) {
 
-			ll = e->collect_variables();
+			ll = e->identifiers();
 		}
 
 		// dc.l label is a reference.
@@ -337,7 +337,7 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 			case DCB:
 			case DCL:
 			case DCW:
-				ll = e->collect_variables();
+				ll = e->identifiers();
 				break;
 			default:
 				break;

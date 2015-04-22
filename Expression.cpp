@@ -1,5 +1,4 @@
 
-//#include "Expression.h"
 
 #include <deque>
 #include <string>
@@ -14,27 +13,7 @@ namespace {
 
 	std::deque<Expression *> Pool;
 
-	std::string to_string(uint32_t value)
-	{
-		char buffer[10] = {0};
-		if (value <= 0xff) {
-			snprintf(buffer, sizeof(buffer), "$%02x", value);			
-		} else if (value <= 0xffff) {
-			snprintf(buffer, sizeof(buffer), "$%04x", value);
-		} else if (value <= 0xffffff) {
-			snprintf(buffer, sizeof(buffer), "$%06x", value);			
-		} else {
-			snprintf(buffer, sizeof(buffer), "$%08x", value);			
-		}
-		return buffer;
-	}
 
-	std::string to_string(dp_register reg) {
-		char buffer[10] = {0};
-
-		snprintf(buffer, sizeof(buffer), "%%%c%u", reg.type, reg.number);
-		return buffer;
-	}
 }
 
 
@@ -47,119 +26,363 @@ void Expression::ErasePool(void) {
 	Pool.clear();
 }
 
+#pragma mark - class definitions
 
+class PCExpression : public Expression {
+public:
+	PCExpression() : Expression(type_pc)
+	{}
+
+	virtual void to_string(std::string &) const final;
+};
+
+
+class IntegerExpression : public Expression {
+public:
+	IntegerExpression(uint32_t value) : 
+	Expression(type_integer), _value(value)
+	{}
+
+	virtual bool is_integer(uint32_t &) const final;
+	virtual void to_string(std::string &) const final;
+
+private:
+	uint32_t _value;
+};
+
+
+
+
+class RegisterExpression : public Expression {
+public:
+	RegisterExpression(dp_register value) : 
+	Expression(type_register), _value(value)
+	{}
+
+	virtual bool is_register(dp_register &) const final;
+	virtual void to_string(std::string &) const final;
+	virtual void rename(dp_register, dp_register) final;
+
+private:
+	dp_register _value;
+};
+
+
+
+
+class IdentifierExpression : public Expression {
+public:
+	IdentifierExpression(identifier value) : Expression(type_identifier), _value(value)
+	{}
+
+	virtual bool is_identifier(identifier &) const final;
+	virtual void to_string(std::string &) const final;
+
+	virtual void identifiers(std::vector<identifier> &) const final;
+	virtual void rename(identifier, identifier) final;	
+
+private:
+	identifier _value;
+};
+
+
+class StringExpression : public Expression {
+public:
+	StringExpression(identifier value) : Expression(type_string), _value(value)
+	{}
+
+	virtual bool is_string(identifier &) const final;
+	virtual void to_string(std::string &) const final;
+
+private:
+	identifier _value;
+};
+
+
+
+#if 0
+	// in header now.
+class VectorExpression : public Expression {
+public:
+	VectorExpression() : Expression(type_vector)
+	{}
+
+	VectorExpression(std::vector<ExpressionPtr> &&v) : 
+	Expression(type_vector), _values(std::move(v))
+	{}
+
+	template <class T>
+	VectorExpression(T<ExpressionPtr> &v) : Expression(type_vector), _values(v)
+	{}
+
+	virtual void to_string(std::string &) const final;
+	virtual bool is_vector(std::vector<ExpressionPtr> &) const final;
+
+	virtual void rename(identifier, identifier) final;
+	virtual void rename(dp_register, dp_register) final;
+	virtual ExpressionPtr simplify() final;
+
+	virtual ExpressionPtr append(ExpressionPtr child) final;
+
+private:
+	std::vector<ExpressionPtr> _values;
+};
+#endif
+
+
+
+class UnaryExpression : public Expression {
+public:
+	UnaryExpression(unsigned op, ExpressionPtr a) :
+	Expression(type_unary), _children{a}
+	{}
+
+	virtual void to_string(std::string &) const final;
+	virtual void identifiers(std::vector<identifier> &) const final;
+
+	virtual void rename(identifier, identifier) final;
+	virtual void rename(dp_register, dp_register) final;
+	virtual ExpressionPtr simplify() final;
+
+		
+private:
+	unsigned _op;
+	std::array<ExpressionPtr, 1> _children;
+};
+
+
+
+class BinaryExpression : public Expression {
+public:
+	BinaryExpression(unsigned op, ExpressionPtr a, ExpressionPtr b) :
+	Expression(type_binary), _children{a, b}
+	{}
+
+	virtual void to_string(std::string &) const final;
+	virtual void identifiers(std::vector<identifier> &rv) const final;
+
+	virtual void rename(identifier, identifier) final;
+	virtual void rename(dp_register, dp_register) final;
+	virtual ExpressionPtr simplify() final;
+	
+private:
+	unsigned _op;
+	std::array<ExpressionPtr, 2> _children;
+};
+
+#pragma mark - destructors
+
+Expression::~Expression() {
+}
+
+VectorExpression::~VectorExpression() {
+}
+
+
+
+
+#pragma mark - constructors
 Expression *Expression::PC() {
-	static Expression pc(type_pc);
+	static ExpressionPtr pc = new PCExpression();
 
-	return &pc;
+	return pc;
 }
 
 Expression *Expression::Integer(uint32_t value) {
-	Expression *e = new Expression(value);
+	ExpressionPtr e = new IntegerExpression(value);
 	Pool.push_back(e);
 	return e;
 }
 
 Expression *Expression::Register(dp_register value) {
-	Expression *e = new Expression(value);
+	ExpressionPtr e = new RegisterExpression(value);
 	Pool.push_back(e);
 	return e;
 }
 
-Expression *Expression::Variable(const std::string *value) {
-	Expression *e = new Expression(type_variable, value);
+Expression *Expression::Identifier(const std::string *value) {
+	ExpressionPtr e = new IdentifierExpression(value);
 	Pool.push_back(e);
 	return e;
 }
 
 Expression *Expression::String(const std::string *value) {
-	Expression *e = new Expression(type_string, value);
+	ExpressionPtr e = new StringExpression(value);
 	Pool.push_back(e);
 	return e;
 }
 
 
-Expression *Expression::Unary(unsigned op, Expression *child) {
-	Expression *e = new Expression(op, child);
+Expression *Expression::Unary(unsigned op, ExpressionPtr child) {
+	ExpressionPtr e = new UnaryExpression(op, child);
 
 	Pool.push_back(e);
 	return e;
 }
 
-Expression *Expression::Binary(unsigned op, Expression *a, Expression *b) {
-	Expression *e = new Expression(op, a, b);
+ExpressionPtr Expression::Binary(unsigned op, ExpressionPtr a, ExpressionPtr b) {
+	ExpressionPtr e = new BinaryExpression(op, a, b);
 
 	Pool.push_back(e);
 	return e;
 }
 
-Expression *Expression::Vector(Expression *child) {
-	Expression *e = new Expression(type_vector);
-
-	auto v = new (&e->vector_value) std::vector<Expression *>;
-	v->push_back(child);
-	// todo -- flatten if child is a vector?
-
-	Pool.push_back(e);
-	return e;
-}
-
-Expression *Expression::Vector(Expression **children, unsigned count) {
-	Expression *e = new Expression(type_vector);
-
-	auto v = new (&e->vector_value) std::vector<Expression *>;
-	v->reserve(count);
-	for (unsigned i = 0; i < count; ++i) v->push_back(children[i]);
-	// todo -- flatten if child is a vector?
+VectorExpressionPtr Expression::Vector() {
+	VectorExpressionPtr e = new VectorExpression();
 
 	Pool.push_back(e);
 	return e;
 }
 
 
-Expression *Expression::simplify() {
-	switch(_type) {
-		default:
-			return this;
-		case type_unary:
-			return simplify_unary();
-		case type_binary:
-			return simplify_binary();
-		case type_vector:
-			return simplify_vector();
+
+
+#pragma mark - is_xxx
+
+bool Expression::is_integer(uint32_t &) const {
+	return false;
+}
+
+bool Expression::is_register(dp_register &) const {
+	return false;
+}
+
+bool Expression::is_identifier(identifier &) const {
+	return false;
+}
+
+bool Expression::is_vector(std::vector<ExpressionPtr> &) const {
+	return false;
+}
+
+bool Expression::is_string(const std::string *&) const {
+	return false;
+}
+
+
+bool IntegerExpression::is_integer(uint32_t &rv) const {
+	rv = _value;
+	return true;
+}
+
+bool RegisterExpression::is_register(dp_register &rv) const {
+	rv = _value;
+	return true;
+}
+
+bool IdentifierExpression::is_identifier(identifier &rv) const {
+	rv = _value;
+	return true;
+}
+
+bool StringExpression::is_string(const std::string *&rv) const {
+	rv = _value;
+	return true;
+}
+
+bool VectorExpression::is_vector(std::vector<ExpressionPtr> &rv) const {
+	rv = _children;
+	return true;
+}
+
+
+
+
+#pragma mark - to_string
+
+void PCExpression::to_string(std::string &rv) const {
+	rv.push_back('*');
+}
+
+void IntegerExpression::to_string(std::string &rv) const {
+	char buffer[10];
+	if (_value <= 0xff) snprintf(buffer, sizeof(buffer), "%02x", _value);
+	else if (_value <= 0xffff) snprintf(buffer, sizeof(buffer), "%04x", _value);
+	else snprintf(buffer, sizeof(buffer), "%08x", _value);
+
+	rv.push_back('$');
+	rv.append(buffer);
+}
+
+
+void RegisterExpression::to_string(std::string &rv) const {
+	char buffer[10];
+	snprintf(buffer, sizeof(buffer), "%u", _value.number);
+	rv.push_back('%');
+	rv.push_back(_value.type);
+	rv.append(buffer);
+}
+
+void IdentifierExpression::to_string(std::string &rv) const {
+	rv.append(*_value);
+}
+
+void UnaryExpression::to_string(std::string &rv) const {
+	rv.push_back(_op);
+	_children[0]->to_string(rv);
+}
+
+void BinaryExpression::to_string(std::string &rv) const {
+	_children[0]->to_string(rv);
+	rv.push_back(_op);
+	_children[1]->to_string(rv);
+}
+
+void VectorExpression::to_string(std::string &rv) const {
+	bool first = true;
+	for (ExpressionPtr e : _children) {
+		if (first) first = false;
+		else rv.push_back(',');
+		e->to_string(rv);
 	}
 }
 
-Expression *Expression::simplify_unary() {
-	Expression *child = children[0]->simplify();
-	children[0] = child;
+void StringExpression::to_string(std::string &rv) const {
+    // todo -- quote it...
+    rv.push_back('"');
+    rv.append(*_value);
+    rv.push_back('"');
+}
+
+
+#pragma mark - simplify
+
+ExpressionPtr Expression::simplify() {
+    return this;
+}
+
+ExpressionPtr UnaryExpression::simplify() {
 	uint32_t value;
 
-	if (child->is_integer(value)) {
-		switch (op) {
-			case '+': return child;
-			case '-': value = -value; break;
-			case '^': value = value >> 16; break;
-			case '!': value = !value; break;
-			case '~': value = ~value; break;
+	std::transform(_children.begin(), _children.end(), _children.begin(), [](ExpressionPtr e){
+		return e->simplify();
+	});
+
+
+	if (_children[0]->is_integer(value)) {
+		switch(_op) {
+		case '^': value = value >> 16;	break;
+		case '!': value = !value; break;
+		case '+': value = +value; break;
+		case '-': value = -value; break;
+		case '~': value = ~value; break;
 		}
 		return Expression::Integer(value);
 	}
 	return this;
 }
 
-Expression *Expression::simplify_binary() {
-	Expression *lhs = children[0]->simplify();
-	Expression *rhs = children[1]->simplify();
 
-	children[0] = lhs;
-	children[1] = rhs;
+ExpressionPtr BinaryExpression::simplify() {
+	uint32_t a,b;
 
-	uint32_t a, b;
-
-	if (lhs->is_integer(a) && rhs->is_integer(b)) {
-		uint32_t value = 0;
-		switch (op) {
+	std::transform(_children.begin(), _children.end(), _children.begin(), [](ExpressionPtr e){
+		return e->simplify();
+	});
+    
+	if (_children[0]->is_integer(a) && _children[1]->is_integer(b)) {
+	    uint32_t value = 0;
+		switch(_op) {
 			case '+': value = a + b; break;
 			case '-': value = a - b; break;
 			case '*': value = a * b; break;
@@ -175,219 +398,101 @@ Expression *Expression::simplify_binary() {
 		}
 		return Expression::Integer(value);
 	}
+	
+	// shortcut logical expressions...
+	if (_children[0]->is_integer()) {
+		switch(_op) {
+		case '||': 
+			if (a) return Expression::Integer(1);
+			break;
+		case '&&':
+			if (!a) return Expression::Integer(0);
+			break;
+		}
+	}
+
+	if (_children[1]->is_integer()) {
+		switch(_op) {
+		case '||': 
+			if (b) return Expression::Integer(1);
+			break;
+		case '&&':
+			if (!b) return Expression::Integer(0);
+			break;
+		}
+	}
+
 	return this;
 }
 
-Expression *Expression::simplify_vector() {
-	std::vector<Expression *> tmp(vector_value);
+ExpressionPtr VectorExpression::simplify() {
 
-	bool delta = false;
-
-	std::transform(tmp.begin(), tmp.end(), tmp.begin(), [&delta](Expression *e){
-
-		Expression *tmp = e->clone();
-		if (tmp != e) delta = true;
-		return tmp;
+	std::transform(_children.begin(), _children.end(), _children.begin(), [](ExpressionPtr e){
+		return e->simplify();
 	});
-
-	if (!delta) return this;
-	return Vector(tmp.data(), tmp.size());
-}
-
-#pragma mark - clone
-
-Expression *Expression::clone() {
-
-	switch (_type) {
-		default: return this;
-		case type_binary: return clone_binary();
-		case type_unary: return clone_unary();
-		case type_vector: return clone_vector();
-	}
-}
-
-Expression *Expression::clone_unary() {
-	return Expression::Unary(op, children[0]->clone());
-}
-
-Expression *Expression::clone_binary() {
-	return Expression::Binary(op, children[0]->clone(), children[1]->clone());
-}
-
-Expression *Expression::clone_vector() {
-	std::vector<Expression *> tmp(vector_value);
-
-	std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](Expression *e) {
-		return e->clone();
-	});
-
-	return Expression::Vector(tmp.data(), tmp.size());
-}
-
-
-std::string Expression::to_string() const {
-
-	switch(_type)
-	{
-		case type_binary:
-			return to_string_binary();
-		case type_unary:
-			return to_string_unary();
-		case type_pc:
-			return "*";
-		case type_integer:
-			return ::to_string(int_value);
-		case type_variable:
-			return *string_value;
-		case type_register:
-			return ::to_string(register_value);
-		case type_vector:
-			return to_string_vector();
-		case type_string:
-			{
-				std::string s;
-				s.push_back('"');
-				s.append(*string_value);
-				s.push_back('"');
-				return s;
-			}
-
-		default:
-			return "";
-	}
-
-}
-
-std::string Expression::to_string_unary() const {
-	std::string rv;
-
-	rv.push_back(op);
-	rv.append(children[0]->to_string());
-
-	return rv;
-}
-
-std::string Expression::to_string_binary() const {
-	std::string rv;
 	
-	// doesn't handle () precedence. 
-	// (but neither does the parser)
-	rv.append(children[0]->to_string());
-	rv.push_back(op);
-	rv.append(children[1]->to_string());
-
-	return rv;
+	return this;
 }
 
-std::string Expression::to_string_vector() const {
-	std::string rv;
+#pragma mark - rename
 
-	bool first = true;
-	for (Expression *e : vector_value) {
-		if (!first) { rv.push_back(','); }
-		rv.append(e->to_string());
-		first = false;	
-	}
-
-	return rv;
+void Expression::rename(dp_register, dp_register) {
 }
 
-
-#if 0
-Expression *Expression::evaluate(uint32_t pc, const varmap &map) {
-
-	switch(_op) {
-		default:
-			return *this;
-		case type_binary:
-			return evaluate_binary(pc, map);
-		case type_unary:
-			return evaluate_unary(pc, map);
-		case type_pc:
-			return Expression::Integer(pc);
-		case type_variable:
-			{
-				auto iter = map.find(s);
-				if (iter == map.end()) return this;
-				return Integer(iter->second);
-			}
-	}
+void Expression::rename(identifier, identifier) {
 }
 
-
-
-# pragma mark - ==
-
-bool Expression::operator==(const Expression &other) {
-	// hmmm.. should * == * ? only true if same line.
-	if (type == type_pc) return false;
-
-	if (this == &other) return true;
-	if (type != other->type) return false;
-
-	switch (type) {
-		case type_variable:
-			return string_value == other->string_value;
-		case type_integer:
-			return int_value == other->int_value;
-		case type_unary:
-			return op == other->op 
-				&& (*children[0] == *other->children[0]);
-		case type_binary:
-			return op == other->op 
-				&& (*children[0] == *other->children[0]);
-				&& (*children[1] == *other->children[1]);
-
-		default:
-			return false;
-	}
+void RegisterExpression::rename(dp_register a, dp_register b) {
+	if (_value == a) _value = b;
 }
 
-#endif
-
-Expression *Expression::append(Expression *child) {
-	if (child == this) return this;
-
-	if (_type == type_vector) {
-		// flatten if child is a vector?
-		vector_value.push_back(child);
-		return this;
-	}
-	Expression *children[2] = {this, child};
-	return Expression::Vector(children, 2);
+void IdentifierExpression::rename(identifier a, identifier b) {
+	if (_value == a) _value = b;
 }
 
-#pragma mark - collect_variables
-
-std::vector<const std::string *> Expression::collect_variables() {
-	std::vector<const std::string *> rv;
-	collect_variables(rv);
-	return rv;
+void VectorExpression::rename(dp_register a, dp_register b) {
+	for (auto e: _children) e->rename(a, b);
 }
 
-
-void Expression::collect_variables(std::vector<const std::string *> &v) {
-	switch(_type) {
-		case type_unary: collect_variables_unary(v); break;
-		case type_binary: collect_variables_binary(v); break;
-		case type_vector: collect_variables_vector(v); break;
-		case type_variable: v.push_back(string_value); break;
-		default: break;
-	}
+void VectorExpression::rename(identifier a, identifier b) {
+	for (auto e: _children) e->rename(a, b);
 }
 
-void Expression::collect_variables_unary(std::vector<const std::string *> &v) {
-	children[0]->collect_variables(v);
+void UnaryExpression::rename(dp_register a, dp_register b) {
+	for (auto e: _children) e->rename(a, b);
 }
 
-void Expression::collect_variables_binary(std::vector<const std::string *> &v) {
-	children[0]->collect_variables(v);
-	children[1]->collect_variables(v);
+void UnaryExpression::rename(identifier a, identifier b) {
+	for (auto e: _children) e->rename(a, b);
 }
 
-void Expression::collect_variables_vector(std::vector<const std::string *> &v) {
-	for (Expression *e : vector_value)
-		e->collect_variables(v);
+void BinaryExpression::rename(dp_register a, dp_register b) {
+	for (auto e: _children) e->rename(a, b);
 }
 
+void BinaryExpression::rename(identifier a, identifier b) {
+	for (auto e: _children) e->rename(a, b);
+}
 
+#pragma mark - identifiers
+
+
+void Expression::identifiers(std::vector<identifier> &rv) const {
+}
+
+void IdentifierExpression::identifiers(std::vector<identifier> &rv) const {
+	rv.push_back(_value);
+}
+
+void UnaryExpression::identifiers(std::vector<identifier> &rv) const {
+	for (auto e: _children) e->identifiers(rv);
+
+}
+
+void BinaryExpression::identifiers(std::vector<identifier> &rv) const {
+	for (auto e: _children) e->identifiers(rv);
+}
+
+void VectorExpression::identifiers(std::vector<identifier> &rv) const {
+	for (auto e: _children) e->identifiers(rv);
+}

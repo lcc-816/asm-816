@@ -8,18 +8,25 @@
 
 enum AddressMode;
 
+class Expression;
+class VectorExpression;
+
+typedef Expression *ExpressionPtr;
+typedef VectorExpression *VectorExpressionPtr;
+
+typedef const std::string *identifier;
+
 class Expression {
 
 public:
-	static Expression *Integer(uint32_t value);
-	static Expression *PC();
-	static Expression *Register(dp_register value);
-	static Expression *Variable(const std::string *name);
-	static Expression *Unary(unsigned op, Expression *a);
-	static Expression *Binary(unsigned op, Expression *a, Expression *b);
-	static Expression *Vector(Expression *child);
-	static Expression *Vector(Expression **children, unsigned count);
-	static Expression *String(const std::string *name);
+	static ExpressionPtr PC();
+	static ExpressionPtr Integer(uint32_t value);
+	static ExpressionPtr Register(dp_register value);
+	static ExpressionPtr Identifier(identifier name);
+	static ExpressionPtr Unary(unsigned op, ExpressionPtr a);
+	static ExpressionPtr Binary(unsigned op, ExpressionPtr a, ExpressionPtr b);
+	static VectorExpressionPtr Vector();
+	static ExpressionPtr String(const std::string *name);
 
 	static void ErasePool();
 
@@ -28,11 +35,12 @@ public:
 		type_integer,
 		type_register,
 		type_pc,
-		type_variable,
+		type_identifier,
+		type_string,
+
 		type_unary,
 		type_binary,
 		type_vector,
-		type_string,
 	};
 
 	expression_type type() const {
@@ -41,142 +49,98 @@ public:
 
 	bool is_integer() const { return _type == type_integer; }
 	bool is_register() const { return _type == type_register; }
-	bool is_variable() const { return _type == type_variable; }
+	bool is_identifier() const { return _type == type_identifier; }
 	bool is_unary() const { return _type == type_unary; }
 	bool is_binary() const { return _type == type_binary; }
 	bool is_pc() const { return _type == type_pc; }
 	bool is_vector() const {return _type == type_vector; }
 	bool is_string() const {return _type == type_string; }
 
-	std::vector<const std::string *> collect_variables();
+	bool is_terminal() const { return _type < type_unary; }
 
-	bool is_integer(uint32_t &rv) {
-		if (_type == type_integer) {
-			rv = int_value;
-			return true;
+	bool is_temporary(dp_register &rv) const {
+		if (is_register(rv)) {
+			return rv.type == 't';
 		}
 		return false;
 	}
 
-	bool is_register(dp_register &rv) {
-		if (_type == type_register) {
-			rv = register_value;
-			return true;
-		}
-		return false;
+
+	std::string to_string() const {
+		std::string rv;
+		to_string(rv);
+		return rv;
+	}
+	std::vector<identifier> identifiers() const {
+		std::vector<identifier> rv;
+		identifiers(rv);
+		return rv;
 	}
 
-	bool is_variable(const std::string * &rv) {
-		if (_type == type_variable) {
-			rv = string_value;
-			return true;
-		}
-		return false;
-	}
+	virtual bool is_identifier(identifier &) const;
+	virtual bool is_integer(uint32_t &) const;
+	virtual bool is_register(dp_register &) const;
 
-	bool is_string(const std::string * &rv) {
-		if (_type == type_string) {
-			rv = string_value;
-			return true;
-		}
-		return false;
-	}
+	virtual bool is_string(const std::string *&) const;
+	virtual bool is_vector(std::vector<ExpressionPtr> &) const;
 
-	bool is_vector(std::vector<Expression *> &rv) {
-		if (_type == type_vector) {
-			rv = vector_value;
-			return true;
-		}
-		rv.clear();
-		return false;
-	}
+	virtual void rename(identifier oldname, identifier newname);
+	virtual void rename(dp_register oldreg, dp_register newreg);
 
-	Expression *append(Expression *child);
-
-	Expression *rename(const std::string *oldname, const std::string *newname);
-	Expression *rename(dp_register oldreg, dp_register newreg);
-
-	// currently, register is top-level only -- not part of an expression.
-
-	/*
-	 * void collect_variables(variable_set);
-	 * void collect_registers(register_set); //?
-	 */
-
-
-	Expression *simplify();
-	Expression *clone();
-
-	std::string to_string() const;
+	virtual ExpressionPtr simplify();
 
 
 protected:
-	Expression(expression_type type) : 
-		_type(type)
+	friend class UnaryExpression;
+	friend class BinaryExpression;
+	friend class VectorExpression;
+
+	Expression(expression_type type) : _type(type)
 	{}
 
-	Expression(uint32_t value) : 
-		_type(type_integer), int_value(value)
-	{}
-	
-	Expression(dp_register value) : 
-		_type(type_register), register_value(value)
-	{}
+	virtual ~Expression();
 
-	Expression(expression_type type, const std::string *value) : 
-		_type(type), string_value(value)
-	{}
+	// children override
+	virtual void to_string(std::string &) const = 0;
+	virtual void identifiers(std::vector<identifier> &) const;
 
-	Expression(unsigned o, Expression *e) : 
-		_type(type_unary), op(o), children{e, 0}
-	{}
-
-	Expression(unsigned o, Expression *a, Expression *b) : 
-		_type(type_binary), op(o), children{a, b}
-	{}
-
-	~Expression() {
-		if (_type == type_vector) {
-			vector_value.~vector();
-		}
-	}
 
 private:
 
-	void append_vector_element(Expression *);
-
-	Expression *simplify_unary();
-	Expression *simplify_binary();
-	Expression *simplify_vector();
-
-	Expression *clone_unary();
-	Expression *clone_binary();
-	Expression *clone_vector();
-
-	Expression *rename_unary(const std::string *oldname, const std::string *newname);
-	Expression *rename_binary(const std::string *oldname, const std::string *newname);
-	Expression *rename_vector(const std::string *oldname, const std::string *newname);
-
-	std::string to_string_unary() const;
-	std::string to_string_binary() const;
-	std::string to_string_vector() const;
-
-
-	void collect_variables(std::vector<const std::string *> &);
-	void collect_variables_unary(std::vector<const std::string *> &);
-	void collect_variables_binary(std::vector<const std::string *> &);
-	void collect_variables_vector(std::vector<const std::string *> &);
-
 	expression_type _type = type_unknown;
-	Expression *children[2] = {0, 0};
-	union {
-		const std::string *string_value = 0;
-		unsigned op;
-		uint32_t int_value;
-		dp_register register_value;
-		std::vector<Expression *> vector_value;
+};
 
-	};
+class VectorExpression : public Expression {
+
+	public:
+
+	size_t size() const { return _children.size(); }
+	void push_back(ExpressionPtr e) { _children.push_back(e); }
+
+	virtual bool is_vector(std::vector<ExpressionPtr> &) const final;
+
+	virtual void rename(identifier oldname, identifier newname) final;
+	virtual void rename(dp_register oldreg, dp_register newreg) final;
+
+	virtual ExpressionPtr simplify() final;
+
+
+	protected:
+
+	VectorExpression() : Expression(type_vector)
+	{}
+
+	virtual ~VectorExpression() final;
+
+	virtual void to_string(std::string &) const final;
+	virtual void identifiers(std::vector<identifier> &) const final;
+
+	private:
+	friend class Expression;
+	
+
+	std::vector<ExpressionPtr> _children;
 };
 
 #endif
+

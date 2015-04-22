@@ -510,7 +510,7 @@ bool peephole(LineQueue &list) {
 			/* bra label, label: -> label */
 			if (match(list, BRA, kUndefinedMnemonic, [&](BasicLine *a, BasicLine *b){
 				const std::string *label;
-				if (b->label && a->operands[0]->is_variable(label)) {
+				if (b->label && a->operands[0]->is_identifier(label)) {
 					if (label == b->label) {
 						list.pop_front();
 						delete a;
@@ -525,7 +525,7 @@ bool peephole(LineQueue &list) {
 			/* brl label, label: -> label */
 			if (match(list, BRL, kUndefinedMnemonic, [&](BasicLine *a, BasicLine *b){
 				const std::string *label;
-				if (b->label && a->operands[0]->is_variable(label)) {
+				if (b->label && a->operands[0]->is_identifier(label)) {
 					if (label == b->label) {
 						list.pop_front();
 						delete a;
@@ -542,7 +542,7 @@ bool peephole(LineQueue &list) {
 				const std::string *label;
 				if (b->opcode.addressMode() == absolute 
 					&& b->label 
-					&& a->operands[0]->is_variable(label)) {
+					&& a->operands[0]->is_identifier(label)) {
 					if (label == b->label) {
 						list.pop_front();
 						delete a;
