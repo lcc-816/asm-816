@@ -562,6 +562,14 @@ unary(rv) ::= CARET unary(rhs). [BANG] {
 	rv = Expression::Unary('^', rhs);
 }
 
+unary(rv) ::= TILDE unary(rhs). [BANG] {
+	rv = Expression::Unary('~', rhs);
+}
+
+unary(rv) ::= BANG unary(rhs). [BANG] {
+	rv = Expression::Unary('!', rhs);
+}
+
 unary(rv) ::= term(a). { rv = a; }
 
 term(rv) ::= IDENTIFIER(a). {
