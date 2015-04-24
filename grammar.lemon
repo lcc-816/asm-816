@@ -455,6 +455,33 @@ operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Y. {
 }
 
 
+/* 65ce02 -- just for fun! */
+/* (dp),z */
+operand(rv) ::= LPAREN modifier(m) expr(e) RPAREN COMMA REGISTER_Z. {
+
+	switch(m)
+	{
+	default: break;
+
+	case zp: break;
+	case absolute: 
+		error("invalid address mode: (|absolute),z");
+		break;
+	case absolute_long: 
+		error("invalid address mode: (>absolute long),z");
+		break;
+	}
+
+	cookie->scratch.mode = zp_indirect_z;
+	cookie->scratch.explicit_mode = true;
+	rv = e;
+}
+
+operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Z. {
+	cookie->scratch.mode = zp_indirect_z;
+	rv = e;
+}
+
 
 
 /* sr,s */
