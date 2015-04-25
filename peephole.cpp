@@ -564,3 +564,91 @@ bool peephole(LineQueue &list) {
 	list = std::move(optimized);
 	return (list.size() != starting_size);
 }
+
+
+
+bool final_peephole(LineQueue &list) {
+	/*
+	 * last-chance optimizations
+	 *
+	 */
+
+	// hmmm can't just drop CMP #0 since CMP sets the c flag,
+	// LDA does not.  CMP #0 bcs ... == if (x >= 0)
+	// but bcs only useful for unsigned... shouldn't ever 
+	// check against const #0 unsigned never < 0, unsigned always >= 0
+
+	LineQueue optimized;
+
+	uint32_t starting_size = list.size();
+
+	while(!list.empty()) {
+
+		BasicLine *line = list.front();
+
+		switch(line->opcode.mnemonic()) {
+		default: break;
+
+		case LDA:
+			/* LDA xxx, CMP #0 -> LDA xxx */
+			if (match(list, LDA, CMP, [&](BasicLine *a, BasicLine *b){
+				uint32_t value;
+				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
+					if (value == 0) {
+						list.pop_front();
+						list.pop_front();
+						list.push_front(a);
+						delete b;
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+			break;
+
+		case LDX:
+			/* LDX xxx, CPX #0 -> LDX xxx */
+			if (match(list, LDX, CPX, [&](BasicLine *a, BasicLine *b){
+				uint32_t value;
+				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
+					if (value == 0) {
+						list.pop_front();
+						list.pop_front();
+						list.push_front(a);
+						delete b;
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+			break;
+
+		case LDY:
+			/* LDY xxx, CPY #0 -> LDY xxx */
+			if (match(list, LDY, CPY, [&](BasicLine *a, BasicLine *b){
+				uint32_t value;
+				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
+					if (value == 0) {
+						list.pop_front();
+						list.pop_front();
+						list.push_front(a);
+						delete b;
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+			break;
+
+		}
+
+
+		list.pop_front();
+		optimized.push_back(line);
+	}
+
+
+	list = std::move(optimized);
+	return (list.size() != starting_size);
+
+}
