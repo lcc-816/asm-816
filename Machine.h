@@ -51,6 +51,7 @@ enum AddressMode {
     zp_indirect,
     zp_indirect_x,
     zp_indirect_y,
+    zp_indirect_z,
     zp_relative, // bbr/bbs
     
     zp_indirect_long,
