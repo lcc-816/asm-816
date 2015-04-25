@@ -4,6 +4,7 @@
 
 #include <string>
 #include <deque>
+#include <unordered_set>
 
 #include "Machine.h"
 #include "Instruction.h"
@@ -75,6 +76,7 @@ struct BasicLine {
 	Expression *operands[2] = {0, 0};
 
 	uint32_t pc = 0;
+	bool long_branch = false;
 	// live registers, etc.
 
 	register_set reg_live;
@@ -86,6 +88,7 @@ typedef std::deque<BasicLine *> LineQueue;
 struct BasicBlock {
 
 	unsigned size = 0;
+	unsigned pc = 0;
 	unsigned id = 0;
 
 	const std::string *label = nullptr;
@@ -108,37 +111,40 @@ typedef std::deque<BasicBlock *> BlockQueue;
 
 
 struct Segment {
-
-	const std::string *name;
-	unsigned type;
-	// attributes -- parameter size, private, cdecl, pascal, etc.
-	BlockQueue blocks;
-};
-
-struct Cookie {
-
-	Line scratch;
-
-	std::deque<BasicLine *> lines;
-};
-
-
-struct CodeSegment {
 	const std::string *name = nullptr;
 	const std::string *segment = nullptr;
 
 	BlockQueue blocks;
 	// attributes
+
 	unsigned parm_size = 0;
-	bool dp_size = 0;
+	unsigned local_size = 0;
+	unsigned temp_size = 0;
+	unsigned return_size = 0;
+	unsigned kind = 0;
+	bool rts = false;
+
 	enum {
 		cdecl = 0,
 		pascal,
 		stdcall
 	} convention = cdecl;
-	// databank?
-	// short call?
 };
+
+typedef std::deque<Segment *> SegmentQueue;
+
+struct Cookie {
+
+	Line scratch;
+
+	// current segment.
+	Segment *segment = nullptr;
+	Segment *data_segment = nullptr;
+	std::unordered_set<const std::string *> export_set;
+
+	LineQueue lines;
+};
+
 
 bool peephole(LineQueue &);
 void print(const LineQueue &lines);

@@ -297,6 +297,71 @@ opcode ::= DS expr(e). {
 }
 
 
+opcode ::= PRAGMA pragma_list. {
+	if (!cookie->segment) 
+		warn("PRAGMA outside of segment.");
+}
+
+pragma_list ::= pragma.
+pragma_list ::= pragma_list COMMA pragma.
+
+
+/*
+ * segment = "string"
+ * kind = int
+ * locals = int
+ * parameters = int
+ * rts
+ * databank
+ */
+pragma ::= SEGMENT EQ STRING(a). {
+	if (cookie->segment) cookie->segment->segment = a.string_value;
+}  
+pragma ::= LOCALS EQ INTEGER(a). {
+	if (cookie->segment) cookie->segment->local_size = a.int_value;
+}
+pragma ::= PARAMETERS EQ INTEGER(a). {
+	if (cookie->segment) cookie->segment->parm_size = a.int_value;
+}
+pragma ::= RETURN EQ INTEGER(a). {
+	if (cookie->segment) cookie->segment->return_size = a.int_value;
+}
+pragma ::= KIND EQ INTEGER(a). {
+	if (cookie->segment) cookie->segment->kind = a.int_value;
+}
+pragma ::= PRIVATE. {
+	// mark omf kind.
+	if (cookie->segment) cookie->segment->kind |= 0x4000;
+}
+pragma ::= RTS. {
+	if (cookie->segment) cookie->segment->rts = true;	
+}
+
+pragma ::= VOID. {
+	if (cookie->segment) cookie->segment->return_size = 0;
+}
+pragma ::= CDECL. {
+	if (cookie->segment) cookie->segment->convention = Segment::cdecl;	
+}
+
+pragma ::= STDCALL. {
+	if (cookie->segment) cookie->segment->convention = Segment::stdcall;	
+}
+
+pragma ::= PASCAL. {
+	if (cookie->segment) cookie->segment->convention = Segment::pascal;
+}
+
+opcode ::= EXPORT export_list.
+export_list ::= IDENTIFIER(a). {
+	cookie->export_set.insert(a.string_value);
+}
+
+export_list ::= export_list COMMA IDENTIFIER(a). {
+	cookie->export_set.insert(a.string_value);
+}
+
+
 %type expr_list {VectorExpression *}
 
 expr_list(rv) ::= expr(e). {

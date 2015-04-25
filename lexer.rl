@@ -94,6 +94,8 @@ namespace {
 	unsigned error_count = 0;
 	unsigned warn_count = 0;
 
+	int next_operand = 0;
+
 }
 
 void *ParseAlloc(void *(*mallocProc)(size_t));
@@ -138,6 +140,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			line_start = te;
 			line++;
 
+			next_operand = 0;
 			fgoto main;
 	}
 
@@ -146,6 +149,11 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			// clear out the parser
 			Parse(parser, 0, 0, &cookie);
 			fgoto error;
+	}
+
+	action identifier {
+			std::string s(ts, te);
+			Parse(parser, tkIDENTIFIER, s, &cookie);	
 	}
 
 	comment := |*
@@ -163,8 +171,8 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			line++;
 			line_start = te;
 
+			next_operand = 0;
 			fgoto main;
-
 		};
 
 		any {};
@@ -180,9 +188,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		[\t ] {};
 
 		# comments
-		'*' {
-			Parse(parser, tkSTAR, 0, &cookie);
-		};
+
 
 		';' {
 			fgoto comment;
@@ -193,7 +199,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		')' { Parse(parser, tkRPAREN, 0, &cookie); };
 		'[' { Parse(parser, tkLBRACKET, 0, &cookie); };
 		']' { Parse(parser, tkRBRACKET, 0, &cookie); };
-		#'=' { Parse(parser, tkEQ, 0, &cookie); };
+		'=' { Parse(parser, tkEQ, 0, &cookie); };
 		'+' { Parse(parser, tkPLUS, 0, &cookie); };
 		'-' { Parse(parser, tkMINUS, 0, &cookie); };
 		'*' { Parse(parser, tkSTAR, 0, &cookie); };
@@ -212,6 +218,8 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		#'.' { Parse(parser, tkPERIOD, 0, &cookie); };
 		',' { Parse(parser, tkCOMMA, 0, &cookie); };
 
+		'*' { Parse(parser, tkSTAR, 0, &cookie); };
+
 		# dp-registers -- %t0, etc
 		'%' [ptv] digit+ {
 			unsigned type = ts[1];
@@ -224,6 +232,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		#'a'i { Parse(parser, tkREGISTER_A, 0, &cookie); };
 		'x'i { Parse(parser, tkREGISTER_X, 0, &cookie); };
 		'y'i { Parse(parser, tkREGISTER_Y, 0, &cookie); };
+		'z'i { Parse(parser, tkREGISTER_Z, 0, &cookie); };
 		's'i { Parse(parser, tkREGISTER_S, 0, &cookie); };
 
 		# numbers
@@ -263,6 +272,11 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 
 		};
 
+		# strings.
+		["] ([^"])* ["] {
+			std::string s(ts, te);
+			Parse(parser, tkSTRING, s, &cookie);
+		};
 
 		[A-Za-z_][A-Za-z0-9_]* {
 			std::string s(ts, te);
@@ -274,60 +288,256 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 
 	*|;
 
+
+	operand_no_reg := |*
+
+		# white space
+		'\r'|'\n'|'\r\n' => eol;
+
+		[\t ] {};
+
+		# comments
+
+
+		';' {
+			fgoto comment;
+		};
+
+		# single-char ops
+		'(' { Parse(parser, tkLPAREN, 0, &cookie); };
+		')' { Parse(parser, tkRPAREN, 0, &cookie); };
+		'[' { Parse(parser, tkLBRACKET, 0, &cookie); };
+		']' { Parse(parser, tkRBRACKET, 0, &cookie); };
+		'=' { Parse(parser, tkEQ, 0, &cookie); };
+		'+' { Parse(parser, tkPLUS, 0, &cookie); };
+		'-' { Parse(parser, tkMINUS, 0, &cookie); };
+		'*' { Parse(parser, tkSTAR, 0, &cookie); };
+		'/' { Parse(parser, tkSLASH, 0, &cookie); };
+		'%' { Parse(parser, tkPERCENT, 0, &cookie); };
+		'~' { Parse(parser, tkTILDE, 0, &cookie); };
+		'!' { Parse(parser, tkBANG, 0, &cookie); };
+		'^' { Parse(parser, tkCARET, 0, &cookie); };
+		'&' { Parse(parser, tkAMP, 0, &cookie); };
+		'|' { Parse(parser, tkPIPE, 0, &cookie); };
+		'<' { Parse(parser, tkLT, 0, &cookie); };
+		'>' { Parse(parser, tkGT, 0, &cookie); };
+		'|' { Parse(parser, tkPIPE, 0, &cookie); };
+		'#' { Parse(parser, tkHASH, 0, &cookie); };
+		':' { Parse(parser, tkCOLON, 0, &cookie); };
+		#'.' { Parse(parser, tkPERIOD, 0, &cookie); };
+		',' { Parse(parser, tkCOMMA, 0, &cookie); };
+
+		'*' { Parse(parser, tkSTAR, 0, &cookie); };
+
+		# numbers
+		'$' xdigit + {
+			uint32_t value = scan16(ts + 1, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		'0x'i xdigit+ {
+			// hexadecimal
+			uint32_t value = scan16(ts + 2, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		'0b'i [01]+ {
+			// binary
+			uint32_t value = scan2(ts + 2, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		'%' [01]+ {
+			// binary
+			uint32_t value = scan2(ts + 1, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		digit+ {
+			uint32_t value = scan10(ts, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		['] [^']{1,4} ['] {
+			// 4 cc code
+
+			uint32_t value = scancc(ts + 1, te - 1);
+			Parse(parser, tkINTEGER, value, &cookie);
+
+		};
+
+		# strings.
+		["] ([^"])* ["] {
+			std::string s(ts, te);
+			Parse(parser, tkSTRING, s, &cookie);
+		};
+
+		[A-Za-z_][A-Za-z0-9_]* {
+			std::string s(ts, te);
+			Parse(parser, tkIDENTIFIER, s, &cookie);
+		};
+
+
+		any => error;
+
+	*|;
+
+
+	operand_pragma := |*
+
+		# white space
+		'\r'|'\n'|'\r\n' => eol;
+
+		[\t ]+ {};
+
+		';' { fgoto comment; };
+
+		'=' { Parse(parser, tkEQ, 0, &cookie); };
+		',' { Parse(parser, tkCOMMA, 0, &cookie); };
+
+		'segment'i {
+			Parse(parser, tkSEGMENT, 0, &cookie);
+		};
+
+		'private'i {
+			Parse(parser, tkPRIVATE, 0, &cookie);
+		};
+
+		'kind'i {
+			Parse(parser, tkKIND, 0, &cookie);
+		};
+
+		'cdecl'i {
+			Parse(parser, tkCDECL, 0, &cookie);
+		};
+		'pascal'i {
+			Parse(parser, tkPASCAL, 0, &cookie);
+		};
+		'stdcall'i {
+			Parse(parser, tkSTDCALL, 0, &cookie);
+		};
+
+		'void'i {
+			Parse(parser, tkVOID, 0, &cookie);
+		};
+
+		'rts'i {
+			Parse(parser, tkRTS, 0, &cookie);
+		};
+
+		'locals'i {
+			Parse(parser, tkLOCALS, 0, &cookie);
+		};
+
+		'parameters'i {
+			Parse(parser, tkPARAMETERS, 0, &cookie);
+		};
+
+		'return'i {
+			Parse(parser, tkRETURN, 0, &cookie);
+		};
+
+		# numbers
+		'$' xdigit + {
+			uint32_t value = scan16(ts + 1, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		'0x'i xdigit+ {
+			// hexadecimal
+			uint32_t value = scan16(ts + 2, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		'0b'i [01]+ {
+			// binary
+			uint32_t value = scan2(ts + 2, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		'%' [01]+ {
+			// binary
+			uint32_t value = scan2(ts + 1, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		digit+ {
+			uint32_t value = scan10(ts, te);
+			Parse(parser, tkINTEGER, value, &cookie);
+		};
+
+		
+		any => error;
+	*|;
+
+
+
+
 	opcode := |*
 
 		# white space
 		'\r'|'\n'|'\r\n' => eol;
 
-		[\t ]+ { fgoto operand; };
+		[\t ]+ { 
+			if (next_operand) fgoto *next_operand; 
+			else fgoto operand; 
+		};
 
 		';' { fgoto comment; };
 
 
 
 		'dc.b'i {
-			//std::string s(ts, te);
 			Parse(parser, tkDCB, 0, &cookie);
-			//fgoto operand;
+			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'dc.w'i {
-			//std::string s(ts, te);
 			Parse(parser, tkDCW, 0, &cookie);
-			//fgoto operand;
+			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'dc.l'i {
-			//std::string s(ts, te);
 			Parse(parser, tkDCL, 0, &cookie);
-			//fgoto operand;
+			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'ds'i {
 			Parse(parser, tkDS, 0, &cookie);
+			next_operand = lexer_en_operand_no_reg;
 		};
 
-		#'pragma'i {
-		#	Parse(parser, tkDS, 0, &cookie);
-		#};
+		'pragma'i {
+			Parse(parser, tkPRAGMA, 0, &cookie);
+			next_operand = lexer_en_operand_pragma;
+		};
 
 		# create a separate context for first token vs
 		# checking whitespace?
 		'start'i {
 			Parse(parser, tkSTART, 0, &cookie);
-			//fgoto operand;
 		};
 
 		'data'i {
 			Parse(parser, tkDATA, 0, &cookie);
-			//fgoto operand;
 		};
 
 		'end'i {
 			Parse(parser, tkEND, 0, &cookie);
-			//fgoto operand;
 		};
 
+		'export'i {
+			Parse(parser, tkEXPORT, 0, &cookie);
+			next_operand = lexer_en_operand_no_reg;
+		};
+
+		#'begin_stack'i {
+		#	Parse(parser, tkPROLOGUE, 0, &cookie);
+		#};
+
+		#'end_stack'i {
+		#	Parse(parser, tkEPILOGUE, 0, &cookie);
+		#};
 
 		[A-Za-z_][A-Za-z0-9_]* {
 
@@ -357,6 +567,8 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 
 		any => error;
 	*|;
+
+
 
 
 	main := |*
@@ -415,6 +627,22 @@ void error(const std::string &s) {
 
 
 	error_count++;
+}
+
+void warn(const std::string &s) {
+
+	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
+
+	const char *p = line_start;
+	while (p != eof) {
+		char c = *p++;
+		if (c == '\r' || c == '\n') break;
+		fputc(c, stderr);
+	}
+	fprintf(stderr, "\n");
+
+
+	warn_count++;
 }
 
 bool parse_file(const std::string &filename, std::deque<BasicLine *> &rv)
