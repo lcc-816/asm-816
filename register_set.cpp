@@ -6,8 +6,9 @@ namespace {
 	inline int reg_to_index(dp_register r) {
 		switch (r.type) {
 			case 't': return 0;
-			case 'v': return 1;
-			case 'p': return 2;
+			case 'r': return 1;
+			case 'v': return 2;
+			case 'p': return 3;
 			default:
 				return -1;
 		}

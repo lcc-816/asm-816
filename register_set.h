@@ -56,10 +56,12 @@ private:
 
 	#ifdef RS_BITSET
 	// lcc is currently limited to 32 registers, so this is good enough for now.
-	std::array< std::bitset<32>, 3> _data;
+	// hmm .. no longer true :(
+	std::array< std::bitset<32>, 4> _data;
 	#else
-	std::array< std::vector<bool>, 3> _data;
+	std::array< std::vector<bool>, 4> _data;
 	#endif
 };
 
 #endif
+

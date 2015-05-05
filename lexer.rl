@@ -221,7 +221,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		'*' { Parse(parser, tkSTAR, 0, &cookie); };
 
 		# dp-registers -- %t0, etc
-		'%' [ptv] digit+ {
+		'%' [prtv] digit+ {
 			unsigned type = ts[1];
 			unsigned number = scan10(ts+2, te);
 			dp_register dp = {type, number };
