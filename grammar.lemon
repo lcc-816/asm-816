@@ -131,14 +131,21 @@
 	}
 
 
+	static void AddLabel(Cookie *cookie, const std::string *label) {
+		if (!label) return;
+
+		BasicLine *tmp = new BasicLine;
+		tmp->label = label;
+		cookie->lines.push_back(tmp);
+
+	}
+
 	static void AddLine(Cookie *cookie) {
 
 
 		Line &scratch = cookie->scratch;
 
 		if (scratch.error) return;
-
-		// todo -- add line label by itself ... unless start directive.
 
 		if (!scratch.instruction && !scratch.label && !scratch.directive) return;
 
@@ -151,11 +158,45 @@
 
 		if (scratch.directive) {
 
+			if (scratch.directive == START) {
+				if (cookie->seg_type) warn("previous segment still active\n");
+				if (!scratch.label) error("code segment must have a name\n");
+
+				Segment *seg = new Segment;
+
+				seg->name = scratch.label;
+
+				cookie->seg_type = Cookie::data;
+				cookie->segments.push_back(seg);
+				cookie->segment = seg;
+
+				return;
+			}
+
+			if (scratch.directive == DATA) {
+				// label currently unused...
+				if (cookie->seg_type) warn("previous segment still active\n");
+				cookie->segment = cookie->data_segment;
+				cookie->seg_type = Cookie::data;
+				return;
+			}
+
+
+
+
+			if (scratch.directive == END) {
+				AddLabel(cookie, scratch.label);
+				cookie->segment = nullptr;
+				cookie->seg_type = Cookie::none;
+				return;
+			}
+
+			AddLabel(cookie, scratch.label);
+
 			BasicLine *tmp = new BasicLine;
 			tmp->directive = scratch.directive;
 			tmp->operands[0] = scratch.operands[0];
 			tmp->operands[1] = scratch.operands[1];
-			tmp->label = scratch.label;
 			cookie->lines.push_back(tmp);
 
 			return;
@@ -163,11 +204,7 @@
 		}
 
 		// labels go on their own line (except start/data, etc)
-		if (scratch.label) {
-			BasicLine *tmp = new BasicLine;
-			tmp->label = scratch.label;
-			cookie->lines.push_back(tmp);
-		}
+		AddLabel(cookie, scratch.label);
 
 
 		// 1. verify address mode.

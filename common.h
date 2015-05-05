@@ -137,10 +137,18 @@ struct Cookie {
 
 	Line scratch;
 
+	SegmentQueue segments;
+	
 	// current segment.
 	Segment *segment = nullptr;
 	Segment *data_segment = nullptr;
 	std::unordered_set<const std::string *> export_set;
+
+	enum {
+		none,
+		code,
+		data
+	} seg_type = none;
 
 	LineQueue lines;
 };
