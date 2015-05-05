@@ -151,10 +151,12 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			fgoto error;
 	}
 
-	action identifier {
+	action parse_identifier {
 			std::string s(ts, te);
 			Parse(parser, tkIDENTIFIER, s, &cookie);	
 	}
+
+	identifier = [A-Za-z_][A-Za-z0-9_$]*;
 
 	comment := |*
 		'\r'|'\n'|'\r\n' => eol;
@@ -278,11 +280,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			Parse(parser, tkSTRING, s, &cookie);
 		};
 
-		[A-Za-z_][A-Za-z0-9_]* {
-			std::string s(ts, te);
-			Parse(parser, tkIDENTIFIER, s, &cookie);
-		};
-
+		identifier => parse_identifier;
 
 		any => error;
 
@@ -372,11 +370,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			Parse(parser, tkSTRING, s, &cookie);
 		};
 
-		[A-Za-z_][A-Za-z0-9_]* {
-			std::string s(ts, te);
-			Parse(parser, tkIDENTIFIER, s, &cookie);
-		};
-
+		identifier => parse_identifier;
 
 		any => error;
 
@@ -580,21 +574,15 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		# comments
 		'*' { fgoto comment; };
 
-		';' {
-			fgoto comment;
-		};
+		';' { fgoto comment; };
 
-		[A-Za-z_][A-Za-z0-9_]* {
+		identifier => parse_identifier;
 
-			std::string s(ts, te);
-			Parse(parser, tkIDENTIFIER, s, &cookie);
-			//fgoto opcode;
-		};
 
 		# identifier
-		'@' [A-Za-z0-9_]+ {
-			// @ is appended to the current label.
-		};
+		#'@' [A-Za-z0-9_]+ {
+		#	// @ is appended to the current label.
+		#};
 
 		# this is here so we can have label:
 		# maybe we should just drop the :
