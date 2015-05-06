@@ -96,6 +96,7 @@ void print(const LineQueue &lines) {
 				case zp_indirect:
 				case zp_indirect_x:
 				case zp_indirect_y:
+				case zp_indirect_z:
 					op = "(<";
 					break;
 
@@ -153,6 +154,9 @@ void print(const LineQueue &lines) {
 					break;
 				case zp_indirect_y:
 					op.append("),y");
+					break;
+				case zp_indirect_z:
+					op.append("),z");
 					break;
 				case zp_indirect_x:
 				case absolute_indirect_x:
