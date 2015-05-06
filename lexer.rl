@@ -19,7 +19,7 @@
 #include "Expression.h"
 #include "common.h"
 #include "grammar.h"
-
+#include "intern.h"
 
 
 
@@ -67,24 +67,6 @@ namespace {
 			}
 		);
 
-	}
-
-	const std::string *intern(const std::string &s) {
-
-		static std::unordered_multimap<size_t, std::string *> ht;
-		std::hash<std::string> fx;
-
-		size_t h = fx(s);
-
-		auto iter = ht.find(h);
-		while (iter != ht.end()) {
-			if (iter->first != h) break;
-			if (*iter->second == s) return iter->second;
-		}
-
-		std::string *sp = new std::string(s);
-		ht.emplace(h, sp);
-		return sp;
 	}
 
 
