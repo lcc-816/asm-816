@@ -134,7 +134,7 @@ private:
 class UnaryExpression : public Expression {
 public:
 	UnaryExpression(unsigned op, ExpressionPtr a) :
-	Expression(type_unary), _children{a}
+	Expression(type_unary), _op(op), _children{a}
 	{}
 
 	virtual void to_string(std::string &) const final;
@@ -155,7 +155,7 @@ private:
 class BinaryExpression : public Expression {
 public:
 	BinaryExpression(unsigned op, ExpressionPtr a, ExpressionPtr b) :
-	Expression(type_binary), _children{a, b}
+	Expression(type_binary), _op(op), _children{a, b}
 	{}
 
 	virtual void to_string(std::string &) const final;
