@@ -5,6 +5,7 @@
 #include <string>
 #include <deque>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "Machine.h"
 #include "Instruction.h"
@@ -39,6 +40,7 @@ struct Token {
 		uint32_t int_value;
 		dp_register register_value;
 		Mnemonic mnemonic_value;
+		Expression *expr_value;
 	};
 };
 
@@ -75,8 +77,13 @@ struct BasicLine {
 
 	Expression *operands[2] = {0, 0};
 
-	uint32_t pc = 0;
+	bool m = false;
+	bool x = false;
 	bool long_branch = false;
+
+
+
+	uint32_t pc = 0;
 	// live registers, etc.
 
 	register_set reg_live;
@@ -136,6 +143,7 @@ typedef std::deque<Segment *> SegmentQueue;
 struct Cookie {
 
 	Line scratch;
+	unsigned line_number;
 
 	SegmentQueue segments;
 	
@@ -143,6 +151,13 @@ struct Cookie {
 	Segment *segment = nullptr;
 	Segment *data_segment = nullptr;
 	std::unordered_set<const std::string *> export_set;
+
+	std::unordered_map<const std::string *, unsigned> labels; // label -> line number.
+
+	// global / per-segment equates?
+	std::unordered_map<const std::string *, Expression *> equates;
+
+	const std::string *current_label; 
 
 	enum {
 		none,

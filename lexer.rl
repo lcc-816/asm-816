@@ -110,6 +110,16 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 	Parse(yyp, yymajor, t, cookie);
 }
 
+void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
+{
+	Token t;
+	t.line = line;
+	t.expr_value = std::addressof(expr_value);
+	Parse(yyp, yymajor, t, cookie);
+}
+
+
+
 
 %%{
 	machine lexer;
@@ -120,7 +130,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			Parse(parser, 0, 0, &cookie);
 
 			line_start = te;
-			line++;
+			cookie.line_number = ++line;
 
 			next_operand = 0;
 			fgoto main;
@@ -258,11 +268,33 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 
 		# strings.
 		["] ([^"])* ["] {
-			std::string s(ts, te);
+			std::string s(ts + 1, te - 1);
 			Parse(parser, tkSTRING, s, &cookie);
 		};
 
-		identifier => parse_identifier;
+		#identifier => parse_identifier;
+
+		identifier => {
+			// may be an equate...
+			std::string s(ts, te);
+			auto id = intern(s);
+
+
+			auto iter = cookie.equates.find(id);
+			if (iter != cookie.equates.end()) {
+				dp_register dp;
+				// register is a special case...
+
+				Expression *e = iter->second;
+				if (e->is_register(dp)) {
+					Parse(parser, tkDP_REGISTER, dp, &cookie);
+				}
+				else Parse(parser, tkEXPRESSION, *e, &cookie);
+			} else {
+				Parse(parser, tkIDENTIFIER, s, &cookie);
+			}
+
+		};
 
 		any => error;
 
@@ -308,6 +340,9 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 		',' { Parse(parser, tkCOMMA, 0, &cookie); };
 
 		'*' { Parse(parser, tkSTAR, 0, &cookie); };
+
+		'<<' { Parse(parser, tkLTLT, 0, &cookie); };
+		'>>' { Parse(parser, tkGTGT, 0, &cookie); };
 
 		# numbers
 		'$' xdigit + {
@@ -488,6 +523,10 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 			next_operand = lexer_en_operand_pragma;
 		};
 
+		'equ'i {
+			Parse(parser, tkEQU, 0, &cookie);
+		};
+
 		# create a separate context for first token vs
 		# checking whitespace?
 		'start'i {
@@ -661,7 +700,7 @@ bool parse_file(const std::string &filename, std::deque<BasicLine *> &rv)
 	int cs, act;
 
 	line_start = p;
-	line = 1;
+	cookie.line_number = line = 1;
 
 	%% write init;
 	//

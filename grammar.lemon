@@ -286,6 +286,11 @@ line ::= END EOL. {
 	cookie->scratch.directive = END;
 }
 
+line ::= IDENTIFIER(id) EQU expr(e) EOL. {
+	// check if expr defined...
+	// how to handle '*' ?
+	cookie->equates.insert(std::make_pair(id.string_value, e));
+}
 
 label ::= IDENTIFIER(id) COLON. {
 	cookie->scratch.label = id.string_value;
@@ -680,6 +685,18 @@ binary(rv) ::= binary(a) MINUS binary(b). {
 	rv = Expression::Binary('-', a, b);
 }
 
+binary(rv) ::= binary(a) STAR binary(b). {
+	rv = Expression::Binary('*', a, b);
+}
+
+binary(rv) ::= binary(a) LTLT binary(b). {
+	rv = Expression::Binary('<<', a, b);
+}
+
+binary(rv) ::= binary(a) GTGT binary(b). {
+	rv = Expression::Binary('>>', a, b);
+}
+
 unary(rv) ::= PLUS unary(rhs). [BANG] {
 	rv = rhs;
 }
@@ -710,6 +727,10 @@ term(rv) ::= INTEGER(a). {
 }
 term(rv) ::= STAR. {
 	rv = Expression::PC();
+}
+
+term(rv) ::= EXPRESSION(a). {
+	rv = a.expr_value;
 }
 
 dp_register(rv) ::= DP_REGISTER(a). {
