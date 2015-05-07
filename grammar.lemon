@@ -12,6 +12,7 @@
 #include "Instruction.h"
 #include "Expression.h"
 #include "common.h"
+#include "cookie.h"
 
 	extern void error(const std::string &);
 	extern void warn(const std::string &);
@@ -289,7 +290,8 @@ line ::= END EOL. {
 line ::= IDENTIFIER(id) EQU expr(e) EOL. {
 	// check if expr defined...
 	// how to handle '*' ?
-	cookie->equates.insert(std::make_pair(id.string_value, e));
+
+	cookie->equates.insert(id.string_value, e->simplify());
 }
 
 label ::= IDENTIFIER(id) COLON. {

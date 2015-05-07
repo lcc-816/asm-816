@@ -20,7 +20,7 @@
 #include "common.h"
 #include "grammar.h"
 #include "intern.h"
-
+#include "cookie.h"
 
 
 namespace {
@@ -279,13 +279,11 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			std::string s(ts, te);
 			auto id = intern(s);
 
-
-			auto iter = cookie.equates.find(id);
-			if (iter != cookie.equates.end()) {
+			ExpressionPtr e = cookie.equates.find(id);
+			if (e) {
 				dp_register dp;
 				// register is a special case...
 
-				Expression *e = iter->second;
 				if (e->is_register(dp)) {
 					Parse(parser, tkDP_REGISTER, dp, &cookie);
 				}
