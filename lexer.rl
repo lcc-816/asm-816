@@ -148,7 +148,20 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			Parse(parser, tkIDENTIFIER, s, &cookie);	
 	}
 
+	action parse_dp_register {
+		unsigned type = ts[1];
+		unsigned number = scan10(ts+2, te);
+		dp_register dp = { type, number };
+		Parse(parser, tkDP_REGISTER, dp, &cookie);
+	}
+
+
 	identifier = [A-Za-z_][A-Za-z0-9_$]*;
+
+	ws = [\t ]+;
+	#eol = '\r\n' | \r' | '\n';
+
+	dp_register = '%' [prtv] digit+;
 
 	comment := |*
 		'\r'|'\n'|'\r\n' => eol;
@@ -391,6 +404,23 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 
 	*|;
 
+
+	operand_reg := |*
+
+		'\r'|'\n'|'\r\n' => eol;
+		ws {};
+		';' { fgoto comment; };
+
+		dp_register => parse_dp_register;
+
+		#'a'i { Parse(parser, tkREGISTER_A, 0, &cookie); };
+		'x'i { Parse(parser, tkREGISTER_X, 0, &cookie); };
+		'y'i { Parse(parser, tkREGISTER_Y, 0, &cookie); };
+		'z'i { Parse(parser, tkREGISTER_Z, 0, &cookie); };
+		's'i { Parse(parser, tkREGISTER_S, 0, &cookie); };
+
+		any => error;
+	*|;
 
 	operand_pragma := |*
 
