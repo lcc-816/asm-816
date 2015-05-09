@@ -60,7 +60,7 @@ public:
 
 	bool is_temporary(dp_register &rv) const {
 		if (is_register(rv)) {
-			return rv.type == 't';
+			return rv.type == 't' || rv.type == 'r';
 		}
 		return false;
 	}
@@ -77,6 +77,16 @@ public:
 		return rv;
 	}
 
+	std::vector<uint8_t> to_omf(unsigned type, unsigned size) {
+		std::vector<uint8_t> rv;
+
+		rv.push_back(type);
+		rv.push_back(size);
+		to_omf(rv);
+		rv.push_back(0x00);
+		return rv;
+	}
+
 	virtual bool is_identifier(identifier &) const;
 	virtual bool is_integer(uint32_t &) const;
 	virtual bool is_register(dp_register &) const;
@@ -88,7 +98,12 @@ public:
 	virtual void rename(dp_register oldreg, dp_register newreg);
 
 	virtual ExpressionPtr simplify();
+	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp);
 
+	virtual bool evaluate(uint32_t pc, 
+		const std::unordered_map<identifier, uint32_t> &env,
+		// something for registers?
+		uint32_t &result) const;
 
 protected:
 	friend class UnaryExpression;
@@ -104,6 +119,7 @@ protected:
 	virtual void to_string(std::string &) const = 0;
 	virtual void identifiers(std::vector<identifier> &) const;
 
+	virtual void to_omf(std::vector<uint8_t> &) const;
 
 private:
 
@@ -123,6 +139,7 @@ class VectorExpression : public Expression {
 	virtual void rename(dp_register oldreg, dp_register newreg) final;
 
 	virtual ExpressionPtr simplify() final;
+	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
 
 	protected:

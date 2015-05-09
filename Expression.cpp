@@ -14,8 +14,49 @@ namespace {
 	std::deque<Expression *> Pool;
 
 
-}
+	uint32_t unary_op(unsigned op, uint32_t value) {
+		switch(op) {
+		case '^': return value >> 16; break;
+		case '!': return !value; break;
+		case '+': return +value; break;
+		case '-': return -value; break;
+		case '~': return ~value; break;
+		}
+		return -1;
+	}
 
+	uint32_t binary_op(unsigned op, uint32_t a, uint32_t b) {
+
+		switch(op) {
+			case '+': return a + b; break;
+			case '-': return a - b; break;
+			case '*': return a * b; break;
+			case '/': return a / b; break;
+			case '%': return a % b; break;
+			case '^': return a ^ b; break;
+			case '|': return a | b; break;
+			case '&': return a & b; break;
+			case '>>': return a >> b; break;
+			case '<<': return a << b; break;
+			case '&&': return a && b; break;
+			case '||': return a || b; break;
+
+			case '>=': return a >= b; break;
+			case '<=': return a <= b; break;
+			case '>': return a > b; break;
+			case '<': return a < b; break;
+			case '=': return a = b; break;
+
+			case '^^':
+				// logical exclusive or.
+				a = a ? 1 : 0;
+				b = b ? 1 : 0;
+				return a ^ b;
+		}
+		return -1;
+	}
+
+}
 
 void Expression::ErasePool(void) {
 
@@ -34,6 +75,13 @@ public:
 	{}
 
 	virtual void to_string(std::string &) const final;
+
+	virtual bool evaluate(uint32_t pc, 
+		const std::unordered_map<identifier, uint32_t> &env,
+		uint32_t &result) const final;
+
+	virtual void to_omf(std::vector<uint8_t> &) const final;
+
 };
 
 
@@ -45,6 +93,12 @@ public:
 
 	virtual bool is_integer(uint32_t &) const final;
 	virtual void to_string(std::string &) const final;
+
+	virtual bool evaluate(uint32_t pc, 
+		const std::unordered_map<identifier, uint32_t> &env,
+		uint32_t &result) const final;
+
+	virtual void to_omf(std::vector<uint8_t> &) const final;
 
 private:
 	uint32_t _value;
@@ -63,6 +117,8 @@ public:
 	virtual void to_string(std::string &) const final;
 	virtual void rename(dp_register, dp_register) final;
 
+	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
+
 private:
 	dp_register _value;
 };
@@ -80,6 +136,12 @@ public:
 
 	virtual void identifiers(std::vector<identifier> &) const final;
 	virtual void rename(identifier, identifier) final;	
+
+	virtual bool evaluate(uint32_t pc, 
+		const std::unordered_map<identifier, uint32_t> &env,
+		uint32_t &result) const final;
+
+	virtual void to_omf(std::vector<uint8_t> &) const final;
 
 private:
 	identifier _value;
@@ -100,37 +162,6 @@ private:
 
 
 
-#if 0
-	// in header now.
-class VectorExpression : public Expression {
-public:
-	VectorExpression() : Expression(type_vector)
-	{}
-
-	VectorExpression(std::vector<ExpressionPtr> &&v) : 
-	Expression(type_vector), _values(std::move(v))
-	{}
-
-	template <class T>
-	VectorExpression(T<ExpressionPtr> &v) : Expression(type_vector), _values(v)
-	{}
-
-	virtual void to_string(std::string &) const final;
-	virtual bool is_vector(std::vector<ExpressionPtr> &) const final;
-
-	virtual void rename(identifier, identifier) final;
-	virtual void rename(dp_register, dp_register) final;
-	virtual ExpressionPtr simplify() final;
-
-	virtual ExpressionPtr append(ExpressionPtr child) final;
-
-private:
-	std::vector<ExpressionPtr> _values;
-};
-#endif
-
-
-
 class UnaryExpression : public Expression {
 public:
 	UnaryExpression(unsigned op, ExpressionPtr a) :
@@ -143,8 +174,15 @@ public:
 	virtual void rename(identifier, identifier) final;
 	virtual void rename(dp_register, dp_register) final;
 	virtual ExpressionPtr simplify() final;
+	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
-		
+	virtual bool evaluate(uint32_t pc, 
+		const std::unordered_map<identifier, uint32_t> &env,
+		uint32_t &result) const final;
+
+	virtual void to_omf(std::vector<uint8_t> &) const final;
+
+
 private:
 	unsigned _op;
 	std::array<ExpressionPtr, 1> _children;
@@ -164,7 +202,15 @@ public:
 	virtual void rename(identifier, identifier) final;
 	virtual void rename(dp_register, dp_register) final;
 	virtual ExpressionPtr simplify() final;
-	
+	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
+
+	virtual bool evaluate(uint32_t pc, 
+		const std::unordered_map<identifier, uint32_t> &env,
+		uint32_t &result) const final;
+
+	virtual void to_omf(std::vector<uint8_t> &) const final;
+
+
 private:
 	unsigned _op;
 	std::array<ExpressionPtr, 2> _children;
@@ -351,6 +397,8 @@ ExpressionPtr Expression::simplify() {
     return this;
 }
 
+
+
 ExpressionPtr UnaryExpression::simplify() {
 	uint32_t value;
 
@@ -358,17 +406,10 @@ ExpressionPtr UnaryExpression::simplify() {
 		return e->simplify();
 	});
 
-
 	if (_children[0]->is_integer(value)) {
-		switch(_op) {
-		case '^': value = value >> 16;	break;
-		case '!': value = !value; break;
-		case '+': value = +value; break;
-		case '-': value = -value; break;
-		case '~': value = ~value; break;
-		}
-		return Expression::Integer(value);
+		return Expression::Integer(unary_op(_op, value));
 	}
+
 	return this;
 }
 
@@ -381,22 +422,7 @@ ExpressionPtr BinaryExpression::simplify() {
 	});
     
 	if (_children[0]->is_integer(a) && _children[1]->is_integer(b)) {
-	    uint32_t value = 0;
-		switch(_op) {
-			case '+': value = a + b; break;
-			case '-': value = a - b; break;
-			case '*': value = a * b; break;
-			case '/': value = a / b; break;
-			case '%': value = a % b; break;
-			case '^': value = a ^ b; break;
-			case '|': value = a | b; break;
-			case '&': value = a & b; break;
-			case '>>': value = a >> b; break;
-			case '<<': value = a << b; break;
-			case '&&': value = a && b; break;
-			case '||': value = a || b; break;
-		}
-		return Expression::Integer(value);
+		return Expression::Integer(binary_op(_op, a, b));
 	}
 	
 	// shortcut logical expressions...
@@ -433,6 +459,78 @@ ExpressionPtr VectorExpression::simplify() {
 	
 	return this;
 }
+
+#pragma mark - evaluate
+
+bool Expression::evaluate(uint32_t pc, 
+	const std::unordered_map<identifier, uint32_t> &env,
+	uint32_t &result) const {
+	return false;
+}
+
+bool IntegerExpression::evaluate(uint32_t pc, 
+	const std::unordered_map<identifier, uint32_t> &env,
+	uint32_t &result) const {
+	result = _value;
+	return true;
+}
+
+bool PCExpression::evaluate(uint32_t pc, 
+	const std::unordered_map<identifier, uint32_t> &env,
+	uint32_t &result) const {
+	result = pc;
+	return true;
+}
+
+bool IdentifierExpression::evaluate(uint32_t pc, 
+	const std::unordered_map<identifier, uint32_t> &env,
+	uint32_t &result) const {
+
+	auto iter = env.find(_value);
+	if (iter != env.end()) {
+		result = iter->second;
+		return true;
+	}
+	return false;
+}
+
+
+bool UnaryExpression::evaluate(uint32_t pc, 
+	const std::unordered_map<identifier, uint32_t> &env,
+	uint32_t &result) const {
+
+	uint32_t value;
+	if (!_children[0]->evaluate(pc, env, value)) return false;
+
+	result = unary_op(_op, value);
+	return true;
+}
+
+
+bool BinaryExpression::evaluate(uint32_t pc, 
+	const std::unordered_map<identifier, uint32_t> &env,
+	uint32_t &result) const {
+
+	uint32_t a, b;
+	if (!_children[0]->evaluate(pc, env, a)) return false;
+	if (!_children[1]->evaluate(pc, env, b)) return false;
+
+	result = binary_op(_op, a, b);
+	return true;
+}
+
+
+#pragma mark - simplify (dp)
+#if 0
+ExpressionPtr Expression::simplify(dp_register oldreg, unsigned dp) {
+	return this;
+}
+
+ExpressionPtr RegisterExpression::simplify(dp_register oldreg, unsigned dp) {
+	if (_value == oldreg) return Expression::Integer(dp);
+	return *this;
+}
+#endif
 
 #pragma mark - rename
 
@@ -495,4 +593,105 @@ void BinaryExpression::identifiers(std::vector<identifier> &rv) const {
 
 void VectorExpression::identifiers(std::vector<identifier> &rv) const {
 	for (auto e: _children) e->identifiers(rv);
+}
+
+
+#pragma mark - to_omf
+
+void Expression::to_omf(std::vector<uint8_t> &rv) const {
+	throw std::runtime_error("expression not supported by omf");
+}
+
+void UnaryExpression::to_omf(std::vector<uint8_t> &rv) const {
+
+	for (auto e : _children) e->to_omf(rv);
+
+
+	switch(_op) {
+		case '^':
+			// special case...
+			// ^x = x >> 16.
+			rv.push_back(0x81);
+			rv.push_back((-16u >> 0 ) & 0xff);
+			rv.push_back((-16u >> 8 ) & 0xff);
+			rv.push_back((-16u >> 16) & 0xff);
+			rv.push_back((-16u >> 24) & 0xff);
+			rv.push_back(0x07);
+			break;
+		case '-': rv.push_back(0x06); break;
+		case '+': break; // nop
+		case '!': rv.push_back(0x0b); break;
+		case '~': rv.push_back(0x15); break;
+		default:
+			throw std::runtime_error("unary operation not supported by omf");
+	}
+}
+
+void BinaryExpression::to_omf(std::vector<uint8_t> &rv) const {
+	uint8_t omf_op;
+
+	std::array<ExpressionPtr, 2> children = _children;
+
+	// sigh... only 1 bit shift operator, use -value for >>
+	if (_op == '>>') {
+		ExpressionPtr tmp = Expression::Unary('-', _children[1]);
+		children[1] = tmp->simplify();
+	}
+
+	for (auto e : children) e->to_omf(rv);
+
+	switch(_op) {
+		case '+': omf_op = 0x01; break;
+		case '-': omf_op = 0x02; break;
+		case '*': omf_op = 0x03; break;
+		case '/': omf_op = 0x04; break;
+		case '%': omf_op = 0x05; break;
+
+
+		case '>>':
+		case '<<': omf_op = 0x07; break;
+
+		case '<=': omf_op = 0x0c; break;
+		case '>=': omf_op = 0x0d; break;
+		case '!=': omf_op = 0x0e; break;
+		case '<': omf_op = 0x0f; break;
+		case '>': omf_op = 0x10; break;
+		case '=': omf_op = 0x11; break;
+
+		case '&&': omf_op = 0x08; break;
+		case '||': omf_op = 0x09; break;
+		case '^^': omf_op = 0x0a; break;
+
+		case '&': omf_op = 0x12; break;
+		case '|': omf_op = 0x13; break;
+		case '^': omf_op = 0x14; break;
+
+		default:
+			throw std::runtime_error("binary operation not supported by omf");
+	}
+
+	rv.push_back(omf_op);
+}
+
+void IntegerExpression::to_omf(std::vector<uint8_t> &rv) const {
+
+	rv.push_back(0x81);
+	rv.push_back(_value >> 0 );
+	rv.push_back(_value >> 8 );
+	rv.push_back(_value >> 16);
+	rv.push_back(_value >> 24);
+}
+
+
+void PCExpression::to_omf(std::vector<uint8_t> &rv) const {
+	rv.push_back(0x80); // wrong?  off by operand size?
+}
+
+void IdentifierExpression::to_omf(std::vector<uint8_t> &rv) const {
+
+	rv.push_back(0x83);
+	rv.push_back(_value->length());
+
+	for (auto c : *_value) rv.push_back(c);
+
 }
