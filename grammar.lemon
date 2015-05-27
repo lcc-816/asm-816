@@ -405,6 +405,14 @@ export_list ::= export_list COMMA IDENTIFIER(a). {
 	cookie->export_set.insert(a.string_value);
 }
 
+opcode ::= FX_PROLOGUE. {
+	cookie->scratch.directive = PROLOGUE;
+}
+
+opcode ::= FX_EPILOGUE. {
+	cookie->scratch.directive = EPILOGUE;
+}
+
 
 %type expr_list {VectorExpression *}
 

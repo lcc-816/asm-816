@@ -148,6 +148,15 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			Parse(parser, tkIDENTIFIER, s, &cookie);	
 	}
 
+	action parse_local_identifier {
+			std::string s;
+			if (cookie.current_label)
+				s = *cookie.current_label;
+
+			s.assign(ts, te);
+			Parse(parser, tkIDENTIFIER, s, &cookie);	
+	}
+
 	action parse_dp_register {
 		unsigned type = ts[1];
 		unsigned number = scan10(ts+2, te);
@@ -156,7 +165,12 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 	}
 
 
+	# '$' is used for statics w/in a function.
 	identifier = [A-Za-z_][A-Za-z0-9_$]*;
+
+	local_identifier = '@' [A-Za-z_][A-Za-z0-9_$]*;
+
+
 
 	ws = [\t ]+;
 	#eol = '\r\n' | \r' | '\n';
@@ -307,6 +321,8 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 
 		};
 
+		local_identifier => parse_local_identifier;
+
 		any => error;
 
 	*|;
@@ -399,6 +415,7 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 		};
 
 		identifier => parse_identifier;
+		local_identifier => parse_local_identifier;
 
 		any => error;
 
@@ -574,13 +591,13 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			next_operand = lexer_en_operand_no_reg;
 		};
 
-		#'begin_stack'i {
-		#	Parse(parser, tkPROLOGUE, 0, &cookie);
-		#};
+		'begin_stack'i {
+			Parse(parser, tkFX_PROLOGUE, 0, &cookie);
+		};
 
-		#'end_stack'i {
-		#	Parse(parser, tkEPILOGUE, 0, &cookie);
-		#};
+		'end_stack'i {
+			Parse(parser, tkFX_EPILOGUE, 0, &cookie);
+		};
 
 		[A-Za-z_][A-Za-z0-9_]* {
 
@@ -627,11 +644,7 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 
 		identifier => parse_identifier;
 
-
-		# identifier
-		#'@' [A-Za-z0-9_]+ {
-		#	// @ is appended to the current label.
-		#};
+		local_identifier => parse_local_identifier;
 
 		# this is here so we can have label:
 		# maybe we should just drop the :
