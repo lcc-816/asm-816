@@ -135,6 +135,68 @@ bool peephole(LineQueue &list) {
 
 			break;
 
+
+		case AND:
+			/* AND #const1, AND #const2 -> AND #(const1 | const 2) */
+			if (match(list, AND, AND, [&](BasicLine *a, BasicLine *b){
+				if (a->opcode.addressMode() != immediate) return false;
+				if (b->opcode.addressMode() != immediate) return false;
+
+				uint32_t value_a, value_b;
+				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
+
+					uint32_t nv = (value_a & value_b) & 0xffff;
+
+					if (nv == 0xffff) {
+						list.pop_front();
+						list.pop_front();
+
+						delete a;
+						delete b;
+					} else {
+						list.pop_front();
+						delete a;
+						b->operands[0] = Expression::Integer(nv);
+					}
+					return true;
+				}
+				return false;
+			})) continue;
+
+			break;
+
+
+		case EOR:
+			/* EOR #const1, EOR #const2 -> EOR #(const1 ^ const 2) */
+			if (match(list, EOR, EOR, [&](BasicLine *a, BasicLine *b){
+				if (a->opcode.addressMode() != immediate) return false;
+				if (b->opcode.addressMode() != immediate) return false;
+
+				uint32_t value_a, value_b;
+				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
+
+					uint32_t nv = (value_a ^ value_b) & 0xffff;
+
+					if (nv == 0) {
+						list.pop_front();
+						list.pop_front();
+
+						delete a;
+						delete b;
+					} else {
+						list.pop_front();
+						delete a;
+						b->operands[0] = Expression::Integer(nv);
+					}
+					return true;
+				}
+				return false;
+			})) continue;
+
+			break;
+
+
+
 		case LDA:
 			/* LDA #const, XBA -> LDA #tsnoc */
 			if (match(list, LDA, XBA, [&](BasicLine *a, BasicLine *b){
@@ -251,8 +313,38 @@ bool peephole(LineQueue &list) {
 			})) continue;
 
 
+			break;
+
+
+		case ORA:
+			/* ORA #const1, ORA #const2 -> ORA #(const1 | const 2) */
+			if (match(list, ORA, ORA, [&](BasicLine *a, BasicLine *b){
+				if (a->opcode.addressMode() != immediate) return false;
+				if (b->opcode.addressMode() != immediate) return false;
+
+				uint32_t value_a, value_b;
+				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
+
+					uint32_t nv = (value_a | value_b) & 0xffff;
+
+					if (nv == 0) {
+						list.pop_front();
+						list.pop_front();
+
+						delete a;
+						delete b;
+					} else {
+						list.pop_front();
+						delete a;
+						b->operands[0] = Expression::Integer(nv);
+					}
+					return true;
+				}
+				return false;
+			})) continue;
 
 			break;
+
 
 		case PEA:
 			/* PEA xxx, PLA -> LDA #xxx */
@@ -361,6 +453,49 @@ bool peephole(LineQueue &list) {
 			})) continue;
 			break;
 
+#if 0
+		// first can be dropped... need to check m/x bits
+		// before dropping both.
+		case REP:
+			/* 	rep #$20, sep #$20 -> nop */
+			if (match(list, REP, SEP, [&](BasicLine *a, BasicLine *b){
+
+				uint32_t value_a, value_b;
+				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
+
+					if (value_a == value_b) {
+						list.pop_front(); // REP
+						list.pop_front(); // SEP
+						delete a;
+						delete b;
+						return true;
+					}
+
+				}
+				return false;
+			})) continue;
+			break;
+
+		case SEP:
+			/* 	sep #$20, rep #$20 -> nop */
+			if (match(list, REP, SEP, [&](BasicLine *a, BasicLine *b){
+
+				uint32_t value_a, value_b;
+				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
+
+					if (value_a == value_b) {
+						list.pop_front(); // SEP
+						list.pop_front(); // REP
+						delete a;
+						delete b;
+						return true;
+					}
+
+				}
+				return false;
+			})) continue;
+			break;
+#endif
 
 		case STA:
 			/* STA %t0, LDA %t0 -> STA %t0 */
@@ -491,6 +626,8 @@ bool peephole(LineQueue &list) {
 
 			})) continue;
 
+			// sta %t0, rep #20, lda %t0
+			// ... 
 
 
 			break;
