@@ -88,7 +88,7 @@ static bool is_branch(Mnemonic m, bool include_jmp = true)
 	}
 }
 
-static bool unconditional_branch(Mnemonic m)
+static bool is_unconditional_branch(Mnemonic m)
 {
 	switch(m) {
 
@@ -100,6 +100,22 @@ static bool unconditional_branch(Mnemonic m)
 		default:
 			return false;
 	}	
+}
+
+static bool is_conditional_branch(Mnemonic m) {
+	switch(m) {
+		case BCC:
+		case BCS:
+		case BVC:
+		case BVS:
+		case BMI:
+		case BPL:
+		case BEQ:
+		case BNE:
+			return true;
+		default:
+			return false;		
+	}
 }
 
 bool analyze_block_2(BasicBlock *block);
@@ -224,46 +240,61 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 	BlockQueue out;
 
 	BasicBlock *current = nullptr;
+
 	for (BasicLine *line : lines) {
 
-		if (line->label) {
-			// but not if it's a @local label...
 
-			BasicBlock *old = current;
+		Mnemonic m = line->opcode.mnemonic();
+
+		if (line->label) {
 
 			current = new BasicBlock;
 			current->label = line->label;
-
-
-			// close the previous
-			if (old) {
-				out.push_back(old);
-
-				bool fallthrough = true;
-				if (!old->lines.empty()) {
-					BasicLine *line = old->lines.back();
-
-					// if it's a branch, don't fall through.
-					if (unconditional_branch(line->opcode.mnemonic())) fallthrough = false;
-				}
-				if (fallthrough) old->next_set.push_back(current);
-
-			} 
+			out.push_back(current);
 
 			continue;
-
-			// non-data directives should already be removed at this point.
 		}
 
-		if (!current) current = new BasicBlock;
+		if (!current) {
+			current = new BasicBlock;
+			out.push_back(current);
+		}
 
 		current->lines.push_back(line);
+		if (is_branch(m)) {
+			current = nullptr;
+		}
 	}
 	lines.clear();
 
-	if (current) out.push_back(current);
-
 	if (!out.empty()) out.front()->entry = true;
+
+
+	// check for drop-through
+	for (auto iter = out.begin(); iter != out.end(); ++iter) {
+		auto &block = *iter;
+		auto next = iter + 1;
+		bool fallthrough = false;
+
+		if (next == out.end()) continue;
+		
+		if (block->lines.empty()) {
+			fallthrough = true;
+		} else { 
+			BasicLine *line = block->lines.back();
+			Mnemonic m = line->opcode.mnemonic();
+			if (is_conditional_branch(m))
+				fallthrough = true;
+			if (!is_branch(m))
+				fallthrough = true;
+		} 
+
+		if (fallthrough)
+			block->next_set.push_back(*next);
+
+	}
+
+
 	return out;
 }
 
@@ -593,7 +624,7 @@ LineQueue basic_block(LineQueue &&lines) {
 
 	// create the map
 	for (BasicBlock *block : bq) {
-		if (!block->label) continue; // shouldn't happen, unless first one?
+		if (!block->label) continue;
 		bm.emplace(block->label, block);
 	}
 
