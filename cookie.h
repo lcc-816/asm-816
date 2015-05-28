@@ -18,6 +18,9 @@ struct Cookie {
 	// current segment.
 	Segment *segment = nullptr;
 	Segment *data_segment = nullptr;
+
+	LineQueue *lines = nullptr;
+
 	std::unordered_set<const std::string *> export_set;
 
 	std::unordered_map<const std::string *, unsigned> labels; // label -> line number.
@@ -32,7 +35,7 @@ struct Cookie {
 		data
 	} seg_type = none;
 
-	LineQueue lines;
+	
 };
 
 #endif

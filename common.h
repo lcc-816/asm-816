@@ -6,6 +6,7 @@
 #include <deque>
 #include <unordered_set>
 #include <unordered_map>
+#include <memory>
 
 #include "Machine.h"
 #include "Instruction.h"
@@ -122,6 +123,8 @@ struct Segment {
 	const std::string *segment = nullptr;
 
 	BlockQueue blocks;
+	LineQueue lines;
+
 	// attributes
 
 	unsigned parm_size = 0;
@@ -144,7 +147,7 @@ typedef std::deque<Segment *> SegmentQueue;
 bool peephole(LineQueue &);
 void print(const LineQueue &lines);
 void simplify(LineQueue &lines);
-bool parse_file(const std::string &filename, LineQueue &lines);
+bool parse_file(const std::string &filename, SegmentQueue &segments);
 
 unsigned classify(Mnemonic);
 unsigned classify(OpCode);

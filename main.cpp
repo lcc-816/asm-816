@@ -11,7 +11,6 @@
 
 
 
-bool parse_file(const std::string &filename, std::deque<BasicLine *> &lines);
 
 void simplify(LineQueue &lines) {
 
@@ -202,28 +201,19 @@ int main(int argc, char **argv) {
 
 	for (int i = 0 ; i < argc; ++i) {
 
-		LineQueue lines;
-		bool ok = parse_file(argv[i], lines);
+		SegmentQueue segments;
+
+		bool ok = parse_file(argv[i], segments);
+		#if 0
 		if (ok) {
 			simplify(lines);
 			print(lines);
-			printf("-------\n");
-			peephole(lines);
-			print(lines);
-			printf("-------\n");
 			lines = basic_block(std::move(lines));
-			print(lines);
-			printf("-------\n");
-			//peephole(lines); // second round of peephole -after- basic block.
 			print(lines);
 			printf("-------\n");
 
 		}
-
-
-
-		for (BasicLine *tmp : lines) { delete tmp; }
-		lines.clear();
+		#endif
 	}
 
 	return 0;

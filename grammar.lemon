@@ -135,10 +135,16 @@
 	static void AddLabel(Cookie *cookie, const std::string *label) {
 		if (!label) return;
 
-		BasicLine *tmp = new BasicLine;
-		tmp->label = label;
-		cookie->lines.push_back(tmp);
 
+
+		if (cookie->lines) {
+			BasicLine *tmp = new BasicLine;
+			tmp->label = label;
+			cookie->lines->push_back(tmp);
+		}
+
+		if (label->find('@') == label->npos)
+			cookie->current_label = label;
 	}
 
 	static void AddLine(Cookie *cookie) {
@@ -171,6 +177,9 @@
 				cookie->segments.push_back(seg);
 				cookie->segment = seg;
 
+				cookie->lines = &cookie->segment->lines;
+				cookie->current_label = scratch.label;
+
 				return;
 			}
 
@@ -179,6 +188,10 @@
 				if (cookie->seg_type) warn("previous segment still active\n");
 				cookie->segment = cookie->data_segment;
 				cookie->seg_type = Cookie::data;
+
+				cookie->lines = &cookie->segment->lines;
+				cookie->current_label = scratch.label;
+
 				return;
 			}
 
@@ -189,19 +202,26 @@
 				AddLabel(cookie, scratch.label);
 				cookie->segment = nullptr;
 				cookie->seg_type = Cookie::none;
+
+				cookie->lines = nullptr;
 				return;
 			}
 
 			AddLabel(cookie, scratch.label);
 
-			BasicLine *tmp = new BasicLine;
-			tmp->directive = scratch.directive;
-			tmp->operands[0] = scratch.operands[0];
-			tmp->operands[1] = scratch.operands[1];
-			cookie->lines.push_back(tmp);
+			if (cookie->lines) {
+				BasicLine *tmp = new BasicLine;
+				tmp->directive = scratch.directive;
+				tmp->operands[0] = scratch.operands[0];
+				tmp->operands[1] = scratch.operands[1];
+
+				cookie->lines->push_back(tmp);
+
+			} else {
+				error("no active segment");
+			}
 
 			return;
-			// if this is an start/data/end directive, handle segments?
 		}
 
 		// labels go on their own line (except start/data, etc)
@@ -243,11 +263,15 @@
 				return;
 			}
 
-			BasicLine *tmp = new BasicLine;
-			tmp->opcode = OpCode(scratch.instruction, scratch.mode);
-			tmp->operands[0] = scratch.operands[0];
-			tmp->operands[1] = scratch.operands[1];
-			cookie->lines.push_back(tmp);
+			if (cookie->lines) {
+				BasicLine *tmp = new BasicLine;
+				tmp->opcode = OpCode(scratch.instruction, scratch.mode);
+				tmp->operands[0] = scratch.operands[0];
+				tmp->operands[1] = scratch.operands[1];
+				cookie->lines->push_back(tmp);
+			} else {
+				error("no active segment");
+			}
 		}
 
 	}

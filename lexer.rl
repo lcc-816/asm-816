@@ -695,7 +695,7 @@ void warn(const std::string &s) {
 	warn_count++;
 }
 
-bool parse_file(const std::string &filename, std::deque<BasicLine *> &rv)
+bool parse_file(const std::string &filename, SegmentQueue &rv)
 {
 	int fd;
 	struct stat st;
@@ -705,8 +705,8 @@ bool parse_file(const std::string &filename, std::deque<BasicLine *> &rv)
 
 	Cookie cookie;
 
+	cookie.data_segment = new Segment;
 
-	const std::string *prevLabel;
 	void *parser;
 
 	fd = open(filename.c_str(), O_RDONLY);
@@ -752,13 +752,14 @@ bool parse_file(const std::string &filename, std::deque<BasicLine *> &rv)
 	ParseFree(parser, free);
 
 	munmap(buffer, st.st_size);
+
 	if (error_count > 0) {
-		for (BasicLine *tmp : cookie.lines) {
-			delete tmp;
-		}
-		cookie.lines.clear();
+		// todo -- kill data, if needed.
 		return false;
 	}
-	rv = std::move(cookie.lines);
+
+	cookie.segments.push_back(cookie.data_segment);
+
+	rv = std::move(cookie.segments);
 	return true;
 }
