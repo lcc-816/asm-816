@@ -204,16 +204,19 @@ int main(int argc, char **argv) {
 		SegmentQueue segments;
 
 		bool ok = parse_file(argv[i], segments);
-		#if 0
 		if (ok) {
-			simplify(lines);
-			print(lines);
-			lines = basic_block(std::move(lines));
-			print(lines);
-			printf("-------\n");
+
+			for (auto &seg : segments) {
+				auto &lines = seg->lines;
+				simplify(lines);
+				//print(lines);
+				printf("%s\tstart\n", seg->name ? seg->name->c_str() : "");
+				lines = basic_block(std::move(lines));
+				print(lines);
+				printf("\tend\n");
+			}
 
 		}
-		#endif
 	}
 
 	return 0;
