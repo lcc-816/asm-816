@@ -174,7 +174,7 @@
 				seg->name = scratch.label;
 
 				cookie->seg_type = Cookie::data;
-				cookie->segments.push_back(seg);
+				cookie->segments.emplace_back(seg);
 				cookie->segment = seg;
 
 				cookie->lines = &cookie->segment->lines;
@@ -186,7 +186,7 @@
 			if (scratch.directive == DATA) {
 				// label currently unused...
 				if (cookie->seg_type) warn("previous segment still active\n");
-				cookie->segment = cookie->data_segment;
+				cookie->segment = cookie->data_segment.get();
 				cookie->seg_type = Cookie::data;
 
 				cookie->lines = &cookie->segment->lines;

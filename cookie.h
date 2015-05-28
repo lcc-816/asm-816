@@ -17,7 +17,7 @@ struct Cookie {
 	
 	// current segment.
 	Segment *segment = nullptr;
-	Segment *data_segment = nullptr;
+	std::unique_ptr<Segment> data_segment;
 
 	LineQueue *lines = nullptr;
 

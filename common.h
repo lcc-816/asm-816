@@ -141,7 +141,7 @@ struct Segment {
 	} convention = cdecl;
 };
 
-typedef std::deque<Segment *> SegmentQueue;
+typedef std::deque< std::unique_ptr<Segment> > SegmentQueue;
 
 
 bool peephole(LineQueue &);

@@ -705,7 +705,7 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 
 	Cookie cookie;
 
-	cookie.data_segment = new Segment;
+	cookie.data_segment.reset(new Segment);
 
 	void *parser;
 
@@ -758,7 +758,7 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 		return false;
 	}
 
-	cookie.segments.push_back(cookie.data_segment);
+	cookie.segments.emplace_back(std::move(cookie.data_segment));
 
 	rv = std::move(cookie.segments);
 	return true;
