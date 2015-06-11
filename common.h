@@ -27,6 +27,7 @@ enum Directive {
 	DCW,
 	DCL,
 	DS,
+	ALIGN,
 	PROLOGUE,
 	EPILOGUE,
 };
@@ -89,6 +90,7 @@ struct BasicLine {
 
 	register_set reg_live;
 	dp_register reg; // from operands.
+	unsigned reg_count = 0; 
 	unsigned reg_status = reg_none;
 };
 typedef std::deque<BasicLine *> LineQueue;
@@ -135,12 +137,14 @@ struct Segment {
 	bool rts = false;
 
 	enum {
-		cdecl = 0,
+		naked = 0,
+		cdecl,
 		pascal,
 		stdcall
-	} convention = cdecl;
+	} convention = naked;
 };
 
+// n. b. -- other stuff outside of segment, like export / import set.
 typedef std::deque< std::unique_ptr<Segment> > SegmentQueue;
 
 

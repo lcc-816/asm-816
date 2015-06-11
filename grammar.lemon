@@ -364,6 +364,10 @@ opcode ::= DS expr(e). {
 	cookie->scratch.operands[0] = e;
 }
 
+opcode ::= ALIGN expr(e). {
+	cookie->scratch.directive = ALIGN;
+	cookie->scratch.operands[0] = e;
+}
 
 opcode ::= PRAGMA pragma_list. {
 	if (!cookie->segment) 
@@ -418,6 +422,10 @@ pragma ::= STDCALL. {
 
 pragma ::= PASCAL. {
 	if (cookie->segment) cookie->segment->convention = Segment::pascal;
+}
+
+pragma ::= NAKED. {
+	if (cookie->segment) cookie->segment->convention = Segment::naked;
 }
 
 opcode ::= EXPORT export_list.

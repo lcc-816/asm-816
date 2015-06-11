@@ -472,6 +472,10 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 		'stdcall'i {
 			Parse(parser, tkSTDCALL, 0, &cookie);
 		};
+		'naked'i {
+			Parse(parser, tkNAKED, 0, &cookie);
+		};
+
 
 		'void'i {
 			Parse(parser, tkVOID, 0, &cookie);
@@ -560,6 +564,11 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 
 		'ds'i {
 			Parse(parser, tkDS, 0, &cookie);
+			next_operand = lexer_en_operand_no_reg;
+		};
+
+		'align'i {
+			Parse(parser, tkALIGN, 0, &cookie);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
