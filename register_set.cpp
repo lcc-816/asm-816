@@ -2,9 +2,12 @@
 
 #include "register_set.h"
 
+#include <stdexcept>
+
 namespace {
-	inline int reg_to_index(dp_register r) {
-		switch (r.type) {
+
+	inline int reg_to_index(char type) {
+		switch (type) {
 			case 't': return 0;
 			case 'r': return 1;
 			case 'v': return 2;
@@ -12,6 +15,10 @@ namespace {
 			default:
 				return -1;
 		}
+	}
+
+	inline int reg_to_index(dp_register r) {
+		return reg_to_index(r.type);
 	}
 }
 
@@ -84,6 +91,31 @@ register_set::operator bool() const {
 	}
 	return false;
 }
+
+std::bitset<32> register_set::bits(char type) const {
+	int index = reg_to_index(type);
+	if (index == -1) throw std::out_of_range("register_set::bits");
+
+	return _data[index];
+}
+
+std::vector<dp_register> register_set::registers(char type) const {
+
+	int ix = reg_to_index(type);
+	if (ix == -1) throw std::out_of_range("register_set::registers");
+
+	std::vector<dp_register> rv;
+	rv.reserve(_data[ix].count());
+
+	for (unsigned i = 0; i < _data[ix].size(); ++i) {
+		if (_data[ix].test(i)) {
+			rv.push_back(dp_register{(unsigned)type, i});
+		}
+	}
+	
+	return rv;
+}
+
 
 
 #else

@@ -23,6 +23,10 @@ inline dp_register operator+(dp_register r, int i) {
 	return r;
 }
 
+
+#define RS_BITSET
+
+
 class register_set
 {
 public:
@@ -51,8 +55,13 @@ public:
 
 	operator bool() const;
 
+	#ifdef RS_BITSET
+	std::bitset<32> bits(char type) const;
+	#endif
+
+	std::vector<dp_register> registers(char type) const;
+
 private:
-	#define RS_BITSET
 
 	#ifdef RS_BITSET
 	// lcc is currently limited to 32 registers, so this is good enough for now.
