@@ -138,6 +138,9 @@ struct Segment {
 
 	enum {
 		naked = 0,
+		data,
+		bss,
+		arrays,
 		cdecl,
 		pascal,
 		stdcall

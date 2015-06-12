@@ -302,10 +302,17 @@ line ::= IDENTIFIER(id) START EOL. {
 	cookie->scratch.label = id.string_value;
 }
 
+/* named data section */
 line ::= IDENTIFIER(id) DATA EOL. {
 	cookie->scratch.directive = DATA;
 	cookie->scratch.label = id.string_value;
 }
+
+/* anonymous data section */
+line ::=  DATA EOL. {
+	cookie->scratch.directive = DATA;
+}
+
 
 line ::= END EOL. {
 	cookie->scratch.directive = END;

@@ -721,6 +721,7 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 	Cookie cookie;
 
 	cookie.data_segment.reset(new Segment);
+	cookie.data_segment->convention = Segment::data;
 
 	void *parser;
 
