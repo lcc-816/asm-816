@@ -16,7 +16,7 @@ endif
 
 SRC = grammar.cpp main.cpp lexer.cpp Expression.cpp Instruction.cpp Machine.cpp OpCode.cpp \
 	register_set.cpp classify.cpp peephole.cpp classify.cpp basic_block.cpp \
-	intern.cpp symbol_table.cpp data.cpp
+	intern.cpp symbol_table.cpp data.cpp omf.cpp
 
 OBJ = $(SRC:.cpp=.o)
 DEP = $(SRC:.cpp=.d)

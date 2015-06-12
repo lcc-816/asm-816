@@ -10,17 +10,26 @@ namespace OMF {
 
 	class Segment {
 	public:
-		uint32_t length = 0;
 		uint32_t resspace = 0;
+		uint32_t length = 0;
 		uint16_t kind = 0;
 		uint32_t banksize = 0;
+		uint32_t org = 0;
+		uint32_t alignment = 0;
+		uint16_t segnum = 0;
+		uint32_t entry = 0;
+
 		std::string segname;
 		std::string loadname;
 
 		std::vector<uint8_t> data;
+
+
+		void write(int fd);
 	};
 
 	enum {
+		END_OF_SEGMENT = 0x00,
 		ALIGN = 0xe0,
 		ORG = 0xe1,
 		RELOC = 0xe2,

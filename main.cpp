@@ -9,7 +9,11 @@
 #include "Machine.h"
 #include "Expression.h"
 
+#include "omf.h"
+#include "unordered_set"
 
+
+extern OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::string *> &export_set);
 
 
 void simplify(LineQueue &lines) {
@@ -199,6 +203,8 @@ int main(int argc, char **argv) {
 	argc -= optind;
 
 
+	std::unordered_set<const std::string *> export_set;
+
 	for (int i = 0 ; i < argc; ++i) {
 
 		SegmentQueue segments;
@@ -207,6 +213,13 @@ int main(int argc, char **argv) {
 		if (ok) {
 
 			for (auto &seg : segments) {
+
+				if (seg->convention == Segment::data) {
+					auto omf = data_to_omf(seg.get(), export_set);
+					omf.write(1);
+					continue;
+				}
+
 				auto &lines = seg->lines;
 				simplify(lines);
 				//print(lines);

@@ -169,6 +169,7 @@ OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::s
 
 	}
 	save_lconst();
+	data.push_back(OMF::END_OF_SEGMENT);
 
 	//
 	OMF::Segment seg;
