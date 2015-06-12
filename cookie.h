@@ -22,6 +22,7 @@ struct Cookie {
 	LineQueue *lines = nullptr;
 
 	std::unordered_set<const std::string *> export_set;
+	std::unordered_set<const std::string *> import_set; // parsed but ignored.
 
 	std::unordered_map<const std::string *, unsigned> labels; // label -> line number.
 

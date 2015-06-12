@@ -437,6 +437,17 @@ export_list ::= export_list COMMA IDENTIFIER(a). {
 	cookie->export_set.insert(a.string_value);
 }
 
+opcode ::= IMPORT import_list.
+import_list ::= IDENTIFIER(a). {
+	cookie->import_set.insert(a.string_value);
+}
+
+import_list ::= import_list COMMA IDENTIFIER(a). {
+	cookie->import_set.insert(a.string_value);
+}
+
+
+
 opcode ::= FX_PROLOGUE. {
 	cookie->scratch.directive = PROLOGUE;
 }

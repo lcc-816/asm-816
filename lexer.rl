@@ -600,6 +600,12 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			next_operand = lexer_en_operand_no_reg;
 		};
 
+		'import'i {
+			Parse(parser, tkIMPORT, 0, &cookie);
+			next_operand = lexer_en_operand_no_reg;
+		};
+
+
 		'begin_stack'i {
 			Parse(parser, tkFX_PROLOGUE, 0, &cookie);
 		};
