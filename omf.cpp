@@ -33,7 +33,7 @@ namespace OMF {
 
 		push_back(header, bytecount, 4);
 		push_back(header, resspace, 4);
-		push_back(header, data.size(), 4);
+		push_back(header, length, 4);
 		push_back(header, 0, 1); // unused
 		push_back(header, 0, 1); // lablen
 		push_back(header, 4, 1); // numlen
