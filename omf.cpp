@@ -114,10 +114,25 @@ namespace OMF {
 			append(s);
 	}
 
+#if 0
+	void SegmentBuilder::align(uint32_t size) {
+		save_lconst();
+		append(OMF::ALIGN, size);
+		// todo -- size must be power of 2.
+		//length += size; ???
+	}
+
+	void SegmentBuilder::org(uint32_t size) {
+		save_lconst();
+		append(OMF::ORG, size);
+		//length += size; ???
+	}
+#endif
+
 	void SegmentBuilder::ds(uint32_t size) {
 		save_lconst();
-		append((uint8_t)OMF::DS);
-		append((uint32_t)size);
+
+		append(OMF::DS, size);
 		length += size;
 	}
 
@@ -125,6 +140,15 @@ namespace OMF {
 		save_lconst();
 		append((uint8_t)OMF::END_OF_SEGMENT);
 	}
+
+	void SegmentBuilder::entry(uint16_t segnum, const std::string &label) {
+		save_lconst();
+
+		append((uint8_t)OMF::ENTRY);
+		append((uint16_t)segnum);
+		append(label);
+	}
+
 
 	void SegmentBuilder::global(const std::string &label, uint16_t length, uint8_t type, bool exported) {
 		save_lconst();
@@ -137,11 +161,13 @@ namespace OMF {
 
 	void SegmentBuilder::strong(const std::string &name) {
 		save_lconst();
+
 		append(OMF::STRONG, name);
 	}
 
 	void SegmentBuilder::use(const std::string &name) {
 		save_lconst();
+		
 		append(OMF::USING, name);
 	}
 

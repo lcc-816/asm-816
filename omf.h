@@ -75,8 +75,12 @@ namespace OMF {
 
 		void ds(uint32_t size);
 		void end();
+		void entry(uint16_t segnum, const std::string &label);
 
-		void global(const std::string &label, uint16_t length, uint8_t type, bool exported);
+		void global(const std::string &label, uint16_t length, uint8_t type, bool exported = true);
+		void local(const std::string &label, uint16_t length, uint8_t type) {
+			global(label, length, type, false);
+		}
 
 		void strong(const std::string &);
 		void use(const std::string &);
@@ -101,6 +105,11 @@ namespace OMF {
 
 		void append(const std::string &);
 		void append(uint8_t opcode, const std::string &);
+
+		void append(uint8_t opcode, uint32_t numlen) {
+			append(opcode);
+			append(numlen);
+		}
 
 
 		template <class InputIt>
