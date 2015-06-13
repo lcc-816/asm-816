@@ -107,8 +107,12 @@ namespace OMF {
 
 		append((uint8_t)size);
 		append(s.begin(), s.end());
-	} 
+	}
 
+	void SegmentBuilder::append(uint8_t opcode, const std::string &s){
+			append((uint8_t)opcode);
+			append(s);
+	}
 
 	void SegmentBuilder::ds(uint32_t size) {
 		save_lconst();
@@ -125,11 +129,20 @@ namespace OMF {
 	void SegmentBuilder::global(const std::string &label, uint16_t length, uint8_t type, bool exported) {
 		save_lconst();
 
-		append((uint8_t)OMF::GLOBAL);
-		append(label);
+		append((uint8_t)OMF::GLOBAL, label);
 		append((uint16_t)length);
 		append((uint8_t)type);
 		append(exported ? (uint8_t)0 : (uint8_t)1);
+	}
+
+	void SegmentBuilder::strong(const std::string &name) {
+		save_lconst();
+		append(OMF::STRONG, name);
+	}
+
+	void SegmentBuilder::use(const std::string &name) {
+		save_lconst();
+		append(OMF::USING, name);
 	}
 
 
