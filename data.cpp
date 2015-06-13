@@ -15,93 +15,40 @@
  */
 namespace {
 
-	size_t data_size = 0;
-	std::vector<uint8_t> data;
-	std::vector<uint8_t> lconst;
+	void dc(OMF::SegmentBuilder &builder, ExpressionPtr e, unsigned bytes);
+	void dc(OMF::SegmentBuilder &builder, std::vector<ExpressionPtr> &v, unsigned bytes);
 
-
-
-	void save_lconst() {
-		size_t size = lconst.size();
-
-		if (size == 0) return;
-
-		if (size <= 0xdf) {
-			data.push_back((uint8_t)size);
-		} else {
-			data.push_back(OMF::LCONST); // LCONST
-			data.push_back((size >> 0 ) & 0xff);
-			data.push_back((size >> 8 ) & 0xff);
-			data.push_back((size >> 16) & 0xff);
-			data.push_back((size >> 24) & 0xff);
-		}
-
-		data.insert(data.end(), lconst.begin(), lconst.end());
-
-		lconst.clear();
-		data_size += size;
-	}
-
-	void global_label(const std::string *label, uint16_t length, uint8_t type, bool exported) {
-		save_lconst();
-
-		data.push_back(OMF::GLOBAL);
-		data.push_back(label->length());
-		data.insert(data.end(), label->begin(), label->end());
-		data.push_back((length >> 0) & 0xff); 
-		data.push_back((length >> 8) & 0xff); 
-		data.push_back(type); // type
-		data.push_back(exported ? 0 : 1);
-	}
-
-
-	void dc(ExpressionPtr e, unsigned bytes);
-	void dc(std::vector<ExpressionPtr> &v, unsigned bytes);
-
-	void dc(std::vector<ExpressionPtr> &v, unsigned bytes) {
+	void dc(OMF::SegmentBuilder &builder, std::vector<ExpressionPtr> &v, unsigned bytes) {
 		for (auto e : v)
-			dc(e, bytes);
+			dc(builder, e, bytes);
 	}
 
-	void dc(ExpressionPtr e, unsigned bytes) {
+	void dc(OMF::SegmentBuilder &builder, ExpressionPtr e, unsigned bytes) {
 
 		uint32_t i;
 		std::vector<ExpressionPtr> v;
 
 		if (e->is_vector(v)) {
-			dc(v, bytes);
+			dc(builder, v, bytes);
 			return;
 		}
 
 		if (e->is_integer(i)) {
-			while (bytes) {
-				lconst.push_back(i & 0xff);
-				--bytes;
-				i >>= 8;
-			}
+			builder.data(i, bytes);
 			return;
 		}
-		save_lconst();
 
 		std::vector<uint8_t> tmp = e->to_omf(OMF::EXPR, bytes);
-		data.insert(data.end(), tmp.begin(), tmp.end());
-		data_size += bytes;
+		builder.raw_append(tmp.begin(), tmp.end(), bytes);
 	}
 
-	void ds(ExpressionPtr e) {
+	void ds(OMF::SegmentBuilder &builder, ExpressionPtr e) {
 		// DS #
 		// DS $1000-* ? 
 		uint32_t size;
-		save_lconst();
 
 		if (e->is_integer(size)) {
-			data.push_back(OMF::DS);
-			data.push_back((size >> 0 ) & 0xff);
-			data.push_back((size >> 8 ) & 0xff);
-			data.push_back((size >> 16) & 0xff);
-			data.push_back((size >> 24) & 0xff);
-
-			data_size += size;
+			builder.ds(size);
 			return;
 		}
 		fprintf(stderr, "ds - expression too complicated\n");
@@ -109,8 +56,7 @@ namespace {
 
 	}
 
-	void align(ExpressionPtr e) {
-		save_lconst();
+	void align(OMF::SegmentBuilder &builder, ExpressionPtr e) {
 
 		// orca/m align is a ds, but requires the 
 		// segment be aligned, first.
@@ -129,10 +75,7 @@ namespace {
 
 OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::string *> &export_set) {
 
-
-	data_size = 0;
-	data.clear();
-	lconst.clear();
+	OMF::SegmentBuilder builder;
 
 	for (auto &line : segment->lines) {
 
@@ -140,25 +83,25 @@ OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::s
 			auto label = line->label;
 
 			// create a global label
-			global_label(label, 0, 0x4e, export_set.find(label) != export_set.end());
+			builder.global(*label, 0, 0x4e, export_set.find(label) != export_set.end());
 
 			continue;
 		}
 		switch (line->directive) {
 			case DCB:
-				dc(line->operands[0], 1);
+				dc(builder, line->operands[0], 1);
 				break;
 			case DCW:
-				dc(line->operands[0], 2);
+				dc(builder, line->operands[0], 2);
 				break;
 			case DCL:
-				dc(line->operands[0], 4);
+				dc(builder, line->operands[0], 4);
 				break;
 			case DS:
-				ds(line->operands[0]);
+				ds(builder, line->operands[0]);
 				break;
 			case ALIGN:
-				align(line->operands[0]);
+				align(builder, line->operands[0]);
 				break;
 
 			default:
@@ -168,13 +111,12 @@ OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::s
 		}
 
 	}
-	save_lconst();
-	data.push_back(OMF::END_OF_SEGMENT);
 
+	builder.end();
 	//
 	OMF::Segment seg;
-	seg.length = data_size;
-	seg.data = std::move(data);
+	seg.length = builder.length;
+	seg.body = std::move(builder.body);
 	seg.kind = segment->kind;
 	if (seg.kind == 0) seg.kind = 0x4000; // code, static, private
 

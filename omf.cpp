@@ -27,7 +27,7 @@ namespace OMF {
 
 		//bytecount includes header.
 		headersize = 0x30 + 10 + segname.size() + 1;
-		bytecount = headersize + data.size(); 
+		bytecount = headersize + body.size(); 
 
 		header.reserve(headersize);
 
@@ -76,7 +76,7 @@ namespace OMF {
 
 		for(;;) {
 			ssize_t rv;
-			rv = ::write(fd, data.data(), data.size());
+			rv = ::write(fd, body.data(), body.size());
 			if (rv < 0) {
 				if (errno == EINTR) continue;
 				throw std::system_error(errno, std::system_category(), "write");
@@ -85,5 +85,53 @@ namespace OMF {
 		}
 
 	}
+
+
+	void SegmentBuilder::save_lconst() {
+		size_t size = lconst.size();
+		if (size == 0) return;
+
+		if (size <= 0xdf) append((uint8_t)size);
+		else append((uint32_t)size);
+
+		append(lconst.begin(), lconst.end());
+		lconst.clear();
+		length += size;
+	}
+
+	void SegmentBuilder::append(const std::string &s){
+		size_t size = s.size();
+		if (size == 0 || size > 0xff) {
+			throw std::invalid_argument("invalid string size");
+		}
+
+		append((uint8_t)size);
+		append(s.begin(), s.end());
+	} 
+
+
+	void SegmentBuilder::ds(uint32_t size) {
+		save_lconst();
+		append((uint8_t)OMF::DS);
+		append((uint32_t)size);
+		length += size;
+	}
+
+	void SegmentBuilder::end() {
+		save_lconst();
+		append((uint8_t)OMF::END_OF_SEGMENT);
+	}
+
+	void SegmentBuilder::global(const std::string &label, uint16_t length, uint8_t type, bool exported) {
+		save_lconst();
+
+		append((uint8_t)OMF::GLOBAL);
+		append(label);
+		append((uint16_t)length);
+		append((uint8_t)type);
+		append(exported ? (uint8_t)0 : (uint8_t)1);
+	}
+
+
 
 }
