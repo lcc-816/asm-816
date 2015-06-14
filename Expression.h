@@ -19,6 +19,8 @@ typedef const std::string *identifier;
 class Expression {
 
 public:
+
+
 	static ExpressionPtr PC();
 	static ExpressionPtr Integer(uint32_t value);
 	static ExpressionPtr Register(dp_register value);
@@ -26,6 +28,9 @@ public:
 	static ExpressionPtr Unary(unsigned op, ExpressionPtr a);
 	static ExpressionPtr Binary(unsigned op, ExpressionPtr a, ExpressionPtr b);
 	static VectorExpressionPtr Vector();
+	static VectorExpressionPtr Vector(const std::vector<ExpressionPtr> &);
+	static VectorExpressionPtr Vector(std::vector<ExpressionPtr> &&);
+
 	static ExpressionPtr String(const std::string *name);
 
 	static void ErasePool();
@@ -105,10 +110,19 @@ public:
 		// something for registers?
 		uint32_t &result) const;
 
+	//virtual void set_pc(uint32_t pc);
+
 protected:
 	friend class UnaryExpression;
 	friend class BinaryExpression;
 	friend class VectorExpression;
+
+	class Visitor;
+	class MapVisitor;
+	virtual void accept(Visitor &) = 0;
+	virtual ExpressionPtr accept(MapVisitor &) = 0;
+
+
 
 	Expression(expression_type type) : _type(type)
 	{}
@@ -129,6 +143,7 @@ private:
 class VectorExpression : public Expression {
 
 	public:
+	typedef std::vector<ExpressionPtr> children_type;
 
 	size_t size() const { return _children.size(); }
 	void push_back(ExpressionPtr e) { _children.push_back(e); }
@@ -144,8 +159,14 @@ class VectorExpression : public Expression {
 
 	protected:
 
+	virtual void accept(Visitor &) final;
+	virtual ExpressionPtr accept(MapVisitor &) final;
+
 	VectorExpression() : Expression(type_vector)
 	{}
+
+	VectorExpression(std::vector<ExpressionPtr> &&);
+	VectorExpression(const std::vector<ExpressionPtr> &);
 
 	virtual ~VectorExpression() final;
 
@@ -156,7 +177,7 @@ class VectorExpression : public Expression {
 	friend class Expression;
 	
 
-	std::vector<ExpressionPtr> _children;
+	children_type _children;
 };
 
 #endif
