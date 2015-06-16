@@ -3,6 +3,9 @@
 
 #include <cstdio>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sysexits.h>
+#include <stdlib.h>
 
 #include "common.h"
 #include "Instruction.h"
@@ -14,6 +17,7 @@
 
 
 extern OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::string *> &export_set);
+extern OMF::Segment code_to_omf(Segment *segment);
 
 
 void simplify(LineQueue &lines) {
@@ -212,23 +216,34 @@ int main(int argc, char **argv) {
 		bool ok = parse_file(argv[i], segments);
 		if (ok) {
 
+			int fd;
+			fd = open("object.omf", O_CREAT | O_TRUNC | O_WRONLY, 0666);
+			if (fd < 0) {
+				perror("open");
+				exit(EX_CANTCREAT);
+			}
+
 			for (auto &seg : segments) {
 
 				if (seg->convention == Segment::data) {
 					auto omf = data_to_omf(seg.get(), export_set);
-					omf.write(1);
+					omf.write(fd);
 					continue;
 				}
 
 				auto &lines = seg->lines;
 				simplify(lines);
 				//print(lines);
-				printf("%s\tstart\n", seg->name ? seg->name->c_str() : "");
+				//printf("%s\tstart\n", seg->name ? seg->name->c_str() : "");
 				lines = basic_block(std::move(lines));
-				print(lines);
-				printf("\tend\n");
-			}
+				//print(lines);
+				//printf("\tend\n");
 
+				auto omf = code_to_omf(seg.get());
+				omf.write(fd);
+
+			}
+			close(fd);
 		}
 	}
 

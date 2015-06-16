@@ -68,6 +68,34 @@ namespace {
 		exit(1);
 	}
 
+	void dc(OMF::SegmentBuilder &builder, ExpressionPtr e, unsigned bytes, OpCode op) {
+		unsigned type = OMF::EXPR; // expression.
+
+		uint32_t i;
+
+		// special handling for relative instructions?
+		if (e->is_integer(i)) {
+			builder.data(i, bytes);
+			return;
+		}
+
+
+		if (op.isRelative()) type = OMF::RELEXPR; // relative expression.
+		switch(op.mnemonic()) {
+			case JML:
+			case JSL:
+				type = OMF::LEXPR; // lexpr
+				break;
+			case JSR:
+			case JMP:
+				type = OMF::BKEXPR; // bkexpr
+				break;
+		}
+		std::vector<uint8_t> tmp = e->to_omf(type, bytes);
+		builder.raw_append(tmp.begin(), tmp.end(), bytes);
+		// 
+	}
+
 }
 
 
@@ -132,6 +160,93 @@ OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::s
 	if (segment->segment) seg.loadname = *segment->segment;
 
 	if (seg.segname.empty()) seg.segname = "~globals"; 
+
+	return seg;
+}
+
+
+
+OMF::Segment code_to_omf(Segment *segment) {
+
+	// this operates on basic blocks.
+
+
+	OMF::SegmentBuilder builder;
+
+	for (auto line : segment->lines) {
+
+		if (line->label) {
+			builder.local(*line->label, 0, 'N');
+			continue;
+		}
+
+		if (line->directive != kUndefinedDirective) {
+
+
+			switch (line->directive) {
+				case DCB:
+					dc(builder, line->operands[0], 1);
+					break;
+				case DCW:
+					dc(builder, line->operands[0], 2);
+					break;
+				case DCL:
+					dc(builder, line->operands[0], 4);
+					break;
+				case DS:
+					ds(builder, line->operands[0]);
+					break;
+
+				default:
+					fprintf(stderr, "Invalid code directive\n");
+					exit(1);
+			}
+
+
+			continue;
+		}
+
+		// show time!  opcode and operands.
+		{
+			OpCode op = line->opcode;
+			builder.data(op.opcode());
+			unsigned bytes;
+
+			// MVP / MVN are special cases.
+			if (op.mnemonic() == MVN || op.mnemonic() == MVP) {
+				dc(builder,line->operands[1], 1);
+				dc(builder,line->operands[0], 1);
+				continue;
+			}
+			// also, 
+
+			// todo -- relative / relative long addressing needs REL expr.
+			// dp operands s/b ZPEXPR
+			// abs operands s/b BKEXPR [?]
+			bytes = op.bytes(/*line->longM, line->longX */ true, true);
+			if (bytes > 1) {
+				// pass in the address mode as a parameter?
+				// pass in the opcode as a parameter?
+				// mpw asm uses LEXPR for everything. orca/m manual
+				// says LEXPR only for JSL (can generate jump table entry)
+				dc(builder, line->operands[0], bytes - 1, op);
+			}
+
+		}
+	}
+
+
+	builder.end();
+	//
+	OMF::Segment seg;
+	seg.length = builder.length;
+	seg.body = std::move(builder.body);
+	seg.kind = segment->kind;
+	if (seg.kind == 0) seg.kind = 0x4000; // code, static, private
+	seg.banksize = 0x010000;
+
+	if (segment->name) seg.segname = *segment->name;
+	if (segment->segment) seg.loadname = *segment->segment;
 
 	return seg;
 }
