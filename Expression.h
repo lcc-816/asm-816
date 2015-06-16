@@ -24,6 +24,7 @@ public:
 	static ExpressionPtr PC();
 	static ExpressionPtr Integer(uint32_t value);
 	static ExpressionPtr Register(dp_register value);
+	static ExpressionPtr Rel(uint32_t offset);
 	static ExpressionPtr Identifier(identifier name);
 	static ExpressionPtr Unary(unsigned op, ExpressionPtr a);
 	static ExpressionPtr Binary(unsigned op, ExpressionPtr a, ExpressionPtr b);
@@ -42,6 +43,7 @@ public:
 		type_pc,
 		type_identifier,
 		type_string,
+		type_rel,
 
 		type_unary,
 		type_binary,
@@ -52,14 +54,15 @@ public:
 		return _type;
 	}
 
-	bool is_integer() const { return _type == type_integer; }
-	bool is_register() const { return _type == type_register; }
-	bool is_identifier() const { return _type == type_identifier; }
-	bool is_unary() const { return _type == type_unary; }
 	bool is_binary() const { return _type == type_binary; }
+	bool is_identifier() const { return _type == type_identifier; }
+	bool is_integer() const { return _type == type_integer; }
 	bool is_pc() const { return _type == type_pc; }
-	bool is_vector() const {return _type == type_vector; }
+	bool is_register() const { return _type == type_register; }
+	bool is_rel() const {return _type == type_rel; }
 	bool is_string() const {return _type == type_string; }
+	bool is_unary() const { return _type == type_unary; }
+	bool is_vector() const {return _type == type_vector; }
 
 	bool is_terminal() const { return _type < type_unary; }
 
@@ -76,11 +79,9 @@ public:
 		to_string(rv);
 		return rv;
 	}
-	std::vector<identifier> identifiers() const {
-		std::vector<identifier> rv;
-		identifiers(rv);
-		return rv;
-	}
+
+	std::vector<identifier> identifiers() const;
+
 
 	std::vector<uint8_t> to_omf(unsigned type, unsigned size) {
 		std::vector<uint8_t> rv;
@@ -95,12 +96,15 @@ public:
 	virtual bool is_identifier(identifier &) const;
 	virtual bool is_integer(uint32_t &) const;
 	virtual bool is_register(dp_register &) const;
+	virtual bool is_rel(uint32_t &) const;
 
 	virtual bool is_string(const std::string *&) const;
 	virtual bool is_vector(std::vector<ExpressionPtr> &) const;
 
 	virtual void rename(identifier oldname, identifier newname);
 	virtual void rename(dp_register oldreg, dp_register newreg);
+
+	ExpressionPtr set_pc(uint32_t pc);
 
 	virtual ExpressionPtr simplify();
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp);
@@ -112,14 +116,18 @@ public:
 
 	//virtual void set_pc(uint32_t pc);
 
+	class Visitor;
+	class ConstVisitor;
+	class MapVisitor;
+
 protected:
 	friend class UnaryExpression;
 	friend class BinaryExpression;
 	friend class VectorExpression;
 
-	class Visitor;
-	class MapVisitor;
+
 	virtual void accept(Visitor &) = 0;
+	virtual void accept(ConstVisitor &) const= 0;
 	virtual ExpressionPtr accept(MapVisitor &) = 0;
 
 
@@ -131,7 +139,7 @@ protected:
 
 	// children override
 	virtual void to_string(std::string &) const = 0;
-	virtual void identifiers(std::vector<identifier> &) const;
+	//virtual void identifiers(std::vector<identifier> &) const;
 
 	virtual void to_omf(std::vector<uint8_t> &) const;
 
@@ -160,6 +168,7 @@ class VectorExpression : public Expression {
 	protected:
 
 	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
 	VectorExpression() : Expression(type_vector)
@@ -171,7 +180,7 @@ class VectorExpression : public Expression {
 	virtual ~VectorExpression() final;
 
 	virtual void to_string(std::string &) const final;
-	virtual void identifiers(std::vector<identifier> &) const final;
+	//virtual void identifiers(std::vector<identifier> &) const final;
 
 	private:
 	friend class Expression;

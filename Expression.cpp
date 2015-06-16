@@ -60,12 +60,23 @@ namespace {
 	}
 
 
+	std::string int_to_string(uint32_t x) {
+		char buffer[10];
+		if (x <= 0xff) snprintf(buffer, sizeof(buffer), "$%02x", x);
+		else if (x <= 0xffff) snprintf(buffer, sizeof(buffer), "$%04x", x);
+		else if (x <= 0xffffff) snprintf(buffer, sizeof(buffer), "$%06x", x);
+		else snprintf(buffer, sizeof(buffer), "$%08x", x);
+
+		return std::string(buffer);
+	}
+
 }
 
 class BinaryExpression;
 class IdentifierExpression;
 class IntegerExpression;
 class PCExpression;
+class RelExpression;
 class RegisterExpression;
 class StringExpression;
 class UnaryExpression;
@@ -78,12 +89,25 @@ public:
 	virtual void visit(IntegerExpression &);
 	virtual void visit(PCExpression &);
 	virtual void visit(RegisterExpression &);
+	virtual void visit(RelExpression &);
 	virtual void visit(StringExpression &);
 	virtual void visit(UnaryExpression &);
 	virtual void visit(VectorExpression &);
-
 };
 
+class Expression::ConstVisitor {
+public:
+	virtual ~ConstVisitor();
+	virtual void visit(const BinaryExpression &);
+	virtual void visit(const IdentifierExpression &);
+	virtual void visit(const IntegerExpression &);
+	virtual void visit(const PCExpression &);
+	virtual void visit(const RegisterExpression &);
+	virtual void visit(const RelExpression &);
+	virtual void visit(const StringExpression &);
+	virtual void visit(const UnaryExpression &);
+	virtual void visit(const VectorExpression &);
+};
 
 
 class Expression::MapVisitor {
@@ -94,6 +118,7 @@ public:
 	virtual ExpressionPtr visit(IntegerExpression &);
 	virtual ExpressionPtr visit(PCExpression &);
 	virtual ExpressionPtr visit(RegisterExpression &);
+	virtual ExpressionPtr visit(RelExpression &);
 	virtual ExpressionPtr visit(StringExpression &);
 	virtual ExpressionPtr visit(UnaryExpression &);
 	virtual ExpressionPtr visit(VectorExpression &);
@@ -128,12 +153,33 @@ public:
 
 	//virtual void set_pc(uint32_t pc) final;
 	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
 private:
-		//bool _has_pc = false;
-		//uint32_t _pc = 0;
+
 };
+
+
+class RelExpression : public Expression {
+public:
+	RelExpression(uint32_t offset) : Expression(type_pc), _offset(offset)
+	{}
+
+	virtual bool is_rel(uint32_t &) const final;
+	virtual void to_string(std::string &) const final;
+
+
+	virtual void to_omf(std::vector<uint8_t> &) const final;
+
+	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
+	virtual ExpressionPtr accept(MapVisitor &) final;
+
+private:
+		uint32_t _offset = 0;
+};
+
 
 
 class IntegerExpression : public Expression {
@@ -151,6 +197,7 @@ public:
 
 	virtual void to_omf(std::vector<uint8_t> &) const final;
 	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
 private:
@@ -172,6 +219,7 @@ public:
 
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
 private:
@@ -189,7 +237,7 @@ public:
 	virtual bool is_identifier(identifier &) const final;
 	virtual void to_string(std::string &) const final;
 
-	virtual void identifiers(std::vector<identifier> &) const final;
+	//virtual void identifiers(std::vector<identifier> &) const final;
 	virtual void rename(identifier, identifier) final;	
 
 	virtual bool evaluate(uint32_t pc, 
@@ -198,6 +246,7 @@ public:
 
 	virtual void to_omf(std::vector<uint8_t> &) const final;
 	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
 private:
@@ -213,6 +262,7 @@ public:
 	virtual bool is_string(identifier &) const final;
 	virtual void to_string(std::string &) const final;
 	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
 private:
@@ -230,7 +280,7 @@ public:
 	{}
 
 	virtual void to_string(std::string &) const final;
-	virtual void identifiers(std::vector<identifier> &) const final;
+	//virtual void identifiers(std::vector<identifier> &) const final;
 
 	virtual void rename(identifier, identifier) final;
 	virtual void rename(dp_register, dp_register) final;
@@ -244,9 +294,12 @@ public:
 	virtual void to_omf(std::vector<uint8_t> &) const final;
 
 	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
 private:
+	friend class SimplifyVisitor;
+	
 	unsigned _op;
 	children_type _children;
 };
@@ -262,7 +315,7 @@ public:
 	{}
 
 	virtual void to_string(std::string &) const final;
-	virtual void identifiers(std::vector<identifier> &rv) const final;
+	//virtual void identifiers(std::vector<identifier> &rv) const final;
 
 	virtual void rename(identifier, identifier) final;
 	virtual void rename(dp_register, dp_register) final;
@@ -276,9 +329,12 @@ public:
 	virtual void to_omf(std::vector<uint8_t> &) const final;
 
 	virtual void accept(Visitor &) final;
+	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
 private:
+	friend class SimplifyVisitor;
+
 	unsigned _op;
 	children_type _children;
 };
@@ -303,6 +359,12 @@ Expression *Expression::PC() {
 	//return e;
 
 	return pc;
+}
+
+Expression *Expression::Rel(uint32_t offset) {
+	ExpressionPtr e = new RelExpression(offset);
+	Pool.push_back(e);
+	return e;
 }
 
 Expression *Expression::Integer(uint32_t value) {
@@ -409,6 +471,10 @@ bool RegisterExpression::is_register(dp_register &rv) const {
 	return true;
 }
 
+bool Expression::is_rel(uint32_t &) const {
+	return false;
+}
+
 bool IdentifierExpression::is_identifier(identifier &rv) const {
 	rv = _value;
 	return true;
@@ -424,6 +490,11 @@ bool VectorExpression::is_vector(std::vector<ExpressionPtr> &rv) const {
 	return true;
 }
 
+bool RelExpression::is_rel(uint32_t &rv) const {
+	rv = _offset;
+	return true;
+}
+
 
 
 
@@ -433,14 +504,13 @@ void PCExpression::to_string(std::string &rv) const {
 	rv.push_back('*');
 }
 
-void IntegerExpression::to_string(std::string &rv) const {
-	char buffer[10];
-	if (_value <= 0xff) snprintf(buffer, sizeof(buffer), "%02x", _value);
-	else if (_value <= 0xffff) snprintf(buffer, sizeof(buffer), "%04x", _value);
-	else snprintf(buffer, sizeof(buffer), "%08x", _value);
+void RelExpression::to_string(std::string &rv) const {
+	rv.append("__start+");
+	rv.append(int_to_string(_offset));
+}
 
-	rv.push_back('$');
-	rv.append(buffer);
+void IntegerExpression::to_string(std::string &rv) const {
+	rv.append(int_to_string(_value));
 }
 
 
@@ -517,7 +587,7 @@ ExpressionPtr BinaryExpression::simplify() {
 	if (_children[0]->is_integer(a) && _children[1]->is_integer(b)) {
 		return Expression::Integer(binary_op(_op, a, b));
 	}
-	
+
 	// shortcut logical expressions...
 	if (_children[0]->is_integer()) {
 		switch(_op) {
@@ -527,6 +597,16 @@ ExpressionPtr BinaryExpression::simplify() {
 		case '&&':
 			if (!a) return Expression::Integer(0);
 			break;
+		case '+':
+		case '-':
+			// int + rel
+			{
+				uint32_t offset;
+				if (_children[1]->is_rel(offset)) {
+					if (_op == '-') a = -a;
+					return Expression::Rel(offset + a);
+				}
+			}
 		}
 	}
 
@@ -538,7 +618,19 @@ ExpressionPtr BinaryExpression::simplify() {
 		case '&&':
 			if (!b) return Expression::Integer(0);
 			break;
+
+		case '+':
+		case '-':
+			// rel + int
+			{
+				uint32_t offset;
+				if (_children[1]->is_rel(offset)) {
+					if (_op == '-') b = -b;
+					return Expression::Rel(offset + b);
+				}
+			}
 		}
+
 	}
 
 	return this;
@@ -627,6 +719,7 @@ ExpressionPtr RegisterExpression::simplify(dp_register oldreg, unsigned dp) {
 
 #pragma mark - rename
 
+
 void Expression::rename(dp_register, dp_register) {
 }
 
@@ -667,7 +760,25 @@ void BinaryExpression::rename(identifier a, identifier b) {
 
 #pragma mark - identifiers
 
+namespace {
+	class IdentifierVisitor : public Expression::ConstVisitor {
+	public:
+		std::vector<identifier> identifiers;
+		virtual void visit(const IdentifierExpression &e) {
+			identifier id;
+			if (e.is_identifier(id)) identifiers.push_back(id);
+		}
+	};
+}
 
+std::vector<identifier> Expression::identifiers() const {
+	IdentifierVisitor v;
+
+	accept(v);
+	return v.identifiers;
+}
+
+#if 0
 void Expression::identifiers(std::vector<identifier> &rv) const {
 }
 
@@ -687,7 +798,7 @@ void BinaryExpression::identifiers(std::vector<identifier> &rv) const {
 void VectorExpression::identifiers(std::vector<identifier> &rv) const {
 	for (auto e: _children) e->identifiers(rv);
 }
-
+#endif
 
 #pragma mark - to_omf
 
@@ -795,6 +906,15 @@ void PCExpression::to_omf(std::vector<uint8_t> &rv) const {
 	rv.push_back(0x80); // wrong?  off by operand size?
 }
 
+void RelExpression::to_omf(std::vector<uint8_t> &rv) const {
+		rv.push_back(0x87);
+
+		rv.push_back(_offset >> 0 );
+		rv.push_back(_offset >> 8 );
+		rv.push_back(_offset >> 16);
+		rv.push_back(_offset >> 24);	
+}
+
 void IdentifierExpression::to_omf(std::vector<uint8_t> &rv) const {
 
 	rv.push_back(0x83);
@@ -804,6 +924,32 @@ void IdentifierExpression::to_omf(std::vector<uint8_t> &rv) const {
 
 }
 
+
+namespace {
+
+	class SetPCVisitor : public Expression::MapVisitor {
+	public:
+		SetPCVisitor(uint32_t offset) : _offset(offset)
+		{}
+
+		virtual ExpressionPtr visit(PCExpression &) final;
+	private:
+		uint32_t _offset;
+	};
+
+	ExpressionPtr SetPCVisitor::visit(PCExpression &) {
+		return Expression::Rel(_offset);
+	} 
+
+
+}
+
+ExpressionPtr Expression::set_pc(uint32_t offset) {
+
+	SetPCVisitor v(offset);
+
+	return accept(v);
+}
 
 #pragma mark - accept
 
@@ -834,7 +980,38 @@ CREATE_VISITOR(IdentifierExpression);
 CREATE_VISITOR(IntegerExpression);
 CREATE_VISITOR(PCExpression);
 CREATE_VISITOR(RegisterExpression);
+CREATE_VISITOR(RelExpression);
 CREATE_VISITOR(StringExpression);
+
+
+
+void VectorExpression::accept(ConstVisitor &v) const {
+	v.visit(*this);
+	for (auto e : _children) e->accept(v);
+}
+
+void UnaryExpression::accept(ConstVisitor &v) const {
+	v.visit(*this);
+	for (auto e : _children) e->accept(v);
+}
+
+void BinaryExpression::accept(ConstVisitor &v) const {
+	v.visit(*this);
+	for (auto e : _children) e->accept(v);
+}
+
+#undef CREATE_VISITOR
+#define CREATE_VISITOR(klass) void klass::accept(ConstVisitor &v) const { v.visit(*this); }
+CREATE_VISITOR(IdentifierExpression);
+CREATE_VISITOR(IntegerExpression);
+CREATE_VISITOR(PCExpression);
+CREATE_VISITOR(RegisterExpression);
+CREATE_VISITOR(RelExpression);
+CREATE_VISITOR(StringExpression);
+
+
+
+
 
 ExpressionPtr UnaryExpression::accept(MapVisitor &v) {
 	children_type tmp(_children);
@@ -880,6 +1057,7 @@ CREATE_VISITOR(IdentifierExpression);
 CREATE_VISITOR(IntegerExpression);
 CREATE_VISITOR(PCExpression);
 CREATE_VISITOR(RegisterExpression);
+CREATE_VISITOR(RelExpression);
 CREATE_VISITOR(StringExpression);
 
 
@@ -892,9 +1070,21 @@ void Expression::Visitor::visit(IdentifierExpression &) {}
 void Expression::Visitor::visit(IntegerExpression &) {}
 void Expression::Visitor::visit(PCExpression &) {}
 void Expression::Visitor::visit(RegisterExpression &) {}
+void Expression::Visitor::visit(RelExpression &) {}
 void Expression::Visitor::visit(StringExpression &) {}
 void Expression::Visitor::visit(UnaryExpression &) {}
 void Expression::Visitor::visit(VectorExpression &) {}
+
+Expression::ConstVisitor::~ConstVisitor() {}
+void Expression::ConstVisitor::visit(const BinaryExpression &) {}
+void Expression::ConstVisitor::visit(const IdentifierExpression &) {}
+void Expression::ConstVisitor::visit(const IntegerExpression &) {}
+void Expression::ConstVisitor::visit(const PCExpression &) {}
+void Expression::ConstVisitor::visit(const RegisterExpression &) {}
+void Expression::ConstVisitor::visit(const RelExpression &) {}
+void Expression::ConstVisitor::visit(const StringExpression &) {}
+void Expression::ConstVisitor::visit(const UnaryExpression &) {}
+void Expression::ConstVisitor::visit(const VectorExpression &) {}
 
 
 Expression::MapVisitor::~MapVisitor() {}
@@ -904,6 +1094,7 @@ ExpressionPtr Expression::MapVisitor::visit(IdentifierExpression &e) { return &e
 ExpressionPtr Expression::MapVisitor::visit(IntegerExpression &e) { return &e; }
 ExpressionPtr Expression::MapVisitor::visit(PCExpression &e) { return &e; }
 ExpressionPtr Expression::MapVisitor::visit(RegisterExpression &e) { return &e; }
+ExpressionPtr Expression::MapVisitor::visit(RelExpression &e) { return &e; }
 ExpressionPtr Expression::MapVisitor::visit(StringExpression &e) { return &e; }
 ExpressionPtr Expression::MapVisitor::visit(UnaryExpression &e) { return &e; }
 ExpressionPtr Expression::MapVisitor::visit(VectorExpression &e) { return &e; }
