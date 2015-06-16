@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sysexits.h>
 #include <stdlib.h>
+#include <sys/xattr.h>
 
 #include "common.h"
 #include "Instruction.h"
@@ -19,6 +20,38 @@
 extern OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::string *> &export_set);
 extern OMF::Segment code_to_omf(Segment *segment);
 
+int set_ftype(int fd, uint16_t fileType, uint32_t auxType) {
+
+	int ok;
+	uint8_t finfo[32];
+	uint8_t ft[1];
+	uint8_t at[2];
+
+	ft[0] = fileType & 0xff;
+	at[0] = (auxType >> 0) & 0xff;
+	at[1] = (auxType >> 8) & 0xff;
+
+	std::fill(std::begin(finfo), std::end(finfo), 0);
+	finfo[0] = 'p';
+	finfo[1] = fileType & 0xff;
+	finfo[2] = (auxType >> 8) & 0xff;
+	finfo[3] = (auxType >> 0) & 0xff;
+	finfo[4] = 'p';
+	finfo[5] = 'd';
+	finfo[6] = 'o';
+	finfo[7] = 's';
+
+	ok = fsetxattr(fd, XATTR_FINDERINFO_NAME, &finfo, sizeof(finfo), 0, 0);
+	if (ok < 0) return ok;
+
+	ok = fsetxattr(fd, "prodos.FileType", &ft, sizeof(ft), 0, 0);
+	if (ok < 0) return ok;
+
+	ok = fsetxattr(fd, "prodos.AuxType", &at, sizeof(at), 0, 0);
+	if (ok < 0) return ok;
+
+	return 0;
+}
 
 void simplify(LineQueue &lines) {
 
@@ -215,9 +248,10 @@ int main(int argc, char **argv) {
 
 		bool ok = parse_file(argv[i], segments);
 		if (ok) {
+			std::string outname = "object.omf";
 
 			int fd;
-			fd = open("object.omf", O_CREAT | O_TRUNC | O_WRONLY, 0666);
+			fd = open(outname.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
 			if (fd < 0) {
 				perror("open");
 				exit(EX_CANTCREAT);
@@ -243,6 +277,7 @@ int main(int argc, char **argv) {
 				omf.write(fd);
 
 			}
+			set_ftype(fd, 0xb1, 0x0000);
 			close(fd);
 		}
 	}
