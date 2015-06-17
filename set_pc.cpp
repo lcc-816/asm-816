@@ -1,13 +1,50 @@
 #include <cassert>
+#include <unordered_map>
 
 #include "common.h"
 #include "Expression.h"
 
-void set_pc(BasicLine *line, uint32_t &pc) {
+
+
+typedef std::unordered_map<identifier, uint32_t> pc_map;
+
+namespace {
+
+
+	inline OpCode i(Mnemonic m, AddressMode mode) {
+		return OpCode(Instruction(m65816, m), mode);
+	}
+
+	bool inrange(ExpressionPtr e, uint32_t pc, const pc_map &map) {
+
+		try {
+
+			uint32_t target = e->evaluate(pc, map);
+			// pc is pc before the instruction.  actual pc is + 2.
+			pc += 2;
+			if (target > pc + 0x7f) return false;
+			if (target < pc - 0x80) return false;
+
+			return true;
+
+		} catch (std::exception &ex) {
+			return false;
+		}
+	}
+
+
+
+
+}
+
+
+void set_pc(BasicLine *line, uint32_t &pc, pc_map *map = nullptr) {
 
 	line->pc = pc;
 
 	if (line->label) {
+		if (map)
+			map->emplace(std::make_pair(line->label, pc));
 		return;
 	}
 
@@ -89,9 +126,83 @@ void set_pc(BlockQueue &blocks) {
 	uint32_t pc = 0;
 
 	for (auto block : blocks) {
-
+		block->pc = pc;
 		for (auto line : block->lines) {
 			set_pc(line, pc);
 		}
 	}
 }
+
+// does it also need to set the segment name to 0 in the map?
+void fix_branches(BlockQueue &blocks) {
+
+	// rewrite short branches, if necessary.
+	// todo -- optimization
+	// multi-branches could be optimized
+	// eg
+	// if (a <= b) goto foo;
+	// bcc foo
+	// beq foo
+	//
+	// expands to
+	// bcs *+5
+	// bra foo
+	// bne *+5
+	// bra foo
+
+	bool delta;
+
+	do {
+		delta = false;
+
+		// 1. assign a pc to all lines
+
+		uint32_t pc = 0;
+		pc_map map;
+
+		for (auto block : blocks) {
+			block->pc = pc;
+			if (block->label) map.emplace(std::make_pair(block->label, pc));
+			for (auto line : block->lines) {
+				set_pc(line, pc, &map);
+			}
+		}
+
+		// 2. if a relative branch is out of range, make it long.
+
+		uint32_t pc_fudge = 0;
+		for (auto block : blocks) {
+
+			// only need to check last
+			for (auto line : block->lines) {
+				OpCode op = line->opcode;
+				if (!op) continue;
+				if (op.addressMode() != relative) continue;
+
+				// check if in range....
+				uint32_t pc = line->pc + pc_fudge;
+				if (inrange(line->operands[0], pc, map)) continue;
+
+				//
+				delta = true;
+
+				uint32_t fudge;
+				if (op.mnemonic() == BRA) {
+					fudge += 1;
+					line->opcode = i(BRL, relative_long);
+				} else {
+					fudge += 3;
+					line->long_branch = true;
+				}
+
+				// adjust all future labels.
+				for (auto &kv : map) { if (kv.second >= pc) kv.second += fudge; }
+				pc_fudge += fudge;
+			}
+		}
+
+
+	} while (delta);
+
+}
+
