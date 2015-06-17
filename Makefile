@@ -14,7 +14,8 @@ CXXFLAGS = -std=c++11 -stdlib=libc++ -g -MMD -Wno-multichar
 endif
 
 
-SRC = grammar.cpp main.cpp lexer.cpp Expression.cpp Instruction.cpp Machine.cpp OpCode.cpp \
+SRC = grammar.cpp main.cpp lexer.cpp Instruction.cpp Machine.cpp OpCode.cpp \
+	Expression.cpp Expression_evaluate.cpp \
 	register_set.cpp classify.cpp peephole.cpp classify.cpp basic_block.cpp \
 	intern.cpp symbol_table.cpp data.cpp omf.cpp set_pc.cpp
 

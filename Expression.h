@@ -109,10 +109,13 @@ public:
 	virtual ExpressionPtr simplify();
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp);
 
-	virtual bool evaluate(uint32_t pc, 
+	bool evaluate(uint32_t pc, 
 		const std::unordered_map<identifier, uint32_t> &env,
-		// something for registers?
 		uint32_t &result) const;
+
+	uint32_t evaluate(uint32_t pc, 
+		const std::unordered_map<identifier, uint32_t> &env) const /* throw(std::runtime_exception) */;
+
 
 	//virtual void set_pc(uint32_t pc);
 
