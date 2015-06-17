@@ -79,8 +79,8 @@ struct BasicLine {
 
 	Expression *operands[2] = {0, 0};
 
-	bool m = false;
-	bool x = false;
+	bool longM = true;
+	bool longX = true;
 	bool long_branch = false;
 
 
