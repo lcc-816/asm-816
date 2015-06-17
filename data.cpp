@@ -33,6 +33,8 @@ namespace {
 			return;
 		}
 
+		// todo -- special handling for relative data (*).
+
 		if (e->is_integer(i)) {
 			builder.data(i, bytes);
 			return;
@@ -70,10 +72,12 @@ namespace {
 
 	void dc(OMF::SegmentBuilder &builder, ExpressionPtr e, unsigned bytes, OpCode op) {
 		unsigned type = OMF::EXPR; // expression.
+		AddressMode mode = op.addressMode();
 
 		uint32_t i;
 
-		// special handling for relative instructions?
+		// TODO -- special handling for relative instructions.
+
 		if (e->is_integer(i)) {
 			builder.data(i, bytes);
 			return;
@@ -82,12 +86,14 @@ namespace {
 
 		if (op.isRelative()) type = OMF::RELEXPR; // relative expression.
 		switch(op.mnemonic()) {
-			case JML:
 			case JSL:
 				type = OMF::LEXPR; // lexpr
 				break;
-			case JSR:
 			case JMP:
+				// jmp (abs) actually uses bank 0.
+				if (mode == absolute_indirect)
+					break;
+			case JSR:
 				type = OMF::BKEXPR; // bkexpr
 				break;
 		}
