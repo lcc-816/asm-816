@@ -54,6 +54,7 @@ namespace {
 	{
 		return std::accumulate(begin, end, 0, 
 			[](uint32_t value, char c){
+				if (c == '_') return value;
 				return (value << 1) + (c & 0x01);
 			});
 	}
@@ -268,13 +269,13 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
-		'0b'i [01]+ {
+		'0b'i [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 2, te);
 			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
-		'%' [01]+ {
+		'%' [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 1, te);
 			Parse(parser, tkINTEGER, value, &cookie);
@@ -383,13 +384,13 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
-		'0b'i [01]+ {
+		'0b'i [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 2, te);
 			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
-		'%' [01]+ {
+		'%' [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 1, te);
 			Parse(parser, tkINTEGER, value, &cookie);
@@ -509,13 +510,13 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
-		'0b'i [01]+ {
+		'0b'i [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 2, te);
 			Parse(parser, tkINTEGER, value, &cookie);
 		};
 
-		'%' [01]+ {
+		'%' [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 1, te);
 			Parse(parser, tkINTEGER, value, &cookie);
