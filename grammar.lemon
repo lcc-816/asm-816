@@ -156,11 +156,8 @@
 
 		if (!scratch.instruction && !scratch.label && !scratch.directive) return;
 
-		if (scratch.operands[0]) 
-			scratch.operands[0] = scratch.operands[0]->simplify();
-
-		if (scratch.operands[1]) 
-			scratch.operands[1] = scratch.operands[1]->simplify();
+		for (auto &e : scratch.operands)
+			if (e) e = e->simplify();
 
 
 		if (scratch.directive) {
