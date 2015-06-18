@@ -127,6 +127,8 @@ namespace {
 			case JSR:
 				type = OMF::BKEXPR; // bkexpr
 				break;
+			default:
+				break;
 		}
 		std::vector<uint8_t> tmp = e->to_omf(type, bytes);
 		builder.raw_append(tmp.begin(), tmp.end(), bytes);
@@ -187,8 +189,8 @@ OMF::Segment data_to_omf(Segment *segment) {
 	seg.length = builder.length;
 	seg.body = std::move(builder.body);
 	seg.kind = segment->kind;
-	if (seg.kind == 0) seg.kind = 0x4000; // code, static, private
-	if (segment->global) seg.kind |= 0x0001; // public.
+	if (seg.kind == 0) seg.kind = 0x4001; // data, static, private
+	if (segment->global) seg.kind &= ~0x4000; // public.
 
 	// orca has a banksize of $10000 for ~GLOBALS (and code segments), 0 for ~ARRAYS
 	// orca/c uses code, static, private. ($4000)
@@ -221,7 +223,9 @@ OMF::Segment code_to_omf(Segment *segment) {
 	for (auto line : segment->lines) {
 
 		if (line->label) {
-			builder.global(*line->label, 0, 'N', line->global);
+			// code -- only include global labels.
+			if (line->global)
+				builder.global(*line->label, 0, 'N', line->global);
 			continue;
 		}
 
@@ -284,7 +288,8 @@ OMF::Segment code_to_omf(Segment *segment) {
 	seg.body = std::move(builder.body);
 	seg.kind = segment->kind;
 	if (seg.kind == 0) seg.kind = 0x4000; // code, static, private
-	if (segment->global) seg.kind |= 0x0001; // public.
+	if (segment->global) seg.kind &= ~0x4000; // public.
+	if (segment->dynamic) seg.kind |= 0x8000; // dynamic segment.
 	seg.banksize = 0x010000;
 
 	if (segment->name) seg.segname = *segment->name;
