@@ -531,7 +531,7 @@ namespace {
 
 
 
-	class SetPCVisitor : public Expression::MapVisitor {
+	class SetPCVisitor : public SimplifyVisitor {
 	public:
 		SetPCVisitor(uint32_t pc) : _pc(pc)
 		{}

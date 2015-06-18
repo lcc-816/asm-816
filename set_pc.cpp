@@ -6,7 +6,6 @@
 
 
 
-typedef std::unordered_map<identifier, uint32_t> pc_map;
 
 namespace {
 
@@ -15,7 +14,7 @@ namespace {
 		return OpCode(Instruction(m65816, m), mode);
 	}
 
-	bool inrange(ExpressionPtr e, uint32_t pc, const pc_map &map) {
+	bool inrange(ExpressionPtr e, uint32_t pc, const identifier_map &map) {
 
 		try {
 
@@ -38,7 +37,7 @@ namespace {
 }
 
 
-void set_pc(BasicLine *line, uint32_t &pc, pc_map *map = nullptr) {
+void set_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 
 	line->pc = pc;
 
@@ -116,9 +115,20 @@ void set_pc(BasicLine *line, uint32_t &pc, pc_map *map = nullptr) {
 void set_pc(LineQueue &lines) {
 	uint32_t pc = 0;
 
+	identifier_map map;
+
 	for (auto line : lines) {
-		set_pc(line, pc);
-	}	
+		set_pc(line, pc, &map);
+	}
+
+	// convert to relative labels.
+	for (auto line : lines) {
+
+		for (auto &e : line->operands) {
+			if (e) e = e->make_relative(line->pc, map);
+		}
+
+	}
 }
 
 
@@ -158,7 +168,7 @@ void fix_branches(BlockQueue &blocks) {
 		// 1. assign a pc to all lines
 
 		uint32_t pc = 0;
-		pc_map map;
+		identifier_map map;
 
 		for (auto block : blocks) {
 			block->pc = pc;

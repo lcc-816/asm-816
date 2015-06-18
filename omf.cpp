@@ -86,6 +86,11 @@ namespace OMF {
 
 	}
 
+	uint32_t SegmentBuilder::pc() const {
+
+		return length + lconst.size();
+	}
+
 
 	void SegmentBuilder::save_lconst() {
 		size_t size = lconst.size();

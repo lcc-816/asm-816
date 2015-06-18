@@ -81,7 +81,7 @@ ExpressionPtr BinaryExpression::simplify_me() {
 	}
 
 	// shortcut logical expressions...
-	if (_children[0]->is_integer()) {
+	if (_children[0]->is_integer(a)) {
 		switch(_op) {
 		case '||': 
 			if (a) return Expression::Integer(1);
@@ -102,7 +102,8 @@ ExpressionPtr BinaryExpression::simplify_me() {
 		}
 	}
 
-	if (_children[1]->is_integer()) {
+	// need to re-check since may not have been called above.
+	if (_children[1]->is_integer(b)) {
 		switch(_op) {
 		case '||': 
 			if (b) return Expression::Integer(1);

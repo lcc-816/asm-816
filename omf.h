@@ -36,6 +36,7 @@ namespace OMF {
 		std::vector<uint8_t> body;
 		uint32_t length = 0;
 
+		uint32_t pc() const;
 
 		template <class InputIt>
 		void raw_append(InputIt begin, InputIt end, uint32_t lsize = 0) {
