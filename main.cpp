@@ -17,7 +17,7 @@
 #include "unordered_set"
 
 
-extern OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::string *> &export_set);
+extern OMF::Segment data_to_omf(Segment *segment);
 extern OMF::Segment code_to_omf(Segment *segment);
 
 int set_ftype(int fd, uint16_t fileType, uint32_t auxType) {
@@ -240,8 +240,6 @@ int main(int argc, char **argv) {
 	argc -= optind;
 
 
-	std::unordered_set<const std::string *> export_set;
-
 	for (int i = 0 ; i < argc; ++i) {
 
 		SegmentQueue segments;
@@ -260,7 +258,7 @@ int main(int argc, char **argv) {
 			for (auto &seg : segments) {
 
 				if (seg->convention == Segment::data) {
-					auto omf = data_to_omf(seg.get(), export_set);
+					auto omf = data_to_omf(seg.get());
 					omf.write(fd);
 					continue;
 				}

@@ -139,7 +139,7 @@ namespace {
 extern void set_pc(LineQueue &lines);
 
 
-OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::string *> &export_set) {
+OMF::Segment data_to_omf(Segment *segment) {
 
 	OMF::SegmentBuilder builder;
 
@@ -152,7 +152,7 @@ OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::s
 			auto label = line->label;
 
 			// create a global label
-			builder.global(*label, 0, 0x4e, export_set.find(label) != export_set.end());
+			builder.global(*label, 0, 0x4e, line->global);
 
 			continue;
 		}
@@ -188,6 +188,7 @@ OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::s
 	seg.body = std::move(builder.body);
 	seg.kind = segment->kind;
 	if (seg.kind == 0) seg.kind = 0x4000; // code, static, private
+	if (segment->global) seg.kind |= 0x0001; // public.
 
 	// orca has a banksize of $10000 for ~GLOBALS (and code segments), 0 for ~ARRAYS
 	// orca/c uses code, static, private. ($4000)
@@ -220,7 +221,7 @@ OMF::Segment code_to_omf(Segment *segment) {
 	for (auto line : segment->lines) {
 
 		if (line->label) {
-			builder.local(*line->label, 0, 'N');
+			builder.global(*line->label, 0, 'N', line->global);
 			continue;
 		}
 
@@ -283,6 +284,7 @@ OMF::Segment code_to_omf(Segment *segment) {
 	seg.body = std::move(builder.body);
 	seg.kind = segment->kind;
 	if (seg.kind == 0) seg.kind = 0x4000; // code, static, private
+	if (segment->global) seg.kind |= 0x0001; // public.
 	seg.banksize = 0x010000;
 
 	if (segment->name) seg.segname = *segment->name;
