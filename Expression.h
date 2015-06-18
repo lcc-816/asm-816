@@ -5,6 +5,7 @@
 #include "common.h"
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 enum AddressMode;
 
@@ -15,6 +16,8 @@ typedef Expression *ExpressionPtr;
 typedef VectorExpression *VectorExpressionPtr;
 
 typedef const std::string *identifier;
+typedef std::unordered_map<identifier, uint32_t> identifier_map;
+
 
 class Expression {
 
@@ -104,17 +107,18 @@ public:
 	virtual void rename(identifier oldname, identifier newname);
 	virtual void rename(dp_register oldreg, dp_register newreg);
 
-	ExpressionPtr set_pc(uint32_t pc);
+	ExpressionPtr make_relative(uint32_t pc);
+	ExpressionPtr make_relative(uint32_t pc, const identifier_map &env);
 
 	virtual ExpressionPtr simplify();
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp);
 
 	bool evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env,
+		const identifier_map &env,
 		uint32_t &result) const;
 
 	uint32_t evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const /* throw(std::runtime_exception) */;
+		const identifier_map &env) const /* throw(std::runtime_exception) */;
 
 
 	//virtual void set_pc(uint32_t pc);

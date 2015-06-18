@@ -76,11 +76,11 @@ public:
 	virtual void to_string(std::string &) const final;
 
 	// virtual bool evaluate(uint32_t pc, 
-	// 	const std::unordered_map<identifier, uint32_t> &env,
+	// 	const identifier_map &env,
 	// 	uint32_t &result) const final;
 
 	virtual uint32_t evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const final;
+		const identifier_map &env) const final;
 
 
 	virtual void to_omf(std::vector<uint8_t> &) const final;
@@ -107,7 +107,7 @@ public:
 	virtual void to_omf(std::vector<uint8_t> &) const final;
 
 	virtual uint32_t evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const final;
+		const identifier_map &env) const final;
 
 
 	virtual void accept(Visitor &) final;
@@ -130,11 +130,11 @@ public:
 	virtual void to_string(std::string &) const final;
 
 	// virtual bool evaluate(uint32_t pc, 
-	// 	const std::unordered_map<identifier, uint32_t> &env,
+	// 	const identifier_map &env,
 	// 	uint32_t &result) const final;
 
 	virtual uint32_t evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const final;
+		const identifier_map &env) const final;
 
 
 	virtual void to_omf(std::vector<uint8_t> &) const final;
@@ -183,11 +183,11 @@ public:
 	virtual void rename(identifier, identifier) final;	
 
 	// virtual bool evaluate(uint32_t pc, 
-	// 	const std::unordered_map<identifier, uint32_t> &env,
+	// 	const identifier_map &env,
 	// 	uint32_t &result) const final;
 
 	virtual uint32_t evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const final;
+		const identifier_map &env) const final;
 
 
 	virtual void to_omf(std::vector<uint8_t> &) const final;
@@ -234,11 +234,11 @@ public:
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
 	// virtual bool evaluate(uint32_t pc, 
-	// 	const std::unordered_map<identifier, uint32_t> &env,
+	// 	const identifier_map &env,
 	// 	uint32_t &result) const final;
 
 	virtual uint32_t evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const final;
+		const identifier_map &env) const final;
 
 
 	virtual void to_omf(std::vector<uint8_t> &) const final;
@@ -273,11 +273,11 @@ public:
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
 	// virtual bool evaluate(uint32_t pc, 
-	// 	const std::unordered_map<identifier, uint32_t> &env,
+	// 	const identifier_map &env,
 	// 	uint32_t &result) const final;
 
 	virtual uint32_t evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const final;
+		const identifier_map &env) const final;
 
 
 	virtual void to_omf(std::vector<uint8_t> &) const final;

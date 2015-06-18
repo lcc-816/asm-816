@@ -9,27 +9,27 @@ using namespace Expression_Internal;
 
 #if 0
 bool Expression::evaluate(uint32_t pc, 
-	const std::unordered_map<identifier, uint32_t> &env,
+	const identifier_map &env,
 	uint32_t &result) const {
 	return false;
 }
 
 bool IntegerExpression::evaluate(uint32_t pc, 
-	const std::unordered_map<identifier, uint32_t> &env,
+	const identifier_map &env,
 	uint32_t &result) const {
 	result = _value;
 	return true;
 }
 
 bool PCExpression::evaluate(uint32_t pc, 
-	const std::unordered_map<identifier, uint32_t> &env,
+	const identifier_map &env,
 	uint32_t &result) const {
 	result = pc;
 	return true;
 }
 
 bool IdentifierExpression::evaluate(uint32_t pc, 
-	const std::unordered_map<identifier, uint32_t> &env,
+	const identifier_map &env,
 	uint32_t &result) const {
 
 	auto iter = env.find(_value);
@@ -42,7 +42,7 @@ bool IdentifierExpression::evaluate(uint32_t pc,
 
 
 bool UnaryExpression::evaluate(uint32_t pc, 
-	const std::unordered_map<identifier, uint32_t> &env,
+	const identifier_map &env,
 	uint32_t &result) const {
 
 	uint32_t value;
@@ -54,7 +54,7 @@ bool UnaryExpression::evaluate(uint32_t pc,
 
 
 bool BinaryExpression::evaluate(uint32_t pc, 
-	const std::unordered_map<identifier, uint32_t> &env,
+	const identifier_map &env,
 	uint32_t &result) const {
 
 	uint32_t a, b;
@@ -70,7 +70,7 @@ bool BinaryExpression::evaluate(uint32_t pc,
 #pragma mark - evaluate
 
 bool Expression::evaluate(uint32_t pc,
-	const std::unordered_map<identifier, uint32_t> &env,
+	const identifier_map &env,
 	uint32_t &result) const {
 
 	try {
@@ -85,34 +85,29 @@ bool Expression::evaluate(uint32_t pc,
  *
  */
 
-uint32_t Expression::evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const
+uint32_t Expression::evaluate(uint32_t pc, const identifier_map &env) const
 {
 	throw std::runtime_error("unable to evaluate expression");
 }
 
-uint32_t PCExpression::evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const
+uint32_t PCExpression::evaluate(uint32_t pc, const identifier_map &env) const
 {
 	return pc;
 }
 
-uint32_t RelExpression::evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const
+uint32_t RelExpression::evaluate(uint32_t pc, const identifier_map &env) const
 {
 	return _offset;
 }
 
 
-uint32_t IntegerExpression::evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const
+uint32_t IntegerExpression::evaluate(uint32_t pc, const identifier_map &env) const
 {
 	return _value;
 }
 
 
-uint32_t IdentifierExpression::evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const
+uint32_t IdentifierExpression::evaluate(uint32_t pc, const identifier_map &env) const
 {
 	auto iter = env.find(_value);
 	if (iter == env.end()) {
@@ -123,16 +118,14 @@ uint32_t IdentifierExpression::evaluate(uint32_t pc,
 	return iter->second;
 }
 
-uint32_t UnaryExpression::evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const
+uint32_t UnaryExpression::evaluate(uint32_t pc, const identifier_map &env) const
 {
 	uint32_t a = _children[0]->evaluate(pc, env);
 
 	return unary_op(_op, a);
 }
 
-uint32_t BinaryExpression::evaluate(uint32_t pc, 
-		const std::unordered_map<identifier, uint32_t> &env) const
+uint32_t BinaryExpression::evaluate(uint32_t pc, const identifier_map &env) const
 {
 	uint32_t a = _children[0]->evaluate(pc, env);
 	uint32_t b = _children[1]->evaluate(pc, env);

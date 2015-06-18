@@ -375,13 +375,22 @@ ExpressionPtr BinaryExpression::simplify() {
 			// rel + int
 			{
 				uint32_t offset;
-				if (_children[1]->is_rel(offset)) {
+				if (_children[0]->is_rel(offset)) {
 					if (_op == '-') b = -b;
 					return Expression::Rel(offset + b);
 				}
 			}
 		}
+	}
 
+	// relative - relative -> integer.
+	// relative [any other op] relative is an error.
+	if (_children[0]->is_rel(a) && _children[1]->is_rel(b)) {
+		switch (_op) {
+			case '-':
+				return Expression::Integer(a - b);
+			// logical ops?
+		}
 	}
 
 	return this;
@@ -622,24 +631,53 @@ namespace {
 
 	class SetPCVisitor : public Expression::MapVisitor {
 	public:
-		SetPCVisitor(uint32_t offset) : _offset(offset)
+		SetPCVisitor(uint32_t pc) : _pc(pc)
 		{}
 
 		virtual ExpressionPtr visit(PCExpression &) final;
 	private:
-		uint32_t _offset;
+		uint32_t _pc;
 	};
 
 	ExpressionPtr SetPCVisitor::visit(PCExpression &) {
-		return Expression::Rel(_offset);
+		return Expression::Rel(_pc);
 	} 
 
+	class MakeRelativeVisitor : public SetPCVisitor {
+
+	public:
+		MakeRelativeVisitor(uint32_t pc, const identifier_map &env):
+			SetPCVisitor(pc), _env(env)
+		{}
+
+		virtual ExpressionPtr visit(IdentifierExpression &) final;
+
+	private:
+		const identifier_map &_env;
+	};
+
+
+
+	ExpressionPtr MakeRelativeVisitor::visit(IdentifierExpression &e) {
+		identifier id;
+		if (e.is_identifier(id)) {
+			auto iter = _env.find(id);
+			if (iter != _env.end())
+				return Expression::Rel(iter->second);
+		}
+		return MapVisitor::visit(e);
+	}
 
 }
 
-ExpressionPtr Expression::set_pc(uint32_t offset) {
+ExpressionPtr Expression::make_relative(uint32_t pc, const identifier_map &env) {
+	MakeRelativeVisitor v(pc, env);
+	return accept(v);
+}
 
-	SetPCVisitor v(offset);
+ExpressionPtr Expression::make_relative(uint32_t pc) {
+
+	SetPCVisitor v(pc);
 
 	return accept(v);
 }
