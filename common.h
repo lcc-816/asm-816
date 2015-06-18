@@ -134,6 +134,7 @@ struct Segment {
 	unsigned temp_size = 0;
 	unsigned return_size = 0;
 	unsigned kind = 0;
+	bool dynamic = false;
 	bool rts = false;
 
 	enum {

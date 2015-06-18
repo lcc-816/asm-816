@@ -435,6 +435,10 @@ pragma ::= NAKED. {
 	if (cookie->segment) cookie->segment->convention = Segment::naked;
 }
 
+pragma ::= DYNAMIC. {
+	if (cookie->segment) cookie->segment->dynamic = true;
+}
+
 opcode ::= EXPORT export_list.
 export_list ::= IDENTIFIER(a). {
 	cookie->export_set.insert(a.string_value);
