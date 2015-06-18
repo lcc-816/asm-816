@@ -781,6 +781,20 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 
 	cookie.segments.emplace_back(std::move(cookie.data_segment));
 
+	// set exports.
+	for (auto &seg : cookie.segments) {
+
+		identifier label = seg->name;
+		if (label && cookie.export_set.count(label))
+			seg->global = true;
+
+		for (auto line : seg->lines) {
+			identifier label = line->label;
+			if (label && cookie.export_set.count(label))
+				line->global = true;
+		}
+	}
+
 	rv = std::move(cookie.segments);
 	return true;
 }

@@ -73,6 +73,8 @@ struct BasicLine {
 	// Line data while analyzing.
 
 	const std::string *label = nullptr;
+	bool global = false;
+
 	Directive directive = kUndefinedDirective;
 
 	OpCode opcode;
@@ -136,6 +138,7 @@ struct Segment {
 	unsigned kind = 0;
 	bool dynamic = false;
 	bool rts = false;
+	bool global = false;
 
 	enum {
 		naked = 0,
