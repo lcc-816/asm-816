@@ -67,6 +67,13 @@ public:
 
 };
 
+class SimplifyVisitor : public Expression::MapVisitor {
+public:
+
+	virtual ExpressionPtr visit(BinaryExpression &);
+	virtual ExpressionPtr visit(UnaryExpression &);
+
+};
 
 class PCExpression : public Expression {
 public:
@@ -230,7 +237,7 @@ public:
 
 	virtual void rename(identifier, identifier) final;
 	virtual void rename(dp_register, dp_register) final;
-	virtual ExpressionPtr simplify() final;
+	//virtual ExpressionPtr simplify() final;
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
 	// virtual bool evaluate(uint32_t pc, 
@@ -247,9 +254,13 @@ public:
 	virtual void accept(ConstVisitor &) const final;
 	virtual ExpressionPtr accept(MapVisitor &) final;
 
+
+
 private:
 	friend class SimplifyVisitor;
 	
+	ExpressionPtr simplify_me();
+
 	unsigned _op;
 	children_type _children;
 };
@@ -269,7 +280,7 @@ public:
 
 	virtual void rename(identifier, identifier) final;
 	virtual void rename(dp_register, dp_register) final;
-	virtual ExpressionPtr simplify() final;
+	//virtual ExpressionPtr simplify() final;
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
 	// virtual bool evaluate(uint32_t pc, 
@@ -288,6 +299,8 @@ public:
 
 private:
 	friend class SimplifyVisitor;
+
+	ExpressionPtr simplify_me();
 
 	unsigned _op;
 	children_type _children;

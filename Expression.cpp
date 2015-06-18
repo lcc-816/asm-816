@@ -305,106 +305,6 @@ void StringExpression::to_string(std::string &rv) const {
 }
 
 
-#pragma mark - simplify
-
-ExpressionPtr Expression::simplify() {
-    return this;
-}
-
-
-
-ExpressionPtr UnaryExpression::simplify() {
-	uint32_t value;
-
-	std::transform(_children.begin(), _children.end(), _children.begin(), [](ExpressionPtr e){
-		return e->simplify();
-	});
-
-	if (_children[0]->is_integer(value)) {
-		return Expression::Integer(unary_op(_op, value));
-	}
-
-	return this;
-}
-
-
-ExpressionPtr BinaryExpression::simplify() {
-	uint32_t a,b;
-
-	std::transform(_children.begin(), _children.end(), _children.begin(), [](ExpressionPtr e){
-		return e->simplify();
-	});
-    
-	if (_children[0]->is_integer(a) && _children[1]->is_integer(b)) {
-		return Expression::Integer(binary_op(_op, a, b));
-	}
-
-	// shortcut logical expressions...
-	if (_children[0]->is_integer()) {
-		switch(_op) {
-		case '||': 
-			if (a) return Expression::Integer(1);
-			break;
-		case '&&':
-			if (!a) return Expression::Integer(0);
-			break;
-		case '+':
-		case '-':
-			// int + rel
-			{
-				uint32_t offset;
-				if (_children[1]->is_rel(offset)) {
-					if (_op == '-') a = -a;
-					return Expression::Rel(offset + a);
-				}
-			}
-		}
-	}
-
-	if (_children[1]->is_integer()) {
-		switch(_op) {
-		case '||': 
-			if (b) return Expression::Integer(1);
-			break;
-		case '&&':
-			if (!b) return Expression::Integer(0);
-			break;
-
-		case '+':
-		case '-':
-			// rel + int
-			{
-				uint32_t offset;
-				if (_children[0]->is_rel(offset)) {
-					if (_op == '-') b = -b;
-					return Expression::Rel(offset + b);
-				}
-			}
-		}
-	}
-
-	// relative - relative -> integer.
-	// relative [any other op] relative is an error.
-	if (_children[0]->is_rel(a) && _children[1]->is_rel(b)) {
-		switch (_op) {
-			case '-':
-				return Expression::Integer(a - b);
-			// logical ops?
-		}
-	}
-
-	return this;
-}
-
-ExpressionPtr VectorExpression::simplify() {
-
-	std::transform(_children.begin(), _children.end(), _children.begin(), [](ExpressionPtr e){
-		return e->simplify();
-	});
-	
-	return this;
-}
-
 
 
 #pragma mark - simplify (dp)
@@ -628,6 +528,8 @@ void IdentifierExpression::to_omf(std::vector<uint8_t> &rv) const {
 
 
 namespace {
+
+
 
 	class SetPCVisitor : public Expression::MapVisitor {
 	public:

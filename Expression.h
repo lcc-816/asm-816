@@ -110,7 +110,7 @@ public:
 	ExpressionPtr make_relative(uint32_t pc);
 	ExpressionPtr make_relative(uint32_t pc, const identifier_map &env);
 
-	virtual ExpressionPtr simplify();
+	ExpressionPtr simplify();
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp);
 
 	bool evaluate(uint32_t pc, 
@@ -168,7 +168,7 @@ class VectorExpression : public Expression {
 	virtual void rename(identifier oldname, identifier newname) final;
 	virtual void rename(dp_register oldreg, dp_register newreg) final;
 
-	virtual ExpressionPtr simplify() final;
+	//virtual ExpressionPtr simplify() final;
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
 
