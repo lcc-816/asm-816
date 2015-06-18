@@ -70,13 +70,45 @@ namespace {
 		exit(1);
 	}
 
-	void dc(OMF::SegmentBuilder &builder, ExpressionPtr e, unsigned bytes, OpCode op) {
+	void dc(OMF::SegmentBuilder &builder, ExpressionPtr e, unsigned bytes, uint32_t pc, OpCode op) {
 		unsigned type = OMF::EXPR; // expression.
 		AddressMode mode = op.addressMode();
 
 		uint32_t i;
 
-		// TODO -- special handling for relative instructions.
+		//special handling for relative instructions.
+		if (op.isRelative()) {
+			int32_t branch;
+			if (e->evaluate_relative(pc + 1 + bytes, branch))
+			{
+
+				// check if in range...
+				if (bytes == 1) {
+					if (branch >= -128 && branch <= 127) {
+						builder.data((uint32_t)branch, 1);
+						return;
+					}
+					// or throw...
+					throw std::runtime_error("branch out of range");
+				}
+				if (bytes == 2) {
+					if (branch >= -32768 && branch <= 32767) {
+						// mmmm will wrap at $ffff so all numbers reachable.
+						builder.data((uint32_t)branch, 2);
+						return;
+					}
+					throw std::runtime_error("branch out of range");
+				}
+
+				return;
+			}
+
+			std::vector<uint8_t> tmp = e->to_omf(OMF::RELEXPR, bytes);
+			builder.raw_append(tmp.begin(), tmp.end(), bytes);
+
+			return;
+		}
+
 
 		if (e->is_integer(i)) {
 			builder.data(i, bytes);
@@ -84,7 +116,6 @@ namespace {
 		}
 
 
-		if (op.isRelative()) type = OMF::RELEXPR; // relative expression.
 		switch(op.mnemonic()) {
 			case JSL:
 				type = OMF::LEXPR; // lexpr
@@ -112,7 +143,8 @@ OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::s
 
 	OMF::SegmentBuilder builder;
 
-	set_pc(segment->lines);
+	set_pc(segment->lines); //
+
 
 	for (auto &line : segment->lines) {
 
@@ -182,6 +214,9 @@ OMF::Segment code_to_omf(Segment *segment) {
 
 	OMF::SegmentBuilder builder;
 
+	set_pc(segment->lines); // todo -- move this elsewhere. optimizer will set pc as part of fixing branches.
+
+
 	for (auto line : segment->lines) {
 
 		if (line->label) {
@@ -232,13 +267,9 @@ OMF::Segment code_to_omf(Segment *segment) {
 			// todo -- relative / relative long addressing needs REL expr.
 			// dp operands s/b ZPEXPR
 			// abs operands s/b BKEXPR [?]
-			bytes = op.bytes(/*line->longM, line->longX */ true, true);
+			bytes = op.bytes(line->longM, line->longX);
 			if (bytes > 1) {
-				// pass in the address mode as a parameter?
-				// pass in the opcode as a parameter?
-				// mpw asm uses LEXPR for everything. orca/m manual
-				// says LEXPR only for JSL (can generate jump table entry)
-				dc(builder, line->operands[0], bytes - 1, op);
+				dc(builder, line->operands[0], bytes - 1, line->pc, op);
 			}
 
 		}
