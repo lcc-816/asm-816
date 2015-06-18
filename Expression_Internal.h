@@ -116,6 +116,7 @@ public:
 	virtual uint32_t evaluate(uint32_t pc, 
 		const identifier_map &env) const final;
 
+	virtual int32_t evaluate_relative(uint32_t pc) const final;
 
 	virtual void accept(Visitor &) final;
 	virtual void accept(ConstVisitor &) const final;

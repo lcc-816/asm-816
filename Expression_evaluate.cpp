@@ -74,7 +74,19 @@ bool Expression::evaluate(uint32_t pc,
 	uint32_t &result) const {
 
 	try {
-		return evaluate(pc, env);
+		result = evaluate(pc, env);
+		return true;
+	} catch (...) {
+		return false;
+	}
+}
+
+
+bool Expression::evaluate_relative(uint32_t pc, int32_t &result) const {
+
+	try {
+		result = evaluate_relative(pc);
+		return true;
 	} catch (...) {
 		return false;
 	}
@@ -133,3 +145,24 @@ uint32_t BinaryExpression::evaluate(uint32_t pc, const identifier_map &env) cons
 	return binary_op(_op, a, b);
 }
 
+
+
+// bra label 
+// make_relative converts to -> bra [__start + pc]
+// bra label +- offset will be optimized to a relative.
+// all others, leave for the linker to handle.
+
+int32_t Expression::evaluate_relative(uint32_t pc) const
+{
+	throw std::runtime_error("unable to evaluate expression");
+}
+
+int32_t RelExpression::evaluate_relative(uint32_t pc) const {
+	return _offset - pc;
+}
+
+/*
+uint32_t IntegerExpression::evaluate_relative(uint32_t pc) {
+	// bra $1234 ? 
+}
+*/

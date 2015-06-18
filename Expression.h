@@ -113,12 +113,11 @@ public:
 	ExpressionPtr simplify();
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp);
 
-	bool evaluate(uint32_t pc, 
-		const identifier_map &env,
-		uint32_t &result) const;
+	bool evaluate(uint32_t pc, const identifier_map &env, uint32_t &result) const;
+	bool evaluate_relative(uint32_t pc, int32_t &result) const;
 
-	uint32_t evaluate(uint32_t pc, 
-		const identifier_map &env) const /* throw(std::runtime_exception) */;
+	virtual uint32_t evaluate(uint32_t pc, const identifier_map &env) const /* throw(std::runtime_exception) */;
+	virtual int32_t evaluate_relative(uint32_t pc) const /* throw(std::runtime_exception) */;
 
 
 	//virtual void set_pc(uint32_t pc);
