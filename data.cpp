@@ -105,11 +105,14 @@ namespace {
 }
 
 
+extern void set_pc(LineQueue &lines);
 
 
 OMF::Segment data_to_omf(Segment *segment, const std::unordered_set<const std::string *> &export_set) {
 
 	OMF::SegmentBuilder builder;
+
+	set_pc(segment->lines);
 
 	for (auto &line : segment->lines) {
 
