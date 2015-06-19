@@ -137,6 +137,7 @@ struct Segment {
 	unsigned return_size = 0;
 	unsigned kind = 0;
 	bool dynamic = false;
+	bool debug = false;
 	bool rts = false;
 	bool global = false;
 

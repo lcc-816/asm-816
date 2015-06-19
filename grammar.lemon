@@ -436,6 +436,10 @@ pragma ::= DYNAMIC. {
 	if (cookie->segment) cookie->segment->dynamic = true;
 }
 
+pragma ::= DEBUG. {
+	if (cookie->segment) cookie->segment->debug = true;
+}
+
 opcode ::= EXPORT export_list.
 export_list ::= IDENTIFIER(a). {
 	cookie->export_set.insert(a.string_value);

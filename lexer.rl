@@ -460,6 +460,10 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			Parse(parser, tkDYNAMIC, 0, &cookie);
 		};
 
+		'debug'i {
+			Parse(parser, tkDEBUG, 0, &cookie);
+		};
+
 		'private'i {
 			Parse(parser, tkPRIVATE, 0, &cookie);
 		};
