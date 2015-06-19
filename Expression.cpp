@@ -303,18 +303,6 @@ void StringExpression::to_string(std::string &rv) const {
 
 
 
-#pragma mark - simplify (dp)
-#if 0
-ExpressionPtr Expression::simplify(dp_register oldreg, unsigned dp) {
-	return this;
-}
-
-ExpressionPtr RegisterExpression::simplify(dp_register oldreg, unsigned dp) {
-	if (_value == oldreg) return Expression::Integer(dp);
-	return *this;
-}
-#endif
-
 #pragma mark - rename
 namespace {
 
@@ -322,7 +310,15 @@ namespace {
 	public:
 		RenameIdentifierVisitor(identifier from, identifier to) : _from(from), _to(to)
 		{}
-		virtual ExpressionPtr visit(const IdentifierExpression &e) override final;
+
+		virtual ExpressionPtr visit(const IdentifierExpression &e) override final {
+			identifier id;
+			if (e.is_identifier(id))
+				if (id == _from) return Expression::Identifier(_to);
+
+			return to_expression_ptr(e);
+		}
+
 	private:
 		identifier _from;
 		identifier _to;
@@ -330,33 +326,25 @@ namespace {
 	};
 
 
-	ExpressionPtr RenameIdentifierVisitor::visit(const IdentifierExpression &e) {
-		identifier id;
-		if (e.is_identifier(id))
-			if (id == _from) return Expression::Identifier(_to);
-
-		return to_expression_ptr(e);
-	}
 
 	class RenameRegisterVisitor : public Expression::MapVisitor {
 	public:
 		RenameRegisterVisitor(dp_register from, dp_register to) : _from(from), _to(to)
 		{}
-		virtual ExpressionPtr visit(const RegisterExpression &e) override final;
+
+		virtual ExpressionPtr visit(const RegisterExpression &e) override final {
+			dp_register r;
+			if (e.is_register(r))
+				if (r == _from) return Expression::Register(_to);
+
+			return to_expression_ptr(e);
+		}
+
 	private:
 		dp_register _from;
 		dp_register _to;
 
 	};
-
-
-	ExpressionPtr RenameRegisterVisitor::visit(const RegisterExpression &e) {
-		dp_register r;
-		if (e.is_register(r))
-			if (r == _from) return Expression::Register(_to);
-
-		return to_expression_ptr(e);
-	}
 
 
 }
@@ -372,46 +360,6 @@ ExpressionPtr Expression::rename(dp_register from, dp_register to) {
 	RenameRegisterVisitor v(from, to);
 	return accept(v);
 }
-
-/*
-void Expression::rename(dp_register, dp_register) {
-}
-
-void Expression::rename(identifier, identifier) {
-}
-
-void RegisterExpression::rename(dp_register a, dp_register b) {
-	if (_value == a) _value = b;
-}
-
-void IdentifierExpression::rename(identifier a, identifier b) {
-	if (_value == a) _value = b;
-}
-
-void VectorExpression::rename(dp_register a, dp_register b) {
-	for (auto e: _children) e->rename(a, b);
-}
-
-void VectorExpression::rename(identifier a, identifier b) {
-	for (auto e: _children) e->rename(a, b);
-}
-
-void UnaryExpression::rename(dp_register a, dp_register b) {
-	for (auto e: _children) e->rename(a, b);
-}
-
-void UnaryExpression::rename(identifier a, identifier b) {
-	for (auto e: _children) e->rename(a, b);
-}
-
-void BinaryExpression::rename(dp_register a, dp_register b) {
-	for (auto e: _children) e->rename(a, b);
-}
-
-void BinaryExpression::rename(identifier a, identifier b) {
-	for (auto e: _children) e->rename(a, b);
-}
-*/
 
 #pragma mark - identifiers
 
@@ -554,14 +502,13 @@ namespace {
 		SetPCVisitor(uint32_t pc) : _pc(pc)
 		{}
 
-		virtual ExpressionPtr visit(const PCExpression &) override final;
+		virtual ExpressionPtr visit(const PCExpression &) override final {
+			return Expression::Rel(_pc);
+		} 
+
 	private:
 		uint32_t _pc;
 	};
-
-	ExpressionPtr SetPCVisitor::visit(const PCExpression &) {
-		return Expression::Rel(_pc);
-	} 
 
 	class MakeRelativeVisitor : public SetPCVisitor {
 
@@ -570,23 +517,20 @@ namespace {
 			SetPCVisitor(pc), _env(env)
 		{}
 
-		virtual ExpressionPtr visit(const IdentifierExpression &) override final;
+		virtual ExpressionPtr visit(const IdentifierExpression &e) override final {
+			identifier id;
+			if (e.is_identifier(id)) {
+				auto iter = _env.find(id);
+				if (iter != _env.end())
+					return Expression::Rel(iter->second);
+			}
+			return to_expression_ptr(e);
+		}
 
 	private:
 		const identifier_map &_env;
 	};
 
-
-
-	ExpressionPtr MakeRelativeVisitor::visit(const IdentifierExpression &e) {
-		identifier id;
-		if (e.is_identifier(id)) {
-			auto iter = _env.find(id);
-			if (iter != _env.end())
-				return Expression::Rel(iter->second);
-		}
-		return to_expression_ptr(e);
-	}
 
 }
 
