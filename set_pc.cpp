@@ -57,12 +57,15 @@ void set_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 			case DATA:
 			case EXPORT:
 			case PRAGMA:
-			case PROLOGUE:
-			case EPILOGUE:
 			case ALIGN:
 				// should never happen.
 				assert("unexpected directive!");
 				return;
+
+			case PROLOGUE: 
+			case EPILOGUE:
+				// todo -- when does this code generate?
+				break;
 
 			case DCB:
 				assert(operand->is_vector());
@@ -84,9 +87,11 @@ void set_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 				// ds 512-*
 				// 
 				uint32_t x;
-				assert(operand->is_integer(x));
-				pc += x;
-				return;
+				if (operand->is_integer(x)) {
+					pc += x;
+					return;
+				}
+				throw std::runtime_error("Expression is not absolute");
 		}
 	}
 

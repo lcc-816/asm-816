@@ -53,9 +53,7 @@ namespace {
 			builder.ds(size);
 			return;
 		}
-		fprintf(stderr, "ds - expression too complicated\n");
-		exit(1);
-
+		throw std::runtime_error("Expression is not absolute");
 	}
 
 	void align(OMF::SegmentBuilder &builder, ExpressionPtr e) {
