@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "Expression_Internal.h"
 
 

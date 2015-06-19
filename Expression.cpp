@@ -1,5 +1,3 @@
-
-
 #include <deque>
 #include <string>
 #include <algorithm>
@@ -7,9 +5,7 @@
 
 #include <cstdio>
 
-#include "Expression_internal.h"
-
-
+#include "Expression_Internal.h"
 
 
 namespace {
