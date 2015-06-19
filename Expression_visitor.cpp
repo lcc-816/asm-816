@@ -139,14 +139,14 @@ void Expression::ConstVisitor::visit(const VectorExpression &) {}
 
 Expression::MapVisitor::~MapVisitor() {}
 // these should all be const, but that screws up the return type.
-ExpressionPtr Expression::MapVisitor::visit(BinaryExpression &e) { return &e; }
-ExpressionPtr Expression::MapVisitor::visit(IdentifierExpression &e) { return &e; }
-ExpressionPtr Expression::MapVisitor::visit(IntegerExpression &e) { return &e; }
-ExpressionPtr Expression::MapVisitor::visit(PCExpression &e) { return &e; }
-ExpressionPtr Expression::MapVisitor::visit(RegisterExpression &e) { return &e; }
-ExpressionPtr Expression::MapVisitor::visit(RelExpression &e) { return &e; }
-ExpressionPtr Expression::MapVisitor::visit(StringExpression &e) { return &e; }
-ExpressionPtr Expression::MapVisitor::visit(UnaryExpression &e) { return &e; }
-ExpressionPtr Expression::MapVisitor::visit(VectorExpression &e) { return &e; }
+ExpressionPtr Expression::MapVisitor::visit(const BinaryExpression &e) { return to_expression_ptr(e); }
+ExpressionPtr Expression::MapVisitor::visit(const IdentifierExpression &e) { return to_expression_ptr(e); }
+ExpressionPtr Expression::MapVisitor::visit(const IntegerExpression &e) { return to_expression_ptr(e); }
+ExpressionPtr Expression::MapVisitor::visit(const PCExpression &e) { return to_expression_ptr(e); }
+ExpressionPtr Expression::MapVisitor::visit(const RegisterExpression &e) { return to_expression_ptr(e); }
+ExpressionPtr Expression::MapVisitor::visit(const RelExpression &e) { return to_expression_ptr(e); }
+ExpressionPtr Expression::MapVisitor::visit(const StringExpression &e) { return to_expression_ptr(e); }
+ExpressionPtr Expression::MapVisitor::visit(const UnaryExpression &e) { return to_expression_ptr(e); }
+ExpressionPtr Expression::MapVisitor::visit(const VectorExpression &e) { return to_expression_ptr(e); }
 
 

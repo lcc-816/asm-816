@@ -326,7 +326,7 @@ namespace {
 	public:
 		RenameIdentifierVisitor(identifier from, identifier to) : _from(from), _to(to)
 		{}
-		virtual ExpressionPtr visit(IdentifierExpression &e) final;
+		virtual ExpressionPtr visit(const IdentifierExpression &e) override final;
 	private:
 		identifier _from;
 		identifier _to;
@@ -334,19 +334,19 @@ namespace {
 	};
 
 
-	ExpressionPtr RenameIdentifierVisitor::visit(IdentifierExpression &e) {
+	ExpressionPtr RenameIdentifierVisitor::visit(const IdentifierExpression &e) {
 		identifier id;
 		if (e.is_identifier(id))
 			if (id == _from) return Expression::Identifier(_to);
 
-		return &e;
+		return to_expression_ptr(e);
 	}
 
 	class RenameRegisterVisitor : public Expression::MapVisitor {
 	public:
 		RenameRegisterVisitor(dp_register from, dp_register to) : _from(from), _to(to)
 		{}
-		virtual ExpressionPtr visit(RegisterExpression &e) final;
+		virtual ExpressionPtr visit(const RegisterExpression &e) override final;
 	private:
 		dp_register _from;
 		dp_register _to;
@@ -354,12 +354,12 @@ namespace {
 	};
 
 
-	ExpressionPtr RenameRegisterVisitor::visit(RegisterExpression &e) {
+	ExpressionPtr RenameRegisterVisitor::visit(const RegisterExpression &e) {
 		dp_register r;
 		if (e.is_register(r))
 			if (r == _from) return Expression::Register(_to);
 
-		return &e;
+		return to_expression_ptr(e);
 	}
 
 
@@ -423,7 +423,7 @@ namespace {
 	class IdentifierVisitor : public Expression::ConstVisitor {
 	public:
 		std::vector<identifier> identifiers;
-		virtual void visit(const IdentifierExpression &e) {
+		virtual void visit(const IdentifierExpression &e) override final {
 			identifier id;
 			if (e.is_identifier(id)) identifiers.push_back(id);
 		}
@@ -558,12 +558,12 @@ namespace {
 		SetPCVisitor(uint32_t pc) : _pc(pc)
 		{}
 
-		virtual ExpressionPtr visit(PCExpression &) final;
+		virtual ExpressionPtr visit(const PCExpression &) override final;
 	private:
 		uint32_t _pc;
 	};
 
-	ExpressionPtr SetPCVisitor::visit(PCExpression &) {
+	ExpressionPtr SetPCVisitor::visit(const PCExpression &) {
 		return Expression::Rel(_pc);
 	} 
 
@@ -574,7 +574,7 @@ namespace {
 			SetPCVisitor(pc), _env(env)
 		{}
 
-		virtual ExpressionPtr visit(IdentifierExpression &) final;
+		virtual ExpressionPtr visit(const IdentifierExpression &) override final;
 
 	private:
 		const identifier_map &_env;
@@ -582,14 +582,14 @@ namespace {
 
 
 
-	ExpressionPtr MakeRelativeVisitor::visit(IdentifierExpression &e) {
+	ExpressionPtr MakeRelativeVisitor::visit(const IdentifierExpression &e) {
 		identifier id;
 		if (e.is_identifier(id)) {
 			auto iter = _env.find(id);
 			if (iter != _env.end())
 				return Expression::Rel(iter->second);
 		}
-		return MapVisitor::visit(e);
+		return to_expression_ptr(e);
 	}
 
 }

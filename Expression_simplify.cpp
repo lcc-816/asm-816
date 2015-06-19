@@ -3,13 +3,13 @@
 using namespace Expression_Internal;
 
 
-ExpressionPtr SimplifyVisitor::visit(UnaryExpression &e) {
+ExpressionPtr SimplifyVisitor::visit(const UnaryExpression &e) {
 	// e's children have been simplified at this point.
 
 	return e.simplify_me();
 }
 
-ExpressionPtr SimplifyVisitor::visit(BinaryExpression &e) {
+ExpressionPtr SimplifyVisitor::visit(const BinaryExpression &e) {
 	// e's children have been simplified at this point.
 
 	return e.simplify_me();
@@ -61,7 +61,7 @@ ExpressionPtr VectorExpression::simplify() {
 #endif
 
 
-ExpressionPtr UnaryExpression::simplify_me() {
+ExpressionPtr UnaryExpression::simplify_me() const {
 
 	uint32_t value;
 
@@ -69,10 +69,10 @@ ExpressionPtr UnaryExpression::simplify_me() {
 		return Expression::Integer(unary_op(_op, value));
 	}
 
-	return this;
+	return to_expression_ptr(*this);
 }
 
-ExpressionPtr BinaryExpression::simplify_me() {
+ExpressionPtr BinaryExpression::simplify_me() const {
 
 	uint32_t a,b;
 
@@ -135,6 +135,6 @@ ExpressionPtr BinaryExpression::simplify_me() {
 		}
 	}
 
-	return this;
+	return to_expression_ptr(*this);
 }
 

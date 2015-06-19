@@ -104,9 +104,6 @@ public:
 	virtual bool is_string(const std::string *&) const;
 	virtual bool is_vector(std::vector<ExpressionPtr> &) const;
 
-	//virtual void rename(identifier oldname, identifier newname);
-	//virtual void rename(dp_register oldreg, dp_register newreg);
-
 	ExpressionPtr rename(identifier oldname, identifier newname);
 	ExpressionPtr rename(dp_register oldname, dp_register newname);
 
@@ -114,7 +111,6 @@ public:
 	ExpressionPtr make_relative(uint32_t pc, const identifier_map &env) /* const */;
 
 	ExpressionPtr simplify();
-	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp);
 
 	bool evaluate(uint32_t pc, const identifier_map &env, uint32_t &result) const;
 	bool evaluate_relative(uint32_t pc, int32_t &result) const;
@@ -122,8 +118,6 @@ public:
 	virtual uint32_t evaluate(uint32_t pc, const identifier_map &env) const /* throw(std::runtime_exception) */;
 	virtual int32_t evaluate_relative(uint32_t pc) const /* throw(std::runtime_exception) */;
 
-
-	//virtual void set_pc(uint32_t pc);
 
 	class Visitor;
 	class ConstVisitor;
@@ -148,7 +142,6 @@ protected:
 
 	// children override
 	virtual void to_string(std::string &) const = 0;
-	//virtual void identifiers(std::vector<identifier> &) const;
 
 	virtual void to_omf(std::vector<uint8_t> &) const;
 
@@ -165,20 +158,13 @@ class VectorExpression : public Expression {
 	size_t size() const { return _children.size(); }
 	void push_back(ExpressionPtr e) { _children.push_back(e); }
 
-	virtual bool is_vector(std::vector<ExpressionPtr> &) const final;
-
-	//virtual void rename(identifier oldname, identifier newname) final;
-	//virtual void rename(dp_register oldreg, dp_register newreg) final;
-
-	//virtual ExpressionPtr simplify() final;
-	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
-
+	virtual bool is_vector(std::vector<ExpressionPtr> &) const override final;
 
 	protected:
 
-	virtual void accept(Visitor &) final;
-	virtual void accept(ConstVisitor &) const final;
-	virtual ExpressionPtr accept(MapVisitor &) final;
+	virtual void accept(Visitor &) override final;
+	virtual void accept(ConstVisitor &) const override final;
+	virtual ExpressionPtr accept(MapVisitor &) override final;
 
 	VectorExpression() : Expression(type_vector)
 	{}
