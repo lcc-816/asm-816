@@ -151,6 +151,25 @@ namespace OMF {
 		SUPER = 0xf7,
 	};
 
+	enum {
+		KIND_CODE = 0x00,
+		KIND_DATA = 0x01,
+		KIND_JUMP_TABLE = 0x02,
+		KIND_PATHNAME = 0x04,
+		KIND_LIBRARY = 0x08,
+		KIND_INIT = 0x10,
+		KIND_DP = 0x12,
+
+		ATTR_BANK_RELATIVE = 1 << 8,
+		ATTR_SKIP = 1 << 9,
+		ATTR_RELOAD =  1 << 10,
+		ATTR_ABSOLUTE = 1 << 11,
+		ATTR_SPECMEM = 1 << 12,
+		ATTR_PIC = 1 << 13,
+		ATTR_PRIVATE = 1 << 14,
+		ATTR_DYNAMIC = 1 << 15
+	};
+
 }
 
 #endif
