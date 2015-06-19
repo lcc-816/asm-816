@@ -320,8 +320,64 @@ ExpressionPtr RegisterExpression::simplify(dp_register oldreg, unsigned dp) {
 #endif
 
 #pragma mark - rename
+namespace {
+
+	class RenameIdentifierVisitor : public Expression::MapVisitor {
+	public:
+		RenameIdentifierVisitor(identifier from, identifier to) : _from(from), _to(to)
+		{}
+		virtual ExpressionPtr visit(IdentifierExpression &e) final;
+	private:
+		identifier _from;
+		identifier _to;
+
+	};
 
 
+	ExpressionPtr RenameIdentifierVisitor::visit(IdentifierExpression &e) {
+		identifier id;
+		if (e.is_identifier(id))
+			if (id == _from) return Expression::Identifier(_to);
+
+		return &e;
+	}
+
+	class RenameRegisterVisitor : public Expression::MapVisitor {
+	public:
+		RenameRegisterVisitor(dp_register from, dp_register to) : _from(from), _to(to)
+		{}
+		virtual ExpressionPtr visit(RegisterExpression &e) final;
+	private:
+		dp_register _from;
+		dp_register _to;
+
+	};
+
+
+	ExpressionPtr RenameRegisterVisitor::visit(RegisterExpression &e) {
+		dp_register r;
+		if (e.is_register(r))
+			if (r == _from) return Expression::Register(_to);
+
+		return &e;
+	}
+
+
+}
+
+ExpressionPtr Expression::rename(identifier from, identifier to) {
+
+	RenameIdentifierVisitor v(from, to);
+	return accept(v);
+}
+
+ExpressionPtr Expression::rename(dp_register from, dp_register to) {
+
+	RenameRegisterVisitor v(from, to);
+	return accept(v);
+}
+
+/*
 void Expression::rename(dp_register, dp_register) {
 }
 
@@ -359,6 +415,7 @@ void BinaryExpression::rename(dp_register a, dp_register b) {
 void BinaryExpression::rename(identifier a, identifier b) {
 	for (auto e: _children) e->rename(a, b);
 }
+*/
 
 #pragma mark - identifiers
 

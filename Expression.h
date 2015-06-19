@@ -104,11 +104,14 @@ public:
 	virtual bool is_string(const std::string *&) const;
 	virtual bool is_vector(std::vector<ExpressionPtr> &) const;
 
-	virtual void rename(identifier oldname, identifier newname);
-	virtual void rename(dp_register oldreg, dp_register newreg);
+	//virtual void rename(identifier oldname, identifier newname);
+	//virtual void rename(dp_register oldreg, dp_register newreg);
 
-	ExpressionPtr make_relative(uint32_t pc);
-	ExpressionPtr make_relative(uint32_t pc, const identifier_map &env);
+	ExpressionPtr rename(identifier oldname, identifier newname);
+	ExpressionPtr rename(dp_register oldname, dp_register newname);
+
+	ExpressionPtr make_relative(uint32_t pc) /* const */;
+	ExpressionPtr make_relative(uint32_t pc, const identifier_map &env) /* const */;
 
 	ExpressionPtr simplify();
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp);
@@ -164,8 +167,8 @@ class VectorExpression : public Expression {
 
 	virtual bool is_vector(std::vector<ExpressionPtr> &) const final;
 
-	virtual void rename(identifier oldname, identifier newname) final;
-	virtual void rename(dp_register oldreg, dp_register newreg) final;
+	//virtual void rename(identifier oldname, identifier newname) final;
+	//virtual void rename(dp_register oldreg, dp_register newreg) final;
 
 	//virtual ExpressionPtr simplify() final;
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;

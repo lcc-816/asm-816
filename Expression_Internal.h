@@ -165,7 +165,7 @@ public:
 
 	virtual bool is_register(dp_register &) const final;
 	virtual void to_string(std::string &) const final;
-	virtual void rename(dp_register, dp_register) final;
+	//virtual void rename(dp_register, dp_register) final;
 
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 	virtual void accept(Visitor &) final;
@@ -188,7 +188,7 @@ public:
 	virtual void to_string(std::string &) const final;
 
 	//virtual void identifiers(std::vector<identifier> &) const final;
-	virtual void rename(identifier, identifier) final;	
+	//virtual void rename(identifier, identifier) final;	
 
 	// virtual bool evaluate(uint32_t pc, 
 	// 	const identifier_map &env,
@@ -236,8 +236,8 @@ public:
 	virtual void to_string(std::string &) const final;
 	//virtual void identifiers(std::vector<identifier> &) const final;
 
-	virtual void rename(identifier, identifier) final;
-	virtual void rename(dp_register, dp_register) final;
+	//virtual void rename(identifier, identifier) final;
+	//virtual void rename(dp_register, dp_register) final;
 	//virtual ExpressionPtr simplify() final;
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
@@ -279,8 +279,8 @@ public:
 	virtual void to_string(std::string &) const final;
 	//virtual void identifiers(std::vector<identifier> &rv) const final;
 
-	virtual void rename(identifier, identifier) final;
-	virtual void rename(dp_register, dp_register) final;
+	//virtual void rename(identifier, identifier) final;
+	//virtual void rename(dp_register, dp_register) final;
 	//virtual ExpressionPtr simplify() final;
 	//virtual ExpressionPtr simplify(dp_register oldreg, unsigned dp) final;
 
