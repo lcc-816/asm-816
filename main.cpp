@@ -41,6 +41,7 @@ int set_ftype(int fd, uint16_t fileType, uint32_t auxType) {
 	finfo[6] = 'o';
 	finfo[7] = 's';
 
+#ifdef __APPLE__
 	ok = fsetxattr(fd, XATTR_FINDERINFO_NAME, &finfo, sizeof(finfo), 0, 0);
 	if (ok < 0) return ok;
 
@@ -49,7 +50,12 @@ int set_ftype(int fd, uint16_t fileType, uint32_t auxType) {
 
 	ok = fsetxattr(fd, "prodos.AuxType", &at, sizeof(at), 0, 0);
 	if (ok < 0) return ok;
+#endif
 
+#ifdef __linux__
+
+#endif
+	
 	return 0;
 }
 
