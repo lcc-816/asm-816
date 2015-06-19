@@ -63,7 +63,7 @@ CREATE_VISITOR(StringExpression);
 
 
 
-ExpressionPtr UnaryExpression::accept(MapVisitor &v) {
+ExpressionPtr UnaryExpression::accept(MapVisitor &v) const {
 	children_type tmp(_children);
 
 	std::transform(tmp.begin(), tmp.end(), tmp.begin(),
@@ -76,7 +76,7 @@ ExpressionPtr UnaryExpression::accept(MapVisitor &v) {
 }
 
 
-ExpressionPtr BinaryExpression::accept(MapVisitor &v) {
+ExpressionPtr BinaryExpression::accept(MapVisitor &v) const {
 	children_type tmp(_children);
 
 	std::transform(tmp.begin(), tmp.end(), tmp.begin(),
@@ -88,7 +88,7 @@ ExpressionPtr BinaryExpression::accept(MapVisitor &v) {
 	return v.visit(*(BinaryExpression *)self);
 }
 
-ExpressionPtr VectorExpression::accept(MapVisitor &v) {
+ExpressionPtr VectorExpression::accept(MapVisitor &v) const {
 	children_type tmp(_children);
 
 	std::transform(tmp.begin(), tmp.end(), tmp.begin(),
@@ -102,7 +102,7 @@ ExpressionPtr VectorExpression::accept(MapVisitor &v) {
 
 
 #undef CREATE_VISITOR
-#define CREATE_VISITOR(klass) ExpressionPtr klass::accept(MapVisitor &v) { return v.visit(*this); }
+#define CREATE_VISITOR(klass) ExpressionPtr klass::accept(MapVisitor &v) const { return v.visit(*this); }
 CREATE_VISITOR(IdentifierExpression);
 CREATE_VISITOR(IntegerExpression);
 CREATE_VISITOR(PCExpression);

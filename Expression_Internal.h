@@ -89,7 +89,7 @@ public:
 
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 private:
 
@@ -113,7 +113,7 @@ public:
 
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 private:
 		uint32_t _offset = 0;
@@ -136,7 +136,7 @@ public:
 	virtual void to_omf(std::vector<uint8_t> &) const override final;
 	virtual void accept(Visitor &) final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 private:
 	uint32_t _value;
@@ -155,7 +155,7 @@ public:
 	virtual void to_string(std::string &) const override final;
 	virtual void accept(Visitor &) final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 private:
 	dp_register _value;
@@ -178,7 +178,7 @@ public:
 	virtual void to_omf(std::vector<uint8_t> &) const override final;
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 private:
 	identifier _value;
@@ -194,7 +194,7 @@ public:
 	virtual void to_string(std::string &) const override final;
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 private:
 	identifier _value;
@@ -219,7 +219,7 @@ public:
 
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 private:
 	friend class SimplifyVisitor;
@@ -249,7 +249,7 @@ public:
 
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 private:
 	friend class SimplifyVisitor;

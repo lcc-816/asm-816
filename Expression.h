@@ -131,7 +131,7 @@ protected:
 
 	virtual void accept(Visitor &) = 0;
 	virtual void accept(ConstVisitor &) const= 0;
-	virtual ExpressionPtr accept(MapVisitor &) = 0;
+	virtual ExpressionPtr accept(MapVisitor &) const = 0;
 
 
 
@@ -164,7 +164,7 @@ class VectorExpression : public Expression {
 
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
-	virtual ExpressionPtr accept(MapVisitor &) override final;
+	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
 	VectorExpression() : Expression(type_vector)
 	{}
@@ -175,7 +175,6 @@ class VectorExpression : public Expression {
 	virtual ~VectorExpression() final;
 
 	virtual void to_string(std::string &) const final;
-	//virtual void identifiers(std::vector<identifier> &) const final;
 
 	private:
 	friend class Expression;
