@@ -55,18 +55,15 @@ int set_ftype(int fd, uint16_t fileType, uint32_t auxType) {
 #ifdef __linux__
 
 #endif
-	
+
 	return 0;
 }
 
 void simplify(LineQueue &lines) {
 
 	for (BasicLine *line : lines) {
-		if (line->operands[0])
-			line->operands[0] = line->operands[0]->simplify();
-
-		if (line->operands[1])
-			line->operands[1] = line->operands[1]->simplify();
+		for (auto &e : line->operands)
+			if (e) e = e->simplify();
 
 	}
 }
@@ -270,7 +267,7 @@ int main(int argc, char **argv) {
 				}
 
 				auto &lines = seg->lines;
-				simplify(lines);
+				//simplify(lines); // automatically simplified by grammar.lemon
 				//print(lines);
 				//printf("%s\tstart\n", seg->name ? seg->name->c_str() : "");
 				lines = basic_block(std::move(lines));
