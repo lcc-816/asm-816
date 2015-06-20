@@ -546,3 +546,44 @@ ExpressionPtr Expression::make_relative(uint32_t pc) {
 	return accept(v);
 }
 
+
+namespace {
+
+	class RRVisitor : public Expression::MapVisitor {
+
+	public:
+		RRVisitor(const Expression::register_info &ri) : _ri(ri)
+		{}
+
+		virtual ExpressionPtr visit(const RegisterExpression &e) override final {
+
+			dp_register r;
+			if (e.is_register(r)) {
+				switch (r.type) {
+					case 'r':
+						return Expression::Integer(r.number + _ri.rbase);
+					case 't':
+						return Expression::Integer(r.number + _ri.tbase);
+					case 'v':
+						return Expression::Integer(r.number + _ri.vbase);
+					case 'p':
+						return Expression::Integer(r.number + _ri.pbase);
+				}
+			}
+			return to_expression_ptr(e);
+		}
+
+	private:
+		const Expression::register_info &_ri;
+	};
+
+}
+
+ExpressionPtr Expression::assign_registers(const register_info &ri) {
+
+	RRVisitor v(ri);
+
+	return accept(v);
+}
+
+

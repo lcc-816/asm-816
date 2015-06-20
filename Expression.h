@@ -112,6 +112,14 @@ public:
 
 	ExpressionPtr simplify();
 
+	struct register_info {
+		uint32_t tbase = 0; // todo -- t and r should be hash table?
+		uint32_t rbase = 0;
+		uint32_t vbase = 0;
+		uint32_t pbase = 0;
+	};
+	ExpressionPtr assign_registers(const register_info &ri);
+
 	bool evaluate(uint32_t pc, const identifier_map &env, uint32_t &result) const;
 	bool evaluate_relative(uint32_t pc, int32_t &result) const;
 
