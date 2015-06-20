@@ -136,14 +136,14 @@ namespace {
 }
 
 
-extern void set_pc(LineQueue &lines);
+extern void assign_pc(LineQueue &lines);
 
 
 OMF::Segment data_to_omf(Segment *segment) {
 
 	OMF::SegmentBuilder builder;
 
-	set_pc(segment->lines); //
+	assign_pc(segment->lines); //
 
 
 	for (auto &line : segment->lines) {
@@ -215,7 +215,7 @@ OMF::Segment code_to_omf(Segment *segment) {
 
 	OMF::SegmentBuilder builder;
 
-	set_pc(segment->lines); // todo -- move this elsewhere. optimizer will set pc as part of fixing branches.
+	assign_pc(segment->lines); // todo -- move this elsewhere. optimizer will set pc as part of fixing branches.
 
 
 	for (auto line : segment->lines) {

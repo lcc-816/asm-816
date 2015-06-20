@@ -37,7 +37,7 @@ namespace {
 }
 
 
-void set_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
+void assign_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 
 	line->pc = pc;
 
@@ -117,13 +117,13 @@ void set_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 }
 
 
-void set_pc(LineQueue &lines) {
+void assign_pc(LineQueue &lines) {
 	uint32_t pc = 0;
 
 	identifier_map map;
 
 	for (auto line : lines) {
-		set_pc(line, pc, &map);
+		assign_pc(line, pc, &map);
 	}
 
 	// convert to relative labels.
@@ -137,13 +137,13 @@ void set_pc(LineQueue &lines) {
 }
 
 
-void set_pc(BlockQueue &blocks) {
+void assign_pc(BlockQueue &blocks) {
 	uint32_t pc = 0;
 
 	for (auto block : blocks) {
 		block->pc = pc;
 		for (auto line : block->lines) {
-			set_pc(line, pc);
+			assign_pc(line, pc);
 		}
 	}
 }
@@ -179,7 +179,7 @@ void fix_branches(BlockQueue &blocks) {
 			block->pc = pc;
 			if (block->label) map.emplace(std::make_pair(block->label, pc));
 			for (auto line : block->lines) {
-				set_pc(line, pc, &map);
+				assign_pc(line, pc, &map);
 			}
 		}
 
