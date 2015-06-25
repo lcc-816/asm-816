@@ -561,9 +561,14 @@ namespace {
 			if (e.is_register(r)) {
 				switch (r.type) {
 					case 'r':
-						return Expression::Integer(r.number + _ri.rbase);
 					case 't':
-						return Expression::Integer(r.number + _ri.tbase);
+						{
+							auto iter = _ri.trmap.find(r);
+							if (iter == _ri.trmap.end())
+								throw std::runtime_error("Unable to assign register");
+
+							return Expression::Integer(iter->second);
+						}
 					case 'v':
 						return Expression::Integer(r.number + _ri.vbase);
 					case 'p':

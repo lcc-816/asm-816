@@ -71,7 +71,7 @@ public:
 
 	bool is_temporary(dp_register &rv) const {
 		if (is_register(rv)) {
-			return rv.type == 't' || rv.type == 'r';
+			return rv.is_temporary();
 		}
 		return false;
 	}
@@ -113,8 +113,7 @@ public:
 	ExpressionPtr simplify();
 
 	struct register_info {
-		uint32_t tbase = 0; // todo -- t and r should be hash table?
-		uint32_t rbase = 0;
+		std::unordered_map<dp_register, uint32_t> trmap;
 		uint32_t vbase = 0;
 		uint32_t pbase = 0;
 	};
