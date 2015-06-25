@@ -316,36 +316,31 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 
 		line->reg_live = reg_live;
 
-		dp_register reg;
-		if (!line->opcode) continue;
-
-		if (line->opcode.addressMode() == implied) continue;
-		if (!line->operands[0]) continue;
-		if (!line->operands[0]->is_register(reg)) continue;
-
-		line->reg = reg;
-		int status = line->reg_status = classify(line->opcode);
-
-		if (status == reg_read_long) { // register pair.
-
-			dp_register reg2 = reg + 2;
-
-			if (!reg_live.contains(reg2))
-				reg_import += reg2;
-
-			reg_live += reg2;
-			status = reg_read; // handle below.
-		}
+		line->calc_registers();
+		const dp_register reg = line->reg;
+		auto status = line->reg_status;
 
 		if (status == reg_read || status == reg_rw) {
-			if (!reg_live.contains(reg))
-				reg_import += reg;
-		}
-		if (status == reg_write || status == reg_rw) {
-			reg_export += reg;
+			dp_register r = reg;
+			// need to break it out here since we only
+			// import a reg if it's not live.
+			for (unsigned i = 0; i < line->reg_count; ++i) {
+
+				if (!reg_live.contains(r))
+					reg_import += r;
+
+				r.number += 2;
+			}
+
 		}
 
-		reg_live += reg;
+
+		if (status == reg_write || status == reg_rw) {
+
+			reg_export.insert(reg, line->reg_count);
+		}
+
+		reg_live.insert(reg, line->reg_count);
 	}
 
 	auto next_set = std::move(block->next_set);
@@ -414,32 +409,27 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 
 		line->reg_live -= reg_dead;
 
-		dp_register reg = line->reg;
+		const dp_register reg = line->reg;
+		unsigned reg_count = line->reg_count;
 
+		if (reg && reg.is_temporary())
 		switch (line->reg_status) {
 
 			case reg_none:
 				break;
 
-
-			case reg_read_long:
-				{
-					dp_register reg2 = reg + 2;
-					reg_dead -= reg2;
-					line->reg_live += reg2;
-				}
-				// fallthrough
-
 			case reg_read:
 			case reg_rw:
-				reg_dead -= reg;
-				line->reg_live += reg;
+				reg_dead.remove(reg, reg_count);
+				line->reg_live.insert(reg, reg_count);
 				break;
 
 			case reg_write:
-				if (reg_dead.contains(reg))
+				dp_register r = reg;
+				// can only delete if all registers are dead.
+				if (reg_dead.contains(reg, reg_count))
 					dead = true;
-				reg_dead += reg;
+				reg_dead.insert(reg, reg_count);
 				break;
 		}
 
@@ -478,28 +468,23 @@ bool analyze_block_2(BasicBlock *block) {
 		bool dead = false;
 
 		dp_register reg = line->reg;
+		unsigned reg_count = line->reg_count;
 
+		if (reg && reg.is_temporary())
 		switch (line->reg_status) {
 
 			case reg_none:
 				break;
 
-			case reg_read_long:
-				{
-					dp_register reg2 = reg + 2;
-					reg_live += reg;
-				}
-				// fallthrough
-
 			case reg_read:
-				reg_live += reg;
+				reg_live.insert(reg, reg_count);
 				break;
 
 			case reg_rw:
 				// read, then write.
 				// if reg is live, it remains live.
 				// if reg is dead, it remains dead.
-				if (!reg_live.contains(reg))
+				if (!reg_live.contains_any(reg, reg_count))
 					dead = true;
 
 				break;				
@@ -507,9 +492,12 @@ bool analyze_block_2(BasicBlock *block) {
 
 			case reg_write:
 				// drop the write if not live.
-				if (!reg_live.contains(reg))
+				if (!reg_live.contains_any(reg, reg_count))
 					dead = true;
-				reg_live -= reg; // any reason not tooo?
+				reg_live.remove(reg, reg_count); // any reason not to?
+				// ugh... what if it's a cross-byte write?
+				// sta.w %t1 write %t1 and %t2, but this treats it as %t0, %t1, %t2, %t3.  
+				// need to treat as bytes, not words.
 				break;
 		}
 

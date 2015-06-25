@@ -4,18 +4,35 @@
 #include <array>
 #include <bitset>
 #include <vector>
+#include <functional>
 
+/*
+ * used by lemon grammar, so no constructors allowed.
+ */
 
 struct dp_register {
 	unsigned type;
 	unsigned number;
 
+	static dp_register make(unsigned type = 0, unsigned number = 0) {
+		return dp_register({type, number});
+	}
+
+	bool is_temporary() const { return type == 'r' || type == 't'; }
 	operator bool() const { return (bool)type; }
 	dp_register &operator += (int i) { number += i; return *this;}
 };
 
+
 inline bool operator==(const dp_register &a, const dp_register &b) {
 	return a.type == b.type && a.number == b.number;
+}
+
+/* for std::sort */
+inline bool operator<(const dp_register &a, const dp_register &b) {
+	if (a.type < b.type) return true;
+	if (a.number < b.number) return true;
+	return false;
 }
 
 inline dp_register operator+(dp_register r, int i) {
@@ -23,6 +40,18 @@ inline dp_register operator+(dp_register r, int i) {
 	return r;
 }
 
+namespace std {
+	template<>
+	struct hash<dp_register> {
+
+		typedef dp_register argument_type;
+		typedef std::size_t result_type;
+
+		result_type operator()(const argument_type &r) const {
+			return static_cast<result_type>(r.type ^ (r.number << 8));
+		}
+	};
+}
 
 #define RS_BITSET
 
@@ -41,7 +70,13 @@ public:
 	register_set &operator=(register_set &&) = default;
 
 	bool contains(dp_register r);
+	bool contains(dp_register r, unsigned count);
 	bool contains(const register_set &);
+
+	bool contains_any(dp_register r, unsigned count = 1);
+
+	void insert(dp_register r, unsigned count = 1);
+	void remove(dp_register r, unsigned count = 1);
 
 	register_set &operator += (dp_register r);
 	register_set &operator += (const register_set &);

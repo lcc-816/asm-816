@@ -69,13 +69,15 @@ bool instruction_write(Mnemonic m) {
 
 // todo -- STA [dp] is actually a (long) read.  Need to take an opcode and check the mode.
 
+#if 0
 unsigned classify(Mnemonic m) {
 	if (instruction_rmw(m)) return reg_rw;
 	if (instruction_read(m)) return reg_read;
 	if (instruction_write(m)) return reg_write;
 
 	return reg_none;
- }
+}
+
 unsigned classify(OpCode op) {
 
 	AddressMode mode = op.addressMode();
@@ -124,3 +126,4 @@ unsigned classify(OpCode op) {
 			return reg_none;
 	}
 }
+#endif

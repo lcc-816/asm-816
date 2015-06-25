@@ -65,8 +65,7 @@ enum {
 	reg_none = 0,
 	reg_read = 1,
 	reg_write = 2,
-	reg_rw = 3,
-	reg_read_long = 5
+	reg_rw = 3
 };
 
 struct BasicLine {
@@ -94,7 +93,13 @@ struct BasicLine {
 	dp_register reg; // from operands.
 	unsigned reg_count = 0; 
 	unsigned reg_status = reg_none;
+
+
+	// update reg, reg_count, reg_status.
+	// depends on opcode, operands, longM, longX
+	void calc_registers();
 };
+
 typedef std::deque<BasicLine *> LineQueue;
 
 struct BasicBlock {

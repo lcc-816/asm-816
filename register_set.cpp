@@ -6,6 +6,8 @@
 
 namespace {
 
+	constexpr unsigned IndexCount = 4;
+
 	inline int reg_to_index(char type) {
 		switch (type) {
 			case 't': return 0;
@@ -31,9 +33,29 @@ bool register_set::contains(dp_register r) {
 	return _data[ix].size() > r.number && _data[ix][r.number]; 
 }
 
+bool register_set::contains(dp_register r, unsigned count) {
+	int ix = reg_to_index(r);
+	if (ix < 0) return false;
+	for (unsigned i = 0; i < count; ++i) {
+		if (_data[ix].size() <= r.number) return false;
+		if (!_data[ix][r.number]) return false;
+		r.number += 2;
+	}
+	return true;
+}
+
+bool register_set::contains_any(dp_register r, unsigned count) {
+	int ix = reg_to_index(r);
+	if (ix < 0) return false;
+	for (unsigned i = 0; i < count; ++i) {
+		if (_data[ix].size() > r.number && _data[ix][r.number]) return true;
+	}
+	return false;
+}
+
 
 bool register_set::contains(const register_set &rhs) {
-	for (unsigned ix = 0; ix < 3; ++ix) {
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		auto tmp = _data[ix];
 		tmp.flip();
 		tmp &= rhs._data[ix];
@@ -46,15 +68,37 @@ register_set &register_set::operator += (dp_register r) {
 	int ix = reg_to_index(r);
 	if (ix < 0) return *this;
 
-	if (_data[ix].size() < r.number) return *this;
 
+	if (_data[ix].size() < r.number) {
+		throw std::runtime_error("too many registers (bitset exceeded)");
+		return *this;
+	}
 	_data[ix][r.number] = true;
 	return *this;
 }
 
+
+void register_set::insert(dp_register r, unsigned count) {
+	unsigned i;
+	for (i = 0; i < count; ++i) {
+		*this += r;
+		r.number += 2;
+	}
+}
+
+void register_set::remove(dp_register r, unsigned count) {
+	unsigned i;
+	for (i = 0; i < count; ++i) {
+		*this -= r;
+		r.number += 2;
+	}
+}
+
+
+
 register_set &register_set::operator += (const register_set &r) {
 
-	for (unsigned ix = 0; ix < 3; ++ix) {
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 
 		_data[ix] |= r._data[ix];
 	}
@@ -76,7 +120,7 @@ register_set &register_set::operator -= (dp_register r) {
 
 register_set &register_set::operator -= (const register_set &r) {
 
-	for (unsigned ix = 0; ix < 3; ++ix) {
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		auto tmp = r._data[ix];
 		tmp.flip();
 		_data[ix] &= tmp;
@@ -86,7 +130,7 @@ register_set &register_set::operator -= (const register_set &r) {
 }
 
 register_set::operator bool() const {
-	for (unsigned ix = 0; ix < 3; ++ix) {
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		if (_data[ix].any()) return true;
 	}
 	return false;
@@ -129,7 +173,7 @@ bool register_set::contains(dp_register r) {
 
 
 bool register_set::contains(const dp_register &rhs) {
-	for (unsigned ix = 0; ix < 3; ++ix) {
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		int s1 = _data[ix].size();
 		int s2 = r._data[ix].size();
 		int l = std::min(s1,s2);
@@ -160,7 +204,7 @@ register_set &register_set::operator += (dp_register r) {
 
 register_set &register_set::operator += (const register_set &r) {
 
-	for (unsigned ix = 0; ix < 3; ++ix) {
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		int size = r._data[ix].size();
 		if (_data[ix].size() < size)
 			_data[ix].resize(size, false);
@@ -184,7 +228,7 @@ register_set &register_set::operator -= (dp_register r) {
 
 register_set &register_set::operator -= (const register_set &r) {
 
-	for (unsigned ix = 0; ix < 3; ++ix) {
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		int s1 = _data[ix].size();
 		int s2 = r._data[ix].size();
 		int l = std::min(s1,s2);
