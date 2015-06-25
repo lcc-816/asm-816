@@ -11,7 +11,9 @@
 struct Cookie {
 
 	Line scratch;
-	unsigned line_number;
+	unsigned line_number = 1;
+	bool line_error = false;
+	bool line_warning = false;
 
 	SegmentQueue segments;
 	
@@ -36,6 +38,24 @@ struct Cookie {
 		data
 	} seg_type = none;
 
+	// lexer stuff.
+
+	struct {
+
+
+		int cs;
+		int act;
+		const char * ts;
+		const char * te;
+
+		// for error reporting.
+		const char * line_start = nullptr;
+		const char * line_end = nullptr;
+
+		int next_operand = 0;
+
+
+	} fsm;
 	
 };
 

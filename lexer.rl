@@ -71,13 +71,8 @@ namespace {
 	}
 
 
-	const char *line_start = nullptr;
-	const char *eof = nullptr;
-	unsigned line = 0;
 	unsigned error_count = 0;
 	unsigned warn_count = 0;
-
-	int next_operand = 0;
 
 }
 
@@ -89,7 +84,7 @@ void Parse(void *yyp, int yymajor, Token yyminor, Cookie *cookie);
 void Parse(void *yyp, int yymajor, const std::string &string_value, Cookie *cookie)
 {
 	Token t;
-	t.line = line;
+	//t.line = line;
 	t.string_value = intern(string_value);
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -97,7 +92,7 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, Cookie *cook
 void Parse(void *yyp, int yymajor, uint32_t int_value, Cookie *cookie)
 {
 	Token t;
-	t.line = line;
+	//t.line = line;
 	t.int_value = int_value;
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -106,7 +101,7 @@ void Parse(void *yyp, int yymajor, uint32_t int_value, Cookie *cookie)
 void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 {
 	Token t;
-	t.line = line;
+	//t.line = line;
 	t.register_value = register_value;
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -114,7 +109,7 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 {
 	Token t;
-	t.line = line;
+	//t.line = line;
 	t.expr_value = std::addressof(expr_value);
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -131,7 +126,9 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			Parse(parser, 0, 0, &cookie);
 
 			line_start = te;
-			cookie.line_number = ++line;
+			cookie.line_number++;
+			cookie.line_warning = false;
+			cookie.line_error = false;
 
 			next_operand = 0;
 			fgoto main;
@@ -190,8 +187,10 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 			// slightly modified version of eol.
 			//Parse(parser, 0, 0, &cookie); happens before we enter.
 	
-			line++;
 			line_start = te;
+			cookie.line_number++;
+			cookie.line_warning = false;
+			cookie.line_error = false;
 
 			next_operand = 0;
 			fgoto main;
@@ -643,7 +642,7 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 				//fgoto operand;
 
 			} else {
-				error("Invalid opcode/directive");
+				error("Invalid opcode/directive", cookie);
 				Parse(parser, 0, 0, &cookie);
 				fgoto error;
 			}
@@ -682,42 +681,156 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 		};
 
 	*|;
+
 }%%
 
 
 %% write data;
+%% access cookie.fsm.;
 
-void error(const std::string &s) {
 
-	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
 
-	const char *p = line_start;
-	while (p != eof) {
-		char c = *p++;
-		if (c == '\r' || c == '\n') break;
-		fputc(c, stderr);
+void error(const std::string &s, Cookie &cookie) {
+
+	if (!cookie.line_error && !cookie.line_warning) {
+		const char *p = cookie.fsm.line_start;
+		while (p != cookie.fsm.line_end) {
+			char c = *p++;
+			if (c == '\r' || c == '\n') break;
+			fputc(c, stderr);
+		}
+		fprintf(stderr, "\n");
 	}
-	fprintf(stderr, "\n");
 
+	fprintf(stderr, "Error: Line %u: %s\n", cookie.line_number, s.c_str());
 
+	cookie.line_error = true;
 	error_count++;
 }
 
-void warn(const std::string &s) {
+void warn(const std::string &s, Cookie &cookie) {
 
-	fprintf(stderr, "Error: Line %u: %s\n", line, s.c_str());
-
-	const char *p = line_start;
-	while (p != eof) {
-		char c = *p++;
-		if (c == '\r' || c == '\n') break;
-		fputc(c, stderr);
+	if (!cookie.line_error && !cookie.line_warning) {
+		const char *p = cookie.fsm.line_start;
+		while (p != cookie.fsm.line_end) {
+			char c = *p++;
+			if (c == '\r' || c == '\n') break;
+			fputc(c, stderr);
+		}
+		fprintf(stderr, "\n");
 	}
-	fprintf(stderr, "\n");
 
+	fprintf(stderr, "Error: Line %u: %s\n", cookie.line_number, s.c_str());
 
+	cookie.line_warning = true;
 	warn_count++;
 }
+
+void parse_text(void *parser, Cookie &cookie, const char *p, const char *pe, bool end_of_file) {
+	
+	const char *eof = end_of_file ? pe : nullptr;
+	//int cs, act;
+
+	auto &te = cookie.fsm.te;
+	auto &ts = cookie.fsm.ts;
+	auto &next_operand = cookie.fsm.next_operand;
+	auto &line_start = cookie.fsm.line_start;
+	auto &line_end = cookie.fsm.line_end;
+
+	line_start = p;
+	line_end = pe;
+
+	%% write exec;
+
+
+	// should return error state?
+
+	if (end_of_file) {
+
+		Parse(parser, tkEOL, 0, &cookie);
+		Parse(parser, 0, 0, &cookie);
+	}
+}
+
+
+
+void *init(Cookie &cookie) {
+	
+	void *parser;
+
+	parser = ParseAlloc(malloc);
+
+	cookie.data_segment.reset(new Segment);
+	cookie.data_segment->convention = Segment::data;
+
+
+	%% write init;
+
+	return parser;
+}
+
+
+void cleanup_cookie(Cookie &cookie, SegmentQueue &rv) {
+
+	cookie.segments.emplace_back(std::move(cookie.data_segment));
+
+	// set exports.
+	for (auto &seg : cookie.segments) {
+
+		identifier label = seg->name;
+		if (label && cookie.export_set.count(label))
+			seg->global = true;
+
+		for (auto line : seg->lines) {
+			identifier label = line->label;
+			if (label && cookie.export_set.count(label))
+				line->global = true;
+		}
+	}
+
+	rv = std::move(cookie.segments);
+}
+
+bool parse_file(FILE *file, SegmentQueue &rv) {
+
+
+
+	Cookie cookie;
+
+	void *parser = init(cookie);
+
+	for(;;) {
+		char *cp;
+		size_t len;
+
+		cp = fgetln(file, &len);
+
+		if (!cp) break;
+
+		// 
+		parse_text(parser, cookie, cp, cp + len, false);
+
+	}
+	const char *eofstr="";
+	parse_text(parser, cookie, eofstr, eofstr, true);
+
+
+	ParseFree(parser, free);
+
+	if (ferror(file)) {
+
+		fprintf(stderr, "Error reading from file\n");
+		return false;
+	}
+
+	if (error_count > 0) {
+		return false;
+	}
+
+	cleanup_cookie(cookie, rv);
+	return true;
+}
+
 
 bool parse_file(const std::string &filename, SegmentQueue &rv)
 {
@@ -726,11 +839,7 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 	void *buffer;
 	int ok;
 
-
 	Cookie cookie;
-
-	cookie.data_segment.reset(new Segment);
-	cookie.data_segment->convention = Segment::data;
 
 	void *parser;
 
@@ -755,25 +864,16 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 	}
 	close(fd);
 
-	parser = ParseAlloc(malloc);
+	parser = init(cookie);
+
 
 	const char *p = (const char *)buffer;
 	const char *pe = (const char *)buffer + st.st_size;
-	//const char *eof = pe;
-	eof = pe;
-	const char *ts;
-	const char *te;
-	int cs, act;
+	const char *eof = pe;
 
-	line_start = p;
-	cookie.line_number = line = 1;
 
-	%% write init;
-	//
-	%% write exec;
+	parse_text(parser, cookie, p, pe, true);
 
-	Parse(parser, tkEOL, 0, &cookie);
-	Parse(parser, 0, 0, &cookie);
 	ParseFree(parser, free);
 
 	munmap(buffer, st.st_size);
@@ -783,22 +883,6 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 		return false;
 	}
 
-	cookie.segments.emplace_back(std::move(cookie.data_segment));
-
-	// set exports.
-	for (auto &seg : cookie.segments) {
-
-		identifier label = seg->name;
-		if (label && cookie.export_set.count(label))
-			seg->global = true;
-
-		for (auto line : seg->lines) {
-			identifier label = line->label;
-			if (label && cookie.export_set.count(label))
-				line->global = true;
-		}
-	}
-
-	rv = std::move(cookie.segments);
+	cleanup_cookie(cookie, rv);
 	return true;
 }

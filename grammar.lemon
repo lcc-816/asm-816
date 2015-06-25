@@ -14,9 +14,11 @@
 #include "common.h"
 #include "cookie.h"
 
-	extern void error(const std::string &);
-	extern void warn(const std::string &);
+	extern void error(const std::string &, Cookie &);
+	extern void warn(const std::string &, Cookie &);
 
+#define error(x) error(x, *cookie)
+#define warn(x) warn(x, *cookie)
 
 
 #define CopyExpression(a, b) a = b
@@ -39,15 +41,17 @@
 %left STAR SLASH PERCENT.
 %right BANG TILDE.
 
+// parse_failure vs syntax_error ... 
+
 %parse_failure {
-	error("parse error");
+	error("parse failure.");
 
 	cookie->scratch = Line();
 }
 
 
 %syntax_error {
-	error("parse error.");
+	error("syntax error.");
 	cookie->scratch.error = true;
 
 	// todo -- flag the line?

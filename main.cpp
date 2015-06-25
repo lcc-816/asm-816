@@ -231,17 +231,110 @@ void print(const LineQueue &lines) {
 	}
 }
 
+void process_segments(SegmentQueue segments, std::string &outname) {
+
+	int fd;
+	fd = open(outname.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
+	if (fd < 0) {
+		perror("open");
+		exit(EX_CANTCREAT);
+	}
+
+	for (auto &seg : segments) {
+
+		if (seg->convention == Segment::data) {
+			auto omf = data_to_omf(seg.get());
+			omf.write(fd);
+			continue;
+		}
+
+		auto &lines = seg->lines;
+		//print(lines);
+		//printf("%s\tstart\n", seg->name ? seg->name->c_str() : "");
+		lines = basic_block(std::move(lines));
+		//print(lines);
+		//printf("\tend\n");
+
+		auto omf = code_to_omf(seg.get());
+		omf.write(fd);
+
+	}
+	set_ftype(fd, 0xb1, 0x0000);
+	close(fd);
+}
+
+struct {
+
+	bool S = false;
+	bool v = false;
+	std::string o;
+
+} flags;
+
+void help() {
+
+
+}
+
 
 int main(int argc, char **argv) {
 
 	int c;
-	while ((c = getopt(argc, argv, "")) != -1) {
+	while ((c = getopt(argc, argv, "hvSVo:")) != -1) {
+		switch(c) {
 
+			case 'S': // output source code
+				flags.S = 1;
+				break;
+
+			case 'o':
+				flags.o = optarg;
+				break;
+
+
+			case 'h':
+				help();
+				exit(0);
+				break;
+
+			case 'v':
+				flags.v = true;
+				break;
+
+			case 'V':
+				fprintf(stdout, "Version 0.0\n");
+				exit(0);
+				break;
+
+			case ':':
+			case '?':
+				help();
+				exit(EX_USAGE);
+				break;
+		}
 
 	}
 	argv += optind;
 	argc -= optind;
 
+	if (argc == 0) {
+
+		extern bool parse_file(FILE *file, SegmentQueue &rv);
+
+		SegmentQueue segments;
+
+		bool ok = parse_file(stdin, segments);
+		if (ok) {
+
+			std::string name = std::move(flags.o);
+			flags.o.clear();
+			if (name.empty()) name = "object.omf";
+
+			process_segments(std::move(segments), name);
+		}
+
+		if (!ok) exit(EX_DATAERR);
+	}
 
 	for (int i = 0 ; i < argc; ++i) {
 
@@ -249,38 +342,14 @@ int main(int argc, char **argv) {
 
 		bool ok = parse_file(argv[i], segments);
 		if (ok) {
-			std::string outname = "object.omf";
 
-			int fd;
-			fd = open(outname.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
-			if (fd < 0) {
-				perror("open");
-				exit(EX_CANTCREAT);
-			}
+			std::string name = std::move(flags.o);
+			flags.o.clear();
+			if (name.empty()) name = "object.omf";
 
-			for (auto &seg : segments) {
-
-				if (seg->convention == Segment::data) {
-					auto omf = data_to_omf(seg.get());
-					omf.write(fd);
-					continue;
-				}
-
-				auto &lines = seg->lines;
-				//simplify(lines); // automatically simplified by grammar.lemon
-				//print(lines);
-				//printf("%s\tstart\n", seg->name ? seg->name->c_str() : "");
-				lines = basic_block(std::move(lines));
-				//print(lines);
-				//printf("\tend\n");
-
-				auto omf = code_to_omf(seg.get());
-				omf.write(fd);
-
-			}
-			set_ftype(fd, 0xb1, 0x0000);
-			close(fd);
+			process_segments(std::move(segments), name);
 		}
+		if (!ok) exit(EX_DATAERR);
 	}
 
 	return 0;
