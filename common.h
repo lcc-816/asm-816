@@ -140,6 +140,7 @@ struct Segment {
 	bool debug = false;
 	bool rts = false;
 	bool global = false;
+	bool databank = false;
 
 	enum {
 		naked = 0,
@@ -150,6 +151,9 @@ struct Segment {
 		pascal,
 		stdcall
 	} convention = naked;
+
+	std::vector<uint8_t> prologue_code;
+	std::vector<uint8_t> epilogue_code;
 };
 
 // n. b. -- other stuff outside of segment, like export / import set.
