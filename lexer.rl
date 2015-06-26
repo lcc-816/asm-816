@@ -646,35 +646,35 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 			branch b = { branch::ne, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
-		'__ubgt'i {
+		'__bugt'i {
 			branch b = { branch::unsigned_gt, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
-		'__ubge'i {
+		'__buge'i {
 			branch b = { branch::unsigned_ge, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
-		'__ublt'i {
+		'__bult'i {
 			branch b = { branch::unsigned_lt, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
-		'__uble'i {
+		'__bule'i {
 			branch b = { branch::unsigned_le, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
-		'__sbgt'i {
+		'__bsgt'i {
 			branch b = { branch::signed_gt, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
-		'__sbge'i {
+		'__bsge'i {
 			branch b = { branch::signed_ge, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
-		'__sblt'i {
+		'__bslt'i {
 			branch b = { branch::signed_lt, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
-		'__sble'i {
+		'__bsle'i {
 			branch b = { branch::signed_le, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
