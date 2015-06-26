@@ -132,6 +132,13 @@ OpCode::OpCode(Instruction instr, AddressMode addressMode) : OpCode()
     *this = iter->second;
 }
 
+
+OpCode::OpCode(Machine machine, Mnemonic m, AddressMode addressMode) : 
+    OpCode(Instruction(machine, m), addressMode)
+{
+}
+
+
 OpCode::OpCode(Machine machine, uint8_t opcode) : OpCode()
 {
     switch (machine)
@@ -467,6 +474,7 @@ unsigned OpCode::bytes(bool longM, bool longXY) const
         case zp_indirect:
         case zp_indirect_x:
         case zp_indirect_y:
+        case zp_indirect_z:
         case zp_indirect_long:
         case zp_indirect_long_y:
         case stack_relative:

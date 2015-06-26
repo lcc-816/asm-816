@@ -84,7 +84,7 @@ void Parse(void *yyp, int yymajor, Token yyminor, Cookie *cookie);
 void Parse(void *yyp, int yymajor, const std::string &string_value, Cookie *cookie)
 {
 	Token t;
-	//t.line = line;
+	t.line = cookie->line_number;
 	t.string_value = intern(string_value);
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -92,7 +92,7 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, Cookie *cook
 void Parse(void *yyp, int yymajor, uint32_t int_value, Cookie *cookie)
 {
 	Token t;
-	//t.line = line;
+	t.line = cookie->line_number;
 	t.int_value = int_value;
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -101,7 +101,7 @@ void Parse(void *yyp, int yymajor, uint32_t int_value, Cookie *cookie)
 void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 {
 	Token t;
-	//t.line = line;
+	t.line = cookie->line_number;
 	t.register_value = register_value;
 	Parse(yyp, yymajor, t, cookie);
 }
@@ -109,8 +109,17 @@ void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
 void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 {
 	Token t;
-	//t.line = line;
+	t.line = cookie->line_number;
 	t.expr_value = std::addressof(expr_value);
+	Parse(yyp, yymajor, t, cookie);
+}
+
+
+void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
+{
+	Token t;
+	t.line = cookie->line_number;
+	t.branch_value = branch_value;
 	Parse(yyp, yymajor, t, cookie);
 }
 
@@ -621,6 +630,55 @@ void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
 		'end_stack'i {
 			Parse(parser, tkFX_EPILOGUE, 0, &cookie);
 		};
+
+		# smart branches.
+
+
+		'__bra'i {
+			branch b = { branch::always, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__beq'i {
+			branch b = { branch::eq, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__bne'i {
+			branch b = { branch::ne, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__ubgt'i {
+			branch b = { branch::unsigned_gt, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__ubge'i {
+			branch b = { branch::unsigned_ge, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__ublt'i {
+			branch b = { branch::unsigned_lt, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__uble'i {
+			branch b = { branch::unsigned_le, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__sbgt'i {
+			branch b = { branch::signed_gt, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__sbge'i {
+			branch b = { branch::signed_ge, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__sblt'i {
+			branch b = { branch::signed_lt, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__sble'i {
+			branch b = { branch::signed_le, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+
 
 		[A-Za-z_][A-Za-z0-9_]* {
 

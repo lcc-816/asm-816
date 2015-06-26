@@ -12,6 +12,7 @@
 #include "Instruction.h"
 #include "OpCode.h"
 #include "register_set.h"
+#include "branch.h"
 
 class Expression;
 
@@ -30,6 +31,7 @@ enum Directive {
 	ALIGN,
 	PROLOGUE,
 	EPILOGUE,
+	SMART_BRANCH,
 };
 
 
@@ -43,6 +45,7 @@ struct Token {
 		dp_register register_value;
 		Mnemonic mnemonic_value;
 		Expression *expr_value;
+		branch branch_value;
 	};
 };
 
@@ -56,6 +59,7 @@ struct Line {
 	AddressMode mode = kUndefinedAddressMode;
 	bool explicit_mode = false;
 	bool error = false;
+	branch branch;
 
 	Expression *operands[2] = {0, 0};
 };
@@ -71,6 +75,15 @@ enum {
 struct BasicLine {
 	// Line data while analyzing.
 
+	BasicLine() = default;
+	BasicLine(const BasicLine &) = default;
+	BasicLine(BasicLine &&) = default;
+
+	BasicLine(Mnemonic m, AddressMode mode, ExpressionPtr e = nullptr) {
+		opcode = OpCode(m65816, m, mode);
+		operands[0] = e;
+	}
+
 	const std::string *label = nullptr;
 	bool global = false;
 
@@ -82,8 +95,8 @@ struct BasicLine {
 
 	bool longM = true;
 	bool longX = true;
-	bool long_branch = false;
-
+	//bool long_branch = false;
+	branch branch;
 
 
 	uint32_t pc = 0;

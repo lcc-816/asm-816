@@ -190,6 +190,11 @@ bool merge_blocks(BlockQueue &bq) {
 				lines.pop_back();
 				delete line;
 			}
+
+			if (line->directive == SMART_BRANCH) {
+				lines.pop_back();
+				delete line;
+			}
 		}
 
 		delta = true;
@@ -264,6 +269,9 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 		if (is_branch(m)) {
 			current = nullptr;
 		}
+		if (line->directive == SMART_BRANCH) {
+			current = nullptr;
+		}
 	}
 	lines.clear();
 
@@ -287,6 +295,10 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 				fallthrough = true;
 			if (!is_branch(m))
 				fallthrough = true;
+
+			if (line->directive == SMART_BRANCH && line->branch.is_conditional())
+				fallthrough = true;
+
 		} 
 
 		if (fallthrough)
@@ -360,6 +372,10 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 		// dc.l label is a reference.
 		switch(line->directive)
 		{
+			case SMART_BRANCH:
+				ll = e->identifiers();
+				break;
+
 			case DCB:
 			case DCL:
 			case DCW:

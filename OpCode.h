@@ -26,6 +26,7 @@ public:
     OpCode();
     OpCode(const OpCode& OpCode);
     OpCode(Instruction instr, AddressMode addressMode);
+    OpCode(Machine machine, Mnemonic m, AddressMode mode);
     OpCode(Machine machine, uint8_t opcode);
     
 

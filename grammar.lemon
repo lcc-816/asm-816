@@ -210,9 +210,11 @@
 
 			AddLabel(cookie, scratch.label);
 
+
 			if (cookie->lines) {
 				BasicLine *tmp = new BasicLine;
 				tmp->directive = scratch.directive;
+				tmp->branch = scratch.branch;
 				tmp->operands[0] = scratch.operands[0];
 				tmp->operands[1] = scratch.operands[1];
 
@@ -347,6 +349,12 @@ opcode ::= OPCODE_2 expr(a) COMMA expr(b). {
 }
 
 opcode ::= OPCODE operand(op). {
+	cookie->scratch.operands[0] = op;
+}
+
+opcode ::= SMART_BRANCH(b) operand(op). {
+	cookie->scratch.directive = SMART_BRANCH;
+	cookie->scratch.branch = b.branch_value;
 	cookie->scratch.operands[0] = op;
 }
 

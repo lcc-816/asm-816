@@ -3,8 +3,13 @@
 
 #include "common.h"
 #include "Expression.h"
+#include "branch.h"
 
-
+/*
+ * assign a pc to each line.  This also converts local labels to relative form.
+ * fix_branches -- extend out-of range branches. (bra -> brl)
+ *
+ */
 
 
 namespace {
@@ -14,7 +19,7 @@ namespace {
 		return OpCode(Instruction(m65816, m), mode);
 	}
 
-	bool inrange(ExpressionPtr e, uint32_t pc, const identifier_map &map) {
+	bool in_range(ExpressionPtr e, uint32_t pc, const identifier_map &map) {
 
 		try {
 
@@ -32,6 +37,23 @@ namespace {
 	}
 
 
+	// returns true if in-range.
+	bool in_range(ExpressionPtr e, uint32_t pc, const identifier_map &map, const branch &b) {
+
+		if (b.far) return true;
+
+		try {
+
+			uint32_t target = e->evaluate(pc, map);
+			if (b.in_range(pc, target)) return true;
+			return false;
+
+		} catch (std::exception &ex) {
+			std::string s = e->to_string();
+			fprintf(stderr, "Unable to evaluate smart branch target: %s\n", s.c_str());
+			return false;
+		}
+	}
 
 
 }
@@ -82,6 +104,10 @@ void assign_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 				pc += ((VectorExpression *)operand)->size() * 4;
 				return;
 
+			case SMART_BRANCH:
+				pc += line->branch.size();
+				return;
+
 			case DS:
 				// todo -- simplify stuff like
 				// ds 512-*
@@ -99,6 +125,7 @@ void assign_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 
 		OpCode op = line->opcode;
 
+#if 0
 		if (op.isRelative() && line->long_branch) {
 			/*
 			 *
@@ -112,6 +139,7 @@ void assign_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 			else pc += 5;
 			return;
 		}
+#endif
 		pc += op.bytes(line->longM, line->longX);
 	}
 }
@@ -190,13 +218,14 @@ void fix_branches(BlockQueue &blocks) {
 
 			// only need to check last
 			for (auto line : block->lines) {
+				#if 0
 				OpCode op = line->opcode;
 				if (!op) continue;
 				if (op.addressMode() != relative) continue;
 
 				// check if in range....
 				uint32_t pc = line->pc + pc_fudge;
-				if (inrange(line->operands[0], pc, map)) continue;
+				if (in_range(line->operands[0], pc, map)) continue;
 
 				//
 				delta = true;
@@ -209,6 +238,15 @@ void fix_branches(BlockQueue &blocks) {
 					fudge += 3;
 					line->long_branch = true;
 				}
+				#endif
+				uint32_t fudge = 0;
+				if (line->directive == SMART_BRANCH) {
+					uint32_t pc = line->pc + pc_fudge;
+					if (in_range(line->operands[0], pc, map, line->branch)) continue;
+					delta = true;
+					line->branch.far = true;
+					fudge = line->branch.make_far();
+				}
 
 				// adjust all future labels.
 				for (auto &kv : map) { if (kv.second >= pc) kv.second += fudge; }
@@ -218,6 +256,9 @@ void fix_branches(BlockQueue &blocks) {
 
 
 	} while (delta);
+
+	// also do a pass to convert smart branch to code, verify not-so-smart branches 
+	// are in range?
 
 }
 

@@ -2,12 +2,14 @@
 #ifndef __expression_h__
 #define __expression_h__
 
-#include "common.h"
+//#include "common.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
 
-enum AddressMode;
+#include "register_set.h"
+
+//enum AddressMode;
 
 class Expression;
 class VectorExpression;
