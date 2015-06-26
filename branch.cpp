@@ -28,6 +28,8 @@ bool branch::reads_c() const {
 		case unsigned_ge:
 		case unsigned_lt:
 		case unsigned_le:
+		case cc:
+		case cs:
 			return true;
 		default:
 			return false;
@@ -40,6 +42,8 @@ bool branch::reads_v() const {
 		signed_ge:
 		signed_lt:
 		signed_le:
+		case vs:
+		case vc:
 			return true;
 		default:
 			return false;
@@ -54,11 +58,17 @@ unsigned branch::size() const {
 		// brl xxx
 		return far ? 3 : 2;
 	case eq:
+	case ne:
+	case cc:
+	case cs:
+	case vs:
+	case vc:
+	case mi:
+	case pl:
 		// beq xxx
 		// bne *+5 brl xxx
 		return far ? 5 : 2;
-	case ne:
-		return far ? 5 : 2;
+
 	case unsigned_ge:
 		return far ? 5 : 2;
 	case unsigned_lt:
@@ -133,6 +143,12 @@ bool branch::in_range(uint32_t pc, uint32_t target) const {
 		case always:
 		case eq:
 		case ne:
+		case cc:
+		case cs:
+		case vs:
+		case vc:
+		case mi:
+		case pl:
 		case unsigned_gt:
 		case unsigned_ge:
 		case unsigned_lt:
@@ -169,10 +185,7 @@ bool branch::in_range(uint32_t pc, uint32_t target) const {
 
 				return true;
 			}
-
-
 	}
-
 
 }
 
@@ -195,16 +208,23 @@ std::string branch::to_string() const {
 		"__bra",
 		"__beq",
 		"__bne",
+		"__bcc",
+		"__bcs",
+		"__bvs",
+		"__bvc",
+		"__bmi",
+		"__bpl",
 
-		"__ubgt",
-		"__ubge",
-		"__ublt",
-		"__uble",
 
-		"__sbgt",
-		"__sbge",
-		"__sblt",
-		"__sble",
+		"__bugt",
+		"__buge",
+		"__bult",
+		"__bule",
+
+		"__bsgt",
+		"__bsge",
+		"__bslt",
+		"__bsle",
 	};
 
 	return names[type];
@@ -246,6 +266,63 @@ std::vector<BasicLine *> branch::to_code(ExpressionPtr target) const {
 				rv.push_back(new BasicLine(BNE, relative, target));
 			}
 			break;
+
+		case cc:
+			if (far) {
+				rv.push_back(new BasicLine(BCS, relative, star_plus(5)));
+				rv.push_back(new BasicLine(BRL, relative_long, target));
+			} else {
+				rv.push_back(new BasicLine(BCC, relative, target));
+			}
+			break;
+
+		case cs:
+			if (far) {
+				rv.push_back(new BasicLine(BCC, relative, star_plus(5)));
+				rv.push_back(new BasicLine(BRL, relative_long, target));
+			} else {
+				rv.push_back(new BasicLine(BCS, relative, target));
+			}
+			break;
+
+
+		case vc:
+			if (far) {
+				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
+				rv.push_back(new BasicLine(BRL, relative_long, target));
+			} else {
+				rv.push_back(new BasicLine(BVC, relative, target));
+			}
+			break;
+
+		case vs:
+			if (far) {
+				rv.push_back(new BasicLine(BVC, relative, star_plus(5)));
+				rv.push_back(new BasicLine(BRL, relative_long, target));
+			} else {
+				rv.push_back(new BasicLine(BVS, relative, target));
+			}
+			break;
+
+
+		case mi:
+			if (far) {
+				rv.push_back(new BasicLine(BPL, relative, star_plus(5)));
+				rv.push_back(new BasicLine(BRL, relative_long, target));
+			} else {
+				rv.push_back(new BasicLine(BMI, relative, target));
+			}
+			break;
+
+		case pl:
+			if (far) {
+				rv.push_back(new BasicLine(BMI, relative, star_plus(5)));
+				rv.push_back(new BasicLine(BRL, relative_long, target));
+			} else {
+				rv.push_back(new BasicLine(BPL, relative, target));
+			}
+			break;
+
 
 		case unsigned_ge:
 			if (far) {

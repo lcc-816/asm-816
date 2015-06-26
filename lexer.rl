@@ -646,6 +646,35 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 			branch b = { branch::ne, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
 		};
+
+		'__bcc'i {
+			branch b = { branch::cc, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__bcs'i {
+			branch b = { branch::cs, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+
+		'__bvc'i {
+			branch b = { branch::vc, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__bvs'i {
+			branch b = { branch::vs, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+
+		'__bmi'i {
+			branch b = { branch::mi, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+		'__bpl'i {
+			branch b = { branch::pl, false };
+			Parse(parser, tkSMART_BRANCH, b, &cookie);
+		};
+
+
 		'__bugt'i {
 			branch b = { branch::unsigned_gt, false };
 			Parse(parser, tkSMART_BRANCH, b, &cookie);
