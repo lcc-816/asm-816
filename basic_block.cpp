@@ -696,7 +696,12 @@ LineQueue basic_block(LineQueue &&lines) {
 	// todo -- if next_set.size() == 1 && next_set->prev_set.size() == 1
 	// merge the blocks together and re-optimize.
 
+	void fix_branches(BlockQueue &blocks);
 
+	fix_branches(bq);
+
+
+	//
 	LineQueue out;
 
 	for (BasicBlock *block : bq) {

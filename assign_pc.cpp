@@ -260,5 +260,27 @@ void fix_branches(BlockQueue &blocks) {
 	// also do a pass to convert smart branch to code, verify not-so-smart branches 
 	// are in range?
 
+
+	// do a pass to convert smart branches to real branches.
+	for (auto block : blocks) {
+
+		LineQueue lines = std::move(block->lines);
+		LineQueue tmp;
+
+		while (!lines.empty()) {
+			auto line = lines.front();
+			lines.pop_front();
+
+			if (line->directive == SMART_BRANCH) {
+				auto xx = line->branch.to_code(line->operands[0]);
+				// also need to mark longm, longx, line, etc?
+				tmp.insert(tmp.end(), xx.begin(), xx.end());
+			}
+			else
+				tmp.push_back(line);
+		}
+
+		block->lines = std::move(tmp);
+	}
 }
 
