@@ -186,6 +186,6 @@ bool parse_file(const std::string &filename, SegmentQueue &segments);
 unsigned classify(Mnemonic);
 unsigned classify(OpCode);
 
-LineQueue basic_block(LineQueue &&lines);
+void basic_block(Segment *segment);
 
 #endif

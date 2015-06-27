@@ -619,11 +619,11 @@ void print_block_set(const std::vector<BasicBlock *> &set) {
 	printf("\n");
 }
 
-LineQueue basic_block(LineQueue &&lines) {
+void basic_block(Segment *segment) {
 
 	BlockMap bm;
 
-	BlockQueue bq = make_basic_blocks(std::move(lines));
+	BlockQueue bq = make_basic_blocks(std::move(segment->lines));
 
 
 	// create the map
@@ -697,7 +697,10 @@ LineQueue basic_block(LineQueue &&lines) {
 	// merge the blocks together and re-optimize.
 
 	void fix_branches(BlockQueue &blocks);
+	void assign_registers(Segment *segment);
 
+
+	assign_registers(segment); // creates epilogue/prologue.
 	fix_branches(bq);
 
 
@@ -718,6 +721,6 @@ LineQueue basic_block(LineQueue &&lines) {
 		block->lines.clear();
 	}
 
-	return out;
+	segment->lines = std::move(out);
 }
 

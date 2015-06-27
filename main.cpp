@@ -248,10 +248,10 @@ void process_segments(SegmentQueue segments, std::string &outname) {
 			continue;
 		}
 
-		auto &lines = seg->lines;
+		//auto &lines = seg->lines;
 		//print(lines);
 		//printf("%s\tstart\n", seg->name ? seg->name->c_str() : "");
-		lines = basic_block(std::move(lines));
+		basic_block(seg.get());
 		//print(lines);
 		//printf("\tend\n");
 
