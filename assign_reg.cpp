@@ -8,48 +8,6 @@
 #include "common.h"
 #include "Machine.h"
 
-#define __phd() tmp.push_back(0x0b);
-#define __pld() tmp.push_back(0x2b);
-
-#define __ply() tmp.push_back(0x7a);
-#define __phy() tmp.push_back(0x5a);
-
-
-#define __tay() tmp.push_back(0xab);
-#define __tya() tmp.push_back(0x98);
-
-
-#define __tsc() tmp.push_back(0x3b);
-#define __tcs() tmp.push_back(0x1b);
-#define __tcd() tmp.push_back(0x5b);
-
-#define __clc() tmp.push_back(0x18);
-#define __sec() tmp.push_back(0x38);
-
-
-
-#define __rtl() tmp.push_back(0x6b);
-#define __rts() tmp.push_back(0x60);
-
-#define __adc_imm(arg) { uint16_t x = arg; \
-	tmp.push_back(0x69); \
-	tmp.push_back((x >> 0) & 0xff); \
-	tmp.push_back((x >> 8) & 0xff); \
-}
-
-#define __sbc_imm(arg) { uint16_t x = arg; \
-	tmp.push_back(0xe9); \
-	tmp.push_back((x >> 0) & 0xff); \
-	tmp.push_back((x >> 8) & 0xff); \
-}
-
-
-#define __lda_dp(arg) tmp.push_back(0xa5); tmp.push_back((arg) & 0xff);
-#define __sta_dp(arg) tmp.push_back(0x85); tmp.push_back((arg) & 0xff);
-
-#define __phb() tmp.push_back(0x8b);
-#define __plb() tmp.push_back(0xab);
-#define __pea() tmp.push_back(0xf4);
 
 
 /*
@@ -223,80 +181,5 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 		tmp.push_back(new BasicLine(PLB, implied));
 
 	segment->epilogue_code = std::move(tmp);
-
-
-
-
-#if 0
-	//std::vector<uint8_t> tmp;
-
-	if (segment->databank) __phb()
-	// also generate pea ~globals >> 8; plb; plb ? this should probably just be done in lcc.
-
-	unsigned locals = segment->temp_size + segment->local_size;
-	if (locals || segment->parm_size) {
-		if (locals <= 8) {
-			for (unsigned i = 0; i < locals; i += 2)
-				__phy()
-			__tsc()
-			__phd()
-			__tcd()
-		}
-		else {
-			__tsc()
-			__sec()
-			__sbc_imm(locals)
-			__tcs()
-			__phd()
-			__tcd()
-		}
-	}
-
-	segment->prologue_code = std::move(tmp);
-	tmp.clear();
-
-	if (segment->convention == Segment::stdcall || segment->convention == Segment::pascal) {
-
-		unsigned xfer = (rtlb + 1 ) & ~0x01;
-		unsigned dest = locals + rtlb + segment->parm_size;
-
-		// move the return address.
-		while (xfer) {
-
-			__lda_dp(1 + locals + xfer - 2)
-			__sta_dp(1 + dest - 2)
-			xfer -= 2;
-			dest -= 2;
-		}
-
-		locals += segment->parm_size;
-	}
-
-	// prologue...
-	if (locals || segment->parm_size) {
-		__pld()
-
-		if (locals <= 8) {
-			for (unsigned i = 0; i < locals; i += 2) {
-				__ply()
-		}
-		} else {
-			__tay() // save
-			__tsc()
-			__clc()
-			__adc_imm(locals)
-			__tcs()
-			__tya()
-		}
-
-
-	}
-
-	if (segment->databank)
-		__plb()
-
-	segment->epilogue_code = std::move(tmp);
-	tmp.clear();
-#endif
 
 }
