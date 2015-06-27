@@ -84,6 +84,11 @@ struct BasicLine {
 		operands[0] = e;
 	}
 
+	BasicLine(Directive d, ExpressionPtr e = nullptr) {
+		directive = d;
+		operands[0] = e;
+	}
+
 	const std::string *label = nullptr;
 	bool global = false;
 

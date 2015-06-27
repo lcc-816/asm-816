@@ -16,6 +16,13 @@
  *
  */
 
+namespace {
+	ExpressionPtr star_plus(unsigned offset) {
+		// generate an expression ptr for *+offset
+		return Expression::Binary('+', Expression::PC(), Expression::Integer(offset));
+	}
+}
+
 void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	Expression::register_info ri;
@@ -111,8 +118,30 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	if (segment->convention == Segment::naked) return;
 
-
 	std::vector<BasicLine *> tmp;
+	if (segment->debug && segment->name && !segment->name->empty()) {
+		// tn 103 debug name.
+		/*
+		 * 82 xx xx                     brl  pastName
+		 * 71 77                        dc.w $7771
+		 * nn xx xx xx xx...            str  'the name string'
+       */
+		std::vector<ExpressionPtr> bytes;
+		auto name = segment->name;
+		bytes.push_back(Expression::Integer(0x71));
+		bytes.push_back(Expression::Integer(0x77));
+		bytes.push_back(Expression::Integer(name->length()));
+
+		std::transform(name->begin(), name->end(), std::back_inserter(bytes), [](char c){
+			return Expression::Integer(c);
+		});
+
+
+		tmp.push_back(new BasicLine(BRL, relative_long, star_plus(3 + bytes.size())));
+		tmp.push_back(new BasicLine(DCB, Expression::Vector(std::move(bytes))));
+	}
+
+
 	if (segment->databank) {
 		tmp.push_back(new BasicLine(PHB, implied));
 		tmp.push_back(new BasicLine(PEA, absolute, 
