@@ -8,7 +8,6 @@
 #include "common.h"
 #include "Machine.h"
 
-
 #define __phd() tmp.push_back(0x0b);
 #define __pld() tmp.push_back(0x2b);
 
@@ -138,7 +137,6 @@ void assign_registers(Segment *segment) {
 	offset += rtlb;
 	ri.pbase = offset;
 
-	// can generate epilogue / prologue now.
 
 
 	for (auto block : segment->blocks) {
@@ -146,14 +144,91 @@ void assign_registers(Segment *segment) {
 		for (auto line : block->lines) {
 
 			if (line->reg) {
-				line->operands[0]->assign_registers(ri);
+				line->operands[0] = line->operands[0]->assign_registers(ri);
 			}
 		}
 	}
 
+	// can generate epilogue / prologue now.
+
 	if (segment->convention == Segment::naked) return;
 
-	std::vector<uint8_t> tmp;
+
+	std::vector<BasicLine *> tmp;
+	if (segment->databank) {
+		tmp.push_back(new BasicLine(PHB, implied));
+		tmp.push_back(new BasicLine(PEA, absolute, 
+			Expression::Binary('<<', 
+				Expression::Identifier("~globals"), Expression::Integer(8))));
+		tmp.push_back(new BasicLine(PLB, implied));
+		tmp.push_back(new BasicLine(PLB, implied));
+
+	}
+
+	unsigned locals = segment->temp_size + segment->local_size;
+	if (locals || segment->parm_size) {
+		if (locals <= 8) {
+			for (unsigned i = 0; i < locals; i += 2)
+				tmp.push_back(new BasicLine(PHY, implied));
+			tmp.push_back(new BasicLine(TSC, implied));
+			tmp.push_back(new BasicLine(PHD, implied));
+			tmp.push_back(new BasicLine(TCD, implied));
+		}
+		else {
+			tmp.push_back(new BasicLine(TSC, implied));
+			tmp.push_back(new BasicLine(SEC, implied));
+			tmp.push_back(new BasicLine(SBC, immediate, Expression::Integer(locals)));
+			tmp.push_back(new BasicLine(TCS, implied));
+			tmp.push_back(new BasicLine(PHD, implied));
+			tmp.push_back(new BasicLine(TCD, implied));
+		}
+	}
+	segment->prologue_code = std::move(tmp);
+	tmp.clear();
+
+	if (segment->convention == Segment::stdcall || segment->convention == Segment::pascal) {
+
+		unsigned xfer = (rtlb + 1 ) & ~0x01;
+		unsigned dest = locals + rtlb + segment->parm_size;
+
+		// move the return address.
+		while (xfer) {
+			tmp.push_back(new BasicLine(LDA, zp, Expression::Integer(1 + locals + xfer - 2)));
+			tmp.push_back(new BasicLine(STA, zp, Expression::Integer(1 + dest - 2)));
+			xfer -= 2;
+			dest -= 2;
+		}
+
+		locals += segment->parm_size;
+	}
+
+	// prologue...
+	if (locals || segment->parm_size) {
+		tmp.push_back(new BasicLine(PLD, implied));
+
+		if (locals <= 8) {
+			for (unsigned i = 0; i < locals; i += 2)
+				tmp.push_back(new BasicLine(PLY, implied));
+		} else {
+			tmp.push_back(new BasicLine(TAY, implied));
+			tmp.push_back(new BasicLine(TSC, implied));
+			tmp.push_back(new BasicLine(CLC, implied));
+			tmp.push_back(new BasicLine(ADC, immediate, Expression::Integer(locals)));
+			tmp.push_back(new BasicLine(TCS, implied));
+			tmp.push_back(new BasicLine(TYA, implied));
+		}
+	}
+
+	if (segment->databank)
+		tmp.push_back(new BasicLine(PLB, implied));
+
+	segment->epilogue_code = std::move(tmp);
+
+
+
+
+#if 0
+	//std::vector<uint8_t> tmp;
 
 	if (segment->databank) __phb()
 	// also generate pea ~globals >> 8; plb; plb ? this should probably just be done in lcc.
@@ -222,4 +297,6 @@ void assign_registers(Segment *segment) {
 
 	segment->epilogue_code = std::move(tmp);
 	tmp.clear();
+#endif
+
 }

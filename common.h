@@ -170,8 +170,8 @@ struct Segment {
 		stdcall
 	} convention = naked;
 
-	std::vector<uint8_t> prologue_code;
-	std::vector<uint8_t> epilogue_code;
+	std::vector<BasicLine *> prologue_code;
+	std::vector<BasicLine *> epilogue_code;
 };
 
 // n. b. -- other stuff outside of segment, like export / import set.
