@@ -375,6 +375,7 @@ unsigned Instruction::bytes(AddressMode addressMode, bool longM, bool longXY) co
         case zp_indirect:
         case zp_indirect_x:
         case zp_indirect_y:
+        case zp_indirect_z:
         case zp_indirect_long:
         case zp_indirect_long_y:
         case stack_relative:
