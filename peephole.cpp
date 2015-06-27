@@ -350,9 +350,7 @@ bool peephole(LineQueue &list) {
 			/* PEA xxx, PLA -> LDA #xxx */
 			if (match(list, PEA, PLA, [&](BasicLine *a, BasicLine *b){
 
-				BasicLine *tmp = new BasicLine;
-				tmp->operands[0] = a->operands[0];
-				tmp->opcode = OpCode(Instruction(m65816, LDA), immediate);
+				BasicLine *tmp = new BasicLine(LDA, immediate, a->operands[0]);
 
 				list.pop_front();
 				list.pop_front();
@@ -369,9 +367,7 @@ bool peephole(LineQueue &list) {
 			/* PEI (xxx), PLA -> LDA <xxx */
 			if (match(list, PEI, PLA, [&](BasicLine *a, BasicLine *b){
 
-				BasicLine *tmp = new BasicLine;
-				tmp->operands[0] = a->operands[0];
-				tmp->opcode = OpCode(Instruction(m65816, LDA), zp);
+				BasicLine *tmp = new BasicLine(LDA, zp, a->operands[0]);
 
 				list.pop_front();
 				list.pop_front();
@@ -399,8 +395,7 @@ bool peephole(LineQueue &list) {
 			if (match(list, PHA, PLX, [&](BasicLine *a, BasicLine *b){
 
 
-				BasicLine *tmp = new BasicLine;
-				tmp->opcode = OpCode(Instruction(m65816, TAX), implied);
+				BasicLine *tmp = new BasicLine(TAX, implied);
 
 				list.pop_front();
 				list.pop_front();
@@ -415,8 +410,7 @@ bool peephole(LineQueue &list) {
 			if (match(list, PHA, PLY, [&](BasicLine *a, BasicLine *b){
 
 
-				BasicLine *tmp = new BasicLine;
-				tmp->opcode = OpCode(Instruction(m65816, TAY), implied);
+				BasicLine *tmp = new BasicLine(TAY, implied);
 
 				list.pop_front();
 				list.pop_front();
@@ -527,8 +521,7 @@ bool peephole(LineQueue &list) {
 				if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
 					if (reg_a == reg_b) {
 
-						BasicLine *tmp = new BasicLine;
-						tmp->opcode = OpCode(Instruction(m65816, PHA), implied);
+						BasicLine *tmp = new BasicLine(PHA, implied);
 
 						list.pop_front(); // a
 						list.pop_front(); // b
@@ -576,8 +569,7 @@ bool peephole(LineQueue &list) {
 
 				if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
 					if (reg_a == reg_c) {
-						BasicLine *tmp = new BasicLine;
-						tmp->opcode = OpCode(Instruction(m65816, PHA), implied);
+						BasicLine *tmp = new BasicLine(PHA, implied);
 
 						list.pop_front(); // a
 						list.pop_front(); // b
@@ -613,9 +605,7 @@ bool peephole(LineQueue &list) {
 						list.pop_front();
 						list.pop_front();
 
-						BasicLine *tmp = new BasicLine;
-						tmp->operands[0] = b->operands[0];
-						tmp->opcode = OpCode(Instruction(m65816, ADC), b->opcode.addressMode());
+						BasicLine *tmp = new BasicLine(ADC, b->opcode.addressMode(), b->operands[0]);
 						list.insert(list.begin(), {a, c, tmp});
 
 						delete b;
