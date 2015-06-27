@@ -16,6 +16,13 @@
 #include "omf.h"
 #include "unordered_set"
 
+struct {
+
+	bool S = false;
+	bool v = false;
+	std::string o;
+
+} flags;
 
 extern OMF::Segment data_to_omf(Segment *segment);
 extern OMF::Segment code_to_omf(Segment *segment);
@@ -67,6 +74,7 @@ void simplify(LineQueue &lines) {
 
 	}
 }
+
 
 void print(const LineQueue &lines) {
 
@@ -231,6 +239,14 @@ void print(const LineQueue &lines) {
 	}
 }
 
+void print(const Segment *segment) {
+
+	printf("%s    start\n", segment->name ? segment->name->c_str() : "");
+	print(segment->lines);
+	printf("    end\n\n");
+}
+
+
 void process_segments(SegmentQueue segments, std::string &outname) {
 
 	int fd;
@@ -249,11 +265,13 @@ void process_segments(SegmentQueue segments, std::string &outname) {
 		}
 
 		//auto &lines = seg->lines;
-		//print(lines);
-		//printf("%s\tstart\n", seg->name ? seg->name->c_str() : "");
 		basic_block(seg.get());
-		//print(lines);
-		//printf("\tend\n");
+
+		if (flags.S) {
+			// -S -- output code.
+			print(seg.get());
+			continue;
+		}
 
 		auto omf = code_to_omf(seg.get());
 		omf.write(fd);
@@ -263,13 +281,7 @@ void process_segments(SegmentQueue segments, std::string &outname) {
 	close(fd);
 }
 
-struct {
 
-	bool S = false;
-	bool v = false;
-	std::string o;
-
-} flags;
 
 void help() {
 
