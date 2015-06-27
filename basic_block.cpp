@@ -717,7 +717,28 @@ void basic_block(Segment *segment) {
 			out.push_back(tmp);
 		}
 
-		out.insert(out.end(), block->lines.begin(), block->lines.end());
+		for (auto &line : block->lines) {
+			switch(line->directive) {
+				case SMART_BRANCH:
+					{
+						auto tmp = line->branch.to_code(line->operands[0]);
+						out.insert(out.end(), tmp.begin(), tmp.end()); 
+					}
+					break;
+				case PROLOGUE:
+					out.insert(out.end(), segment->prologue_code.begin(), segment->prologue_code.end());
+					break;
+				case EPILOGUE:
+					out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
+					break;
+
+				default:
+					out.push_back(line);
+					break;
+			}
+		}
+
+		//out.insert(out.end(), block->lines.begin(), block->lines.end());
 		block->lines.clear();
 	}
 

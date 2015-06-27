@@ -260,7 +260,7 @@ void fix_branches(BlockQueue &blocks) {
 	// also do a pass to convert smart branch to code, verify not-so-smart branches 
 	// are in range?
 
-
+#if 0
 	// do a pass to convert smart branches to real branches.
 	for (auto block : blocks) {
 
@@ -282,5 +282,6 @@ void fix_branches(BlockQueue &blocks) {
 
 		block->lines = std::move(tmp);
 	}
+#endif
 }
 
