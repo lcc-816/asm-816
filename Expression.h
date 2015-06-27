@@ -6,8 +6,10 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <utility>
 
 #include "register_set.h"
+#include "intern.h"
 
 //enum AddressMode;
 
@@ -30,7 +32,11 @@ public:
 	static ExpressionPtr Integer(uint32_t value);
 	static ExpressionPtr Register(dp_register value);
 	static ExpressionPtr Rel(uint32_t offset);
+
 	static ExpressionPtr Identifier(identifier name);
+	static ExpressionPtr Identifier(std::string &&s) { return Identifier(intern(std::move(s))); }
+	static ExpressionPtr Identifier(const std::string &s) { return Identifier(intern(s)); }
+
 	static ExpressionPtr Unary(unsigned op, ExpressionPtr a);
 	static ExpressionPtr Binary(unsigned op, ExpressionPtr a, ExpressionPtr b);
 	static VectorExpressionPtr Vector();
