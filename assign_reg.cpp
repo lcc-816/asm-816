@@ -53,6 +53,12 @@
 #define __pea() tmp.push_back(0xf4);
 
 
+/*
+ * assign a dp register location for all %t, %r, %v, %p dp_registers. 
+ * This also generates epilogue / prologue code.
+ *
+ */
+
 void assign_registers(Segment *segment) {
 
 	Expression::register_info ri;
@@ -145,6 +151,7 @@ void assign_registers(Segment *segment) {
 		}
 	}
 
+	if (segment->convention == Segment::naked) return;
 
 	std::vector<uint8_t> tmp;
 
