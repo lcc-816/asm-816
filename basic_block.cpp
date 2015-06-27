@@ -697,10 +697,10 @@ void basic_block(Segment *segment) {
 	// merge the blocks together and re-optimize.
 
 	void fix_branches(BlockQueue &blocks);
-	void assign_registers(Segment *segment);
+	void assign_registers(Segment *segment, BlockQueue &);
 
 
-	assign_registers(segment); // creates epilogue/prologue.
+	assign_registers(segment, bq); // creates epilogue/prologue.
 	fix_branches(bq);
 
 

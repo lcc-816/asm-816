@@ -58,7 +58,7 @@
  *
  */
 
-void assign_registers(Segment *segment) {
+void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	Expression::register_info ri;
 
@@ -77,7 +77,7 @@ void assign_registers(Segment *segment) {
 
 	std::unordered_set<dp_register> rset;
 
-	for (auto block : segment->blocks) {
+	for (auto block : blocks) {
 		dp_register r;
 
 		for (auto line : block->lines) {
@@ -139,7 +139,7 @@ void assign_registers(Segment *segment) {
 
 
 
-	for (auto block : segment->blocks) {
+	for (auto block : blocks) {
 
 		for (auto line : block->lines) {
 
