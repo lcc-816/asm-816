@@ -144,7 +144,7 @@ struct Segment {
 	const std::string *name = nullptr;
 	const std::string *segment = nullptr;
 
-	BlockQueue blocks;
+	//BlockQueue blocks;
 	LineQueue lines;
 
 	// attributes
