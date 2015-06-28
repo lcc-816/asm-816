@@ -80,7 +80,7 @@ void print(const LineQueue &lines) {
 
 	for (const BasicLine *line : lines) {
 
-		if (line->label) { printf("%s:\n", line->label->c_str()); }
+		if (line->label) { printf("%s\n", line->label->c_str()); }
 
 		if (line->directive) {
 			std::string s;
@@ -241,13 +241,19 @@ void print(const LineQueue &lines) {
 
 void print(const Segment *segment) {
 
-	printf("%s    start\n", segment->name ? segment->name->c_str() : "");
+	const char *start = "start";
+	if (segment->convention == Segment::data)
+		start = "data";
+
+	printf("%s    %s\n", segment->name ? segment->name->c_str() : "", start);
 	print(segment->lines);
 	printf("    end\n\n");
 }
 
 
 void process_segments(SegmentQueue segments, std::string &outname) {
+
+	int segnum = 1;
 
 	int fd;
 	fd = open(outname.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
@@ -259,7 +265,15 @@ void process_segments(SegmentQueue segments, std::string &outname) {
 	for (auto &seg : segments) {
 
 		if (seg->convention == Segment::data) {
+
+			if (flags.S) {
+				// -S -- output code.
+				print(seg.get());
+				continue;
+			}
+
 			auto omf = data_to_omf(seg.get());
+			omf.segnum = segnum++;
 			omf.write(fd);
 			continue;
 		}
@@ -274,6 +288,7 @@ void process_segments(SegmentQueue segments, std::string &outname) {
 		}
 
 		auto omf = code_to_omf(seg.get());
+		omf.segnum = segnum++;
 		omf.write(fd);
 
 	}
