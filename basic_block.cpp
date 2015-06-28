@@ -407,6 +407,7 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 	}
 
 	// scan backwards and remove dead writes.
+	// todo -- still needed or will analyze_block_2 catch it?
 	/*
 	 *  sta %t0 << can be killed
 	 *  ...
@@ -450,7 +451,10 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 		}
 
 
-		if (dead) delete line;
+		if (dead) {
+			//printf("deleting %s\n", line->opcode.toString());
+			delete line;
+		}
 		else newLines.push_front(line);
 	}
 
@@ -518,9 +522,16 @@ bool analyze_block_2(BasicBlock *block) {
 		}
 
 
-		if (dead) { delete line; delta = true; }
+		if (dead) {
+			//printf("deleting %s\n", line->opcode.toString());
+			delete line;
+			delta = true;
+		}
+		//if (dead) { delete line; delta = true; }
 		else newLines.push_front(line);
 	}
+
+
 	block->lines = std::move(newLines);
 	return delta;
 
@@ -707,6 +718,8 @@ void basic_block(Segment *segment) {
 	//
 	LineQueue out;
 
+	out.insert(out.end(), segment->prologue_code.begin(), segment->prologue_code.end());
+
 	for (BasicBlock *block : bq) {
 
 		if (block->dead) continue;
@@ -726,10 +739,10 @@ void basic_block(Segment *segment) {
 					}
 					break;
 				case PROLOGUE:
-					out.insert(out.end(), segment->prologue_code.begin(), segment->prologue_code.end());
+					//out.insert(out.end(), segment->prologue_code.begin(), segment->prologue_code.end());
 					break;
 				case EPILOGUE:
-					out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
+					//out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
 					break;
 
 				default:
@@ -741,6 +754,8 @@ void basic_block(Segment *segment) {
 		//out.insert(out.end(), block->lines.begin(), block->lines.end());
 		block->lines.clear();
 	}
+	
+	out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
 
 	segment->lines = std::move(out);
 }

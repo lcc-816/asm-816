@@ -48,7 +48,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 		for (auto line : block->lines) {
 
 			// line already has list of registers.
-			if (line->reg) {
+			if (line->reg_status) {
 				dp_register r = line->reg;
 				if (r.type == 'r' || r.type == 't') {
 
@@ -108,7 +108,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 		for (auto line : block->lines) {
 
-			if (line->reg) {
+			if (line->reg_status) {
 				line->operands[0] = line->operands[0]->assign_registers(ri);
 			}
 		}
@@ -208,6 +208,11 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	if (segment->databank)
 		tmp.push_back(new BasicLine(PLB, implied));
+
+	if (segment->rts)
+		tmp.push_back(new BasicLine(RTS, implied));
+	else
+		tmp.push_back(new BasicLine(RTL, implied));
 
 	segment->epilogue_code = std::move(tmp);
 
