@@ -145,7 +145,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	if (segment->databank) {
 		tmp.push_back(new BasicLine(PHB, implied));
 		tmp.push_back(new BasicLine(PEA, absolute, 
-			Expression::Binary('<<', 
+			Expression::Binary('>>', 
 				Expression::Identifier("~globals"), Expression::Integer(8))));
 		tmp.push_back(new BasicLine(PLB, implied));
 		tmp.push_back(new BasicLine(PLB, implied));
