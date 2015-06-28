@@ -108,7 +108,7 @@ struct BasicLine {
 	// live registers, etc.
 
 	register_set reg_live;
-	dp_register reg; // from operands.
+	dp_register reg = { 0, 0 }; // from operands.
 	unsigned reg_count = 0; 
 	unsigned reg_status = reg_none;
 
