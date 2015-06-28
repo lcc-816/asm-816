@@ -242,3 +242,18 @@ register_set &register_set::operator -= (const register_set &r) {
 
 #endif
 
+namespace { 
+	void dump_one(char type, const std::bitset<32> &data) {
+		printf("%c:", type);
+		for (unsigned i = 0; i < data.size(); ++i) {
+			if (data[i]) printf(" %u", i);
+		}
+		printf("\n");
+	}
+}
+void register_set::dump() const {
+	dump_one('t', _data[0]);
+	dump_one('r', _data[1]);
+	dump_one('v', _data[2]);
+	dump_one('p', _data[3]);
+}
