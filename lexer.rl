@@ -173,9 +173,9 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 
 
 	# '$' is used for statics w/in a function.
-	identifier = [A-Za-z_][A-Za-z0-9_$]*;
+	identifier = [A-Za-z_.][A-Za-z0-9_$.]*;
 
-	local_identifier = '@' [A-Za-z_][A-Za-z0-9_$]*;
+	local_identifier = '@' [A-Za-z_.][A-Za-z0-9_$.]*;
 
 
 
@@ -244,7 +244,7 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 		'>' { Parse(parser, tkGT, 0, &cookie); };
 		'|' { Parse(parser, tkPIPE, 0, &cookie); };
 		'#' { Parse(parser, tkHASH, 0, &cookie); };
-		':' { Parse(parser, tkCOLON, 0, &cookie); };
+		#':' { Parse(parser, tkCOLON, 0, &cookie); };
 		#'.' { Parse(parser, tkPERIOD, 0, &cookie); };
 		',' { Parse(parser, tkCOMMA, 0, &cookie); };
 
@@ -371,7 +371,7 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 		'>' { Parse(parser, tkGT, 0, &cookie); };
 		'|' { Parse(parser, tkPIPE, 0, &cookie); };
 		'#' { Parse(parser, tkHASH, 0, &cookie); };
-		':' { Parse(parser, tkCOLON, 0, &cookie); };
+		#':' { Parse(parser, tkCOLON, 0, &cookie); };
 		#'.' { Parse(parser, tkPERIOD, 0, &cookie); };
 		',' { Parse(parser, tkCOMMA, 0, &cookie); };
 
@@ -758,7 +758,7 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 
 		# this is here so we can have label:
 		# maybe we should just drop the :
-		':' { Parse(parser, tkCOLON, 0, &cookie); };
+		#':' { Parse(parser, tkCOLON, 0, &cookie); };
 
 		any {
 			fprintf(stderr, "Unable to lex!\n");

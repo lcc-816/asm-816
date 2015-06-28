@@ -328,7 +328,7 @@ line ::= IDENTIFIER(id) EQU expr(e) EOL. {
 	cookie->equates.insert(id.string_value, e->simplify());
 }
 
-label ::= IDENTIFIER(id) COLON. {
+label ::= IDENTIFIER(id). {
 	cookie->scratch.label = id.string_value;
 }
 
