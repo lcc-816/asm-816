@@ -468,6 +468,10 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 			Parse(parser, tkDYNAMIC, 0, &cookie);
 		};
 
+		'databank'i {
+			Parse(parser, tkDATABANK, 0, &cookie);
+		};
+
 		'debug'i {
 			Parse(parser, tkDEBUG, 0, &cookie);
 		};

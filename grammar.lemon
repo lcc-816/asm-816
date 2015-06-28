@@ -448,6 +448,11 @@ pragma ::= DYNAMIC. {
 	if (cookie->segment) cookie->segment->dynamic = true;
 }
 
+pragma ::= DATABANK. {
+	if (cookie->segment) cookie->segment->databank = true;
+}
+
+
 pragma ::= DEBUG. {
 	if (cookie->segment) cookie->segment->debug = true;
 }
