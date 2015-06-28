@@ -7,6 +7,7 @@
 #include "Machine.h"
 #include "Expression.h"
 #include "OpCode.h"
+#include "register_set.h"
 
 template<class FX>
 bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, FX fx) {
@@ -351,6 +352,7 @@ bool peephole(LineQueue &list) {
 			if (match(list, PEA, PLA, [&](BasicLine *a, BasicLine *b){
 
 				BasicLine *tmp = new BasicLine(LDA, immediate, a->operands[0]);
+				tmp->calc_registers();
 
 				list.pop_front();
 				list.pop_front();
@@ -368,6 +370,7 @@ bool peephole(LineQueue &list) {
 			if (match(list, PEI, PLA, [&](BasicLine *a, BasicLine *b){
 
 				BasicLine *tmp = new BasicLine(LDA, zp, a->operands[0]);
+				tmp->calc_registers();
 
 				list.pop_front();
 				list.pop_front();
@@ -512,6 +515,53 @@ bool peephole(LineQueue &list) {
 				return false;
 			})) continue;
 
+			/* STA %t0, LDX %t0 -> STA %t0, TAX */
+			if (match(list, STA, LDX, [&](BasicLine *a, BasicLine *b){
+				//printf("STA %d/ LDA %d\n" , a->opcode.addressMode(), b->opcode.addressMode());
+
+				if (a->opcode.addressMode() == b->opcode.addressMode()) {
+
+					dp_register reg_a, reg_b;
+					if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
+						if (reg_a == reg_b) {
+							list.pop_front(); // a
+							list.pop_front(); // b
+							delete b;
+							BasicLine *tmp = new BasicLine(TAX, implied);
+
+							list.push_front(tmp);
+							list.push_front(a);
+							return true;
+						}
+					}
+				}
+				return false;
+			})) continue;
+
+			/* STA %t0, LDY %t0 -> STA %t0, TAY */
+			if (match(list, STA, LDX, [&](BasicLine *a, BasicLine *b){
+				//printf("STA %d/ LDA %d\n" , a->opcode.addressMode(), b->opcode.addressMode());
+
+				if (a->opcode.addressMode() == b->opcode.addressMode()) {
+
+					dp_register reg_a, reg_b;
+					if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
+						if (reg_a == reg_b) {
+							list.pop_front(); // a
+							list.pop_front(); // b
+							delete b;
+							BasicLine *tmp = new BasicLine(TAY, implied);
+
+							list.push_front(tmp);
+							list.push_front(a);
+							return true;
+						}
+					}
+				}
+				return false;
+			})) continue;
+
+
 			/* STA %t0, PEI (<%t0) -> STA %t0, PHA */
 			if (match(list, STA, PEI, [&](BasicLine *a, BasicLine *b){
 				dp_register reg_a, reg_b;
@@ -589,13 +639,11 @@ bool peephole(LineQueue &list) {
 			// works for dp or immediate (or absolute...)
 			if (match(list, STA, LDA, CLC, ADC, 
 				[&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d){
-					dp_register reg_a, reg_b, reg_d;
+					dp_register reg_a, reg_d;
 					if (a->opcode.addressMode() != zp) return false;
-					//if (b->opcode.addressMode() != zp) return false;
 					if (d->opcode.addressMode() != zp) return false;
 
 					if (a->operands[0]->is_register(reg_a)
-						//&& b->operands[0]->is_register(reg_b)
 						&& d->operands[0]->is_register(reg_d)
 					) {
 						if (reg_a != reg_d) return false;
@@ -606,6 +654,7 @@ bool peephole(LineQueue &list) {
 						list.pop_front();
 
 						BasicLine *tmp = new BasicLine(ADC, b->opcode.addressMode(), b->operands[0]);
+						tmp->calc_registers();
 						list.insert(list.begin(), {a, c, tmp});
 
 						delete b;
