@@ -13,6 +13,7 @@
 #include "Expression.h"
 #include "common.h"
 #include "cookie.h"
+#include "dp_register.h"
 
 	extern void error(const std::string &, Cookie &);
 	extern void warn(const std::string &, Cookie &);

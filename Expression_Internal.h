@@ -5,6 +5,7 @@
 #include <string>
 #include <cstdint>
 #include <memory>
+#include <array>
 
 namespace Expression_Internal {
 
