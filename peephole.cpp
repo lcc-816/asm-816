@@ -221,6 +221,30 @@ bool peephole(LineQueue &list) {
 				return false;
 			})) continue;
 
+			/* AND #const, cmp #0, bmi  --> and #const */
+			if (match(list, AND, CMP, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+				uint32_t value_a, value_b;
+				if (c->branch.type == branch::mi
+					&& a->operands[0]->is_integer(value_a) 
+					&& b->operands[0]->is_integer(value_b))
+				{
+
+					uint16_t x = 0xffff;
+					x &= value_a;
+
+					if (x & 0x8000) return false;
+					list.pop_front();
+					list.pop_front();
+					list.pop_front();
+					list.push_front(a);
+					delete b;
+					delete c;
+					return true;
+				}
+				return false;
+
+			})) continue;
+
 			break;
 
 
