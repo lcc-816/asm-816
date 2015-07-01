@@ -1009,7 +1009,8 @@ bool final_peephole(LineQueue &list) {
 
 		BasicLine *line = list.front();
 
-		switch(line->opcode.mnemonic()) {
+		OpCode opcode = line->opcode;
+		switch(opcode.mnemonic()) {
 		default: break;
 
 		// AND xxx, cmp #0
@@ -1018,8 +1019,15 @@ bool final_peephole(LineQueue &list) {
 		// ASL, ROR, etc?
 
 		case LDA:
+		case PLA:
+		case ORA:
+		case EOR:
+		case AND:
+		case ADC:
+		case SBC:
+			// INC / DEC / ASL / LSR / ROL / ROR as well, but that shouldn't happen?
 			/* LDA xxx, CMP #0, branch -> LDA xxx, branch */
-			if (match(list, LDA, CMP, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+			if (match(list, opcode.mnemonic(), CMP, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c){
 				uint32_t value;
 				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
 					if (value == 0 && !c->branch.reads_c() && !c->branch.reads_v()) {
