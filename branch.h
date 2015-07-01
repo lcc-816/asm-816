@@ -33,6 +33,14 @@ struct branch {
 	} type; // = always;
 	bool far; // = false;
 
+
+	enum {
+		c = 1,
+		n = 2,
+		z = 4,
+		v = 8
+	};
+
 	unsigned size() const;
 	bool reads_c() const;
 	bool reads_v() const;
@@ -40,6 +48,9 @@ struct branch {
 	bool is_conditional() const {
 		return type != always;
 	}
+
+	unsigned flags() const;
+
 
 	bool in_range(uint32_t pc, uint32_t target) const;
 

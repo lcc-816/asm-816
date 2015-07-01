@@ -428,8 +428,37 @@ std::vector<BasicLine *> branch::to_code(ExpressionPtr target) const {
 			}
 			break;
 
-
 	}
 
 	return rv;
+}
+
+
+unsigned branch::flags() const {
+	switch(type) {
+		case always: return 0;
+		case eq:
+		case ne:
+			return z;
+		case cc:
+		case cs:
+		case unsigned_ge:
+		case unsigned_lt:
+			return c;
+		case vs:
+		case vc:
+			return v;
+		case pl:
+		case mi:
+			return n;
+		case unsigned_gt:
+		case unsigned_le:
+			return c | z;
+		case signed_lt:
+		case signed_ge:
+			return n | v;
+		case signed_le:
+		case signed_gt:
+			return n | v | z;
+	}
 }
