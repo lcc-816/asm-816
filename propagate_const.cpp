@@ -52,6 +52,15 @@ bool propagate_const(LineQueue &list) {
 			case STA:
 			case STX:
 			case STY:
+				// rmw
+			case TSB:
+			case TRB:
+			case INC:
+			case DEC:
+			case ASL:
+			case LSR:
+			case ROR:
+			case ROL:
 				if (opcode.addressMode() == zp && e->is_temporary(reg)) {
 					known_zeroes.erase(reg);
 				}
