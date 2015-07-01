@@ -16,6 +16,10 @@
 #include "omf.h"
 #include "unordered_set"
 
+#include "cxx/filesystem.h"
+
+namespace fs = filesystem;
+
 struct {
 
 	bool S = false;
@@ -251,16 +255,33 @@ void print(const Segment *segment) {
 }
 
 
-void process_segments(SegmentQueue segments, std::string &outname) {
+void process_segments(SegmentQueue segments, fs::path &outfile) {
 
 	int segnum = 1;
+	FILE *f = nullptr;
+	int fd = -1;
 
-	int fd;
-	fd = open(outname.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
-	if (fd < 0) {
-		perror("open");
-		exit(EX_CANTCREAT);
+
+	if (flags.S) {
+		if (outfile.empty()) f = stdout;
+		else {
+			f = fopen(outfile.c_str(), "w");
+			if (!f) {
+				fprintf(stderr, "Unable to open %s : %s\n", outfile.c_str(), strerror(errno));
+				exit(EX_CANTCREAT);
+			}
+		}
+	} else {
+		if (outfile.empty()) outfile = "object.omf";
+
+		fd = open(outfile.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
+		if (fd < 0) {
+				fprintf(stderr, "Unable to open %s : %s\n", outfile.c_str(), strerror(errno));
+				exit(EX_CANTCREAT);
+		}
 	}
+
+
 
 	for (auto &seg : segments) {
 
@@ -292,8 +313,11 @@ void process_segments(SegmentQueue segments, std::string &outname) {
 		omf.write(fd);
 
 	}
-	set_ftype(fd, 0xb1, 0x0000);
-	close(fd);
+	if (fd >= 0) {
+		set_ftype(fd, 0xb1, 0x0000);
+		close(fd);
+	}
+	if (f && f != stdout) fclose(f);
 }
 
 
@@ -353,11 +377,11 @@ int main(int argc, char **argv) {
 		bool ok = parse_file(stdin, segments);
 		if (ok) {
 
-			std::string name = std::move(flags.o);
+			// ok if ofn is empty.
+			fs::path ofn  = std::move(flags.o);
 			flags.o.clear();
-			if (name.empty()) name = "object.omf";
 
-			process_segments(std::move(segments), name);
+			process_segments(std::move(segments), ofn);
 		}
 
 		if (!ok) exit(EX_DATAERR);
@@ -370,11 +394,17 @@ int main(int argc, char **argv) {
 		bool ok = parse_file(argv[i], segments);
 		if (ok) {
 
-			std::string name = std::move(flags.o);
+			fs::path ifn = argv[i];
+			fs::path ofn = std::move(flags.o);
 			flags.o.clear();
-			if (name.empty()) name = "object.omf";
 
-			process_segments(std::move(segments), name);
+			if (ofn.empty()) {
+				ofn = ifn.filename(); // use cwd.
+				if (flags.S) ofn.replace_extension(".s");
+				else ofn.replace_extension(".omf");
+			}
+
+			process_segments(std::move(segments), ofn);
 		}
 		if (!ok) exit(EX_DATAERR);
 	}
