@@ -599,7 +599,6 @@ bool peephole(LineQueue &list) {
 		case STA:
 			/* STA %t0, LDA %t0 -> STA %t0 */
 			if (match(list, STA, LDA, [&](BasicLine *a, BasicLine *b){
-				//printf("STA %d/ LDA %d\n" , a->opcode.addressMode(), b->opcode.addressMode());
 
 				if (a->opcode.addressMode() == b->opcode.addressMode()) {
 
@@ -609,6 +608,28 @@ bool peephole(LineQueue &list) {
 							list.pop_front(); // a
 							list.pop_front(); // b
 							delete b;
+							list.push_front(a);
+							return true;
+						}
+					}
+				}
+				return false;
+			})) continue;
+
+			/* STA %t0, STA %t2, LDA %t0 -> STA, STA */
+			if (match(list, STA, STA, LDA, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+
+				// does b's address mode matter?
+				if (a->opcode.addressMode() == c->opcode.addressMode()) {
+
+					dp_register reg_a, reg_c;
+					if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
+						if (reg_a == reg_c) {
+							list.pop_front(); // a
+							list.pop_front(); // b
+							list.pop_front(); // c
+							delete c;
+							list.push_front(b);
 							list.push_front(a);
 							return true;
 						}
