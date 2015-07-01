@@ -80,11 +80,11 @@ void simplify(LineQueue &lines) {
 }
 
 
-void print(const LineQueue &lines) {
+void print(FILE *file, const LineQueue &lines) {
 
 	for (const BasicLine *line : lines) {
 
-		if (line->label) { printf("%s\n", line->label->c_str()); }
+		if (line->label) { fprintf(file, "%s\n", line->label->c_str()); }
 
 		if (line->directive) {
 			std::string s;
@@ -104,7 +104,7 @@ void print(const LineQueue &lines) {
 			if (line->operands[0]) {
 				s = line->operands[0]->to_string();
 			}
-			printf("    %s %s\n", name, s.c_str());
+			fprintf(file, "    %s %s\n", name, s.c_str());
 			continue;
 		}
 
@@ -235,7 +235,7 @@ void print(const LineQueue &lines) {
 			}
 
 
-			printf("    %s %s\n", 
+			fprintf(file, "    %s %s\n", 
 				line->opcode.toString(), 
 				op.c_str()
 			);
@@ -243,15 +243,15 @@ void print(const LineQueue &lines) {
 	}
 }
 
-void print(const Segment *segment) {
+void print(FILE *file, const Segment *segment) {
 
 	const char *start = "start";
 	if (segment->convention == Segment::data)
 		start = "data";
 
-	printf("%s    %s\n", segment->name ? segment->name->c_str() : "", start);
-	print(segment->lines);
-	printf("    end\n\n");
+	fprintf(file, "%s    %s\n", segment->name ? segment->name->c_str() : "", start);
+	print(file, segment->lines);
+	fprintf(file, "    end\n\n");
 }
 
 
@@ -289,7 +289,7 @@ void process_segments(SegmentQueue segments, fs::path &outfile) {
 
 			if (flags.S) {
 				// -S -- output code.
-				print(seg.get());
+				print(f, seg.get());
 				continue;
 			}
 
@@ -304,7 +304,7 @@ void process_segments(SegmentQueue segments, fs::path &outfile) {
 
 		if (flags.S) {
 			// -S -- output code.
-			print(seg.get());
+			print(f, seg.get());
 			continue;
 		}
 
@@ -398,10 +398,10 @@ int main(int argc, char **argv) {
 			fs::path ofn = std::move(flags.o);
 			flags.o.clear();
 
-			if (ofn.empty()) {
+			if (ofn.empty() && !flags.S) {
 				ofn = ifn.filename(); // use cwd.
-				if (flags.S) ofn.replace_extension(".s");
-				else ofn.replace_extension(".omf");
+				//if (flags.S) ofn.replace_extension(".s");
+				ofn.replace_extension(".omf");
 			}
 
 			process_segments(std::move(segments), ofn);
