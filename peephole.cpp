@@ -84,6 +84,43 @@ bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Mnemonic m4, 
 }
 
 
+// lda xxx, cmp #0, branch 
+template<class FX>
+bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Directive d3, FX fx) {
+	const unsigned Size = 3;
+	// Mnemonic mm[Size] = { m1, m2, m3};
+
+	BasicLine *lines[Size] = {0};
+
+	if (list.size() < Size) return false;
+
+	// could have a template recursively match?
+
+	auto iter = list.begin();
+	{
+		BasicLine *tmp = *iter;
+		if (tmp->opcode.mnemonic() != m1) return false;
+		lines[0] = tmp;
+		++iter;
+	}
+
+	{
+		BasicLine *tmp = *iter;
+		if (tmp->opcode.mnemonic() != m2) return false;
+		lines[1] = tmp;
+		++iter;
+	}
+
+	{
+		BasicLine *tmp = *iter;
+		if (tmp->directive != d3) return false;
+		lines[2] = tmp;
+		++iter;
+	}
+
+
+	return fx(lines[0], lines[1], lines[2]);
+}
 
 
 bool peephole(LineQueue &list) {
@@ -726,6 +763,39 @@ bool peephole(LineQueue &list) {
 
 		 	})) continue;
 
+			// STY first to improve other optimizations.
+			if (match(list, STA, STY, [&](BasicLine *a, BasicLine *b){
+					dp_register reg_a, reg_e;
+
+					if (a->opcode.addressMode() != zp) return false;
+					if (b->opcode.addressMode() != zp) return false;
+
+					list.pop_front();
+					list.pop_front();
+
+					list.insert(list.begin(), {b, a});
+
+					return true;
+
+		 	})) continue;
+
+			// STZ first to improve other optimizations.
+			if (match(list, STA, STZ, [&](BasicLine *a, BasicLine *b){
+					dp_register reg_a, reg_e;
+
+					if (a->opcode.addressMode() != zp) return false;
+					if (b->opcode.addressMode() != zp) return false;
+
+					list.pop_front();
+					list.pop_front();
+
+					list.insert(list.begin(), {b, a});
+
+					return true;
+
+		 	})) continue;
+
+
 #if 0
 	// commenting out... swap LDA, LDX and STA, STX to put x first, for better optimizations later.
 			/*
@@ -778,6 +848,30 @@ bool peephole(LineQueue &list) {
 #endif
 
 			break;
+
+
+		case STX:
+			/* STX %t0, PHA, pei %t0 -> pha, phx, stx */
+			/* makes dead-write elimination easier */
+			if (match(list, STX, PHA, PEI, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+				dp_register reg_a, reg_c;
+				if (a->opcode.addressMode() != zp) return false;
+				if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
+					if (reg_a != reg_c) return false;
+
+
+					list.pop_front();
+					list.pop_front();
+					list.pop_front();
+					BasicLine *tmp = new BasicLine(PHX, implied);
+					tmp->calc_registers();
+					list.insert(list.begin(), {b, tmp, a});
+
+					delete c;
+					return true;
+				}
+				return false;
+			})) continue;
 
 
 		case TAX:
@@ -873,12 +967,18 @@ bool final_peephole(LineQueue &list) {
 		switch(line->opcode.mnemonic()) {
 		default: break;
 
+		// AND xxx, cmp #0
+		// ORA xxx, cmp #0
+		// EOR xxx, cmp #0
+		// ASL, ROR, etc?
+
 		case LDA:
-			/* LDA xxx, CMP #0 -> LDA xxx */
-			if (match(list, LDA, CMP, [&](BasicLine *a, BasicLine *b){
+			/* LDA xxx, CMP #0, branch -> LDA xxx, branch */
+			if (match(list, LDA, CMP, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c){
 				uint32_t value;
 				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
-					if (value == 0) {
+					if (value == 0 && !c->branch.reads_c() && !c->branch.reads_v()) {
+						// drop the cmp
 						list.pop_front();
 						list.pop_front();
 						list.push_front(a);
@@ -890,6 +990,7 @@ bool final_peephole(LineQueue &list) {
 			})) continue;
 			break;
 
+#if 0
 		case LDX:
 			/* LDX xxx, CPX #0 -> LDX xxx */
 			if (match(list, LDX, CPX, [&](BasicLine *a, BasicLine *b){
@@ -923,9 +1024,9 @@ bool final_peephole(LineQueue &list) {
 				return false;
 			})) continue;
 			break;
+#endif
 
 		}
-
 
 		list.pop_front();
 		optimized.push_back(line);

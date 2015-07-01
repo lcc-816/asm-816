@@ -709,6 +709,7 @@ void basic_block(Segment *segment) {
 
 	void fix_branches(BlockQueue &blocks);
 	void assign_registers(Segment *segment, BlockQueue &);
+	bool final_peephole(LineQueue &list);
 
 
 	assign_registers(segment, bq); // creates epilogue/prologue.
@@ -729,6 +730,7 @@ void basic_block(Segment *segment) {
 			tmp->label = block->label;
 			out.push_back(tmp);
 		}
+		final_peephole(block->lines); // remove extraneous cmp #0
 
 		for (auto &line : block->lines) {
 			switch(line->directive) {
