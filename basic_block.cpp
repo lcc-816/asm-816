@@ -670,13 +670,15 @@ void basic_block(Segment *segment) {
 	// now do a second lifetime scan to remove dead writes
 	// across blocks.
 
+	bool propagate_const(LineQueue &list);
+
 	for (BasicBlock * block : bq) {
 		for(;;) {
 			bool delta = false;
 
 			if (peephole(block->lines)) delta = true;
 			if (analyze_block_2(block)) delta = true;
-
+			if (propagate_const(block->lines)) delta = true;
 			if (!delta) break;
 
 		}
