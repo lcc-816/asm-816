@@ -97,7 +97,7 @@ namespace OMF {
 		if (size == 0) return;
 
 		if (size <= 0xdf) append((uint8_t)size);
-		else append((uint32_t)size);
+		else append(OMF::LCONST, (uint32_t)size);
 
 		append(lconst.begin(), lconst.end());
 		lconst.clear();
