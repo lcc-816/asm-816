@@ -1020,6 +1020,10 @@ bool final_peephole(LineQueue &list) {
 
 		case LDA:
 		case PLA:
+		case TYA:
+		case TXA:
+		case TAY: // a == y.
+		case TAX:
 		case ORA:
 		case EOR:
 		case AND:
