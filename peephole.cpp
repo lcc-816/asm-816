@@ -123,6 +123,52 @@ bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Directive d3, FX fx) {
 }
 
 
+template<class FX>
+bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Directive d4, FX fx) {
+	const unsigned Size = 4;
+	// Mnemonic mm[Size] = { m1, m2, m3};
+
+	BasicLine *lines[Size] = {0};
+
+	if (list.size() < Size) return false;
+
+	// could have a template recursively match?
+
+	auto iter = list.begin();
+	{
+		BasicLine *tmp = *iter;
+		if (tmp->opcode.mnemonic() != m1) return false;
+		lines[0] = tmp;
+		++iter;
+	}
+
+	{
+		BasicLine *tmp = *iter;
+		if (tmp->opcode.mnemonic() != m2) return false;
+		lines[1] = tmp;
+		++iter;
+	}
+
+
+	{
+		BasicLine *tmp = *iter;
+		if (tmp->opcode.mnemonic() != m3) return false;
+		lines[2] = tmp;
+		++iter;
+	}
+
+	{
+		BasicLine *tmp = *iter;
+		if (tmp->directive != d4) return false;
+		lines[3] = tmp;
+		++iter;
+	}
+
+
+	return fx(lines[0], lines[1], lines[2], lines[3]);
+}
+
+
 bool peephole(LineQueue &list) {
 
 
@@ -1018,6 +1064,9 @@ bool final_peephole(LineQueue &list) {
 	 *
 	 */
 
+	static identifier ToolError = nullptr;
+	if (!ToolError) ToolError = intern("_toolErr");
+
 	// hmmm can't just drop CMP #0 since CMP sets the c flag,
 	// LDA does not.  CMP #0 bcs ... == if (x >= 0)
 	// but bcs only useful for unsigned... shouldn't ever 
@@ -1034,6 +1083,59 @@ bool final_peephole(LineQueue &list) {
 		OpCode opcode = line->opcode;
 		switch(opcode.mnemonic()) {
 		default: break;
+
+		case JSL:
+			/* jsl $e10000, sta >_toolErr, cmp #0, beq/bne -> */
+			/* jsl $e10000, sta >_toolErr, bcc / bcs */
+			if (match(list, JSL, STA, CMP, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d) {
+				uint32_t vector;
+				identifier te;
+				uint32_t zero;
+
+				if (
+					a->opcode.addressMode() == absolute_long && a->operands[0]->is_integer(vector) &&
+					b->opcode.addressMode() == absolute_long && b->operands[0]->is_identifier(te) &&
+					c->opcode.addressMode() == immediate && c->operands[0]->is_integer(zero)
+				) {
+
+
+					// tool, user tool, gsos vectors.
+					if ((vector == 0xe10000 || vector == 0xe10008 || vector == 0xe100b0)
+						&& te == ToolError
+						&& zero == 0
+					) {
+
+						switch(d->branch.type) {
+							case branch::eq:
+								d->branch.type = branch::cc;
+								break;
+							case branch::ne:
+								d->branch.type = branch::cs;
+								break;
+
+							default: 
+								return false;
+						}
+
+						list.pop_front();
+						list.pop_front();
+						list.pop_front();
+						list.pop_front();
+
+						delete c;
+
+						list.insert(list.begin(), {
+							a, b, d
+						});
+
+						return true;
+					}
+
+				}
+
+				return false;
+			})) continue;
+			break;
 
 		// AND xxx, cmp #0
 		// ORA xxx, cmp #0
