@@ -909,6 +909,54 @@ bool peephole(LineQueue &list) {
 		 	})) continue;
 
 
+
+			/*
+				reading a byte:
+				sep #$20
+				lda ...
+				sta <$01 \
+				rep #$20 |
+				lda <$01 |
+				and #$ff /
+				---
+				sta <$01
+				rep #$20
+				and #$ff				
+			 */
+
+			if (match(list, STA, REP, LDA, AND, [&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d) {
+
+				dp_register reg_a, reg_c;
+				uint32_t int_b, int_d;
+				if (a->operands[0]->is_register(reg_a) 
+					&& b->operands[0]->is_integer(int_b) 
+					&& c->operands[0]->is_register(reg_c)
+					&& d->operands[0]->is_integer(int_d)) {
+
+					if (reg_a == reg_c && (int_b & 0x20) && int_d <= 0xff) {
+
+						list.pop_front();
+						list.pop_front();
+						list.pop_front();
+						list.pop_front();
+
+						list.insert(list.begin(), {
+							a, b, d
+						});
+
+						delete c;
+
+						return true;
+					}
+
+				}
+				return false;
+
+			})) continue;
+
+			break;
+
+
 #if 0
 	// commenting out... swap LDA, LDX and STA, STX to put x first, for better optimizations later.
 			/*
