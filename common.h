@@ -183,6 +183,14 @@ struct Segment {
 typedef std::deque< std::unique_ptr<Segment> > SegmentQueue;
 
 
+// Translation unit aka file
+struct Unit {
+	std::string filename;
+	SegmentQueue segments;
+	std::vector<identifier> imports;
+	std::vector<identifier> exports;
+};
+
 bool peephole(LineQueue &);
 void print(const LineQueue &lines);
 void simplify(LineQueue &lines);
