@@ -2,6 +2,8 @@
 #include <string>
 
 #include <cstdio>
+#include <cstring>
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <sysexits.h>
