@@ -613,6 +613,28 @@ bool peephole(LineQueue &list) {
 						}
 					}
 				}
+
+				/*
+				 * sta >_toolErr
+				 * lda |_toolErr
+				 */
+				if (a->opcode.addressMode() == absolute_long && b->opcode.addressMode() == absolute) {
+
+					identifier id_a, id_b;
+					if (a->operands[0]->is_identifier(id_a) && b->operands[0]->is_identifier(id_b)) {
+						//static identifier ToolError = nullptr;
+						//if (!identifier) identifier = intern("_toolErr");
+						// it shouldn't matter if it's toolErr or something else.
+						if (id_a == id_b) {
+							list.pop_front(); // a
+							list.pop_front(); // b
+							delete b;
+							list.push_front(a);
+							return true;
+						}
+					}
+
+				}
 				return false;
 			})) continue;
 
