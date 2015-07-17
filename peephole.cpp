@@ -529,7 +529,70 @@ bool peephole(LineQueue &list) {
 				list.push_front(tmp);
 				return true;
 			})) continue;
+
+
+			/* PEI (xxx), PLX -> LDX <xxx */
+			if (match(list, PEI, PLX, [&](BasicLine *a, BasicLine *b){
+
+				BasicLine *tmp = new BasicLine(LDX, zp, a->operands[0]);
+				tmp->calc_registers();
+
+				list.pop_front();
+				list.pop_front();
+
+				delete a;
+				delete b;
+
+				list.push_front(tmp);
+				return true;
+			})) continue;
+
+			/* PEI (xxx), PLY -> LDY <xxx */
+			if (match(list, PEI, PLX, [&](BasicLine *a, BasicLine *b){
+
+				BasicLine *tmp = new BasicLine(LDY, zp, a->operands[0]);
+				tmp->calc_registers();
+
+				list.pop_front();
+				list.pop_front();
+
+				delete a;
+				delete b;
+
+				list.push_front(tmp);
+				return true;
+			})) continue;
+
+
+			/* PEI (xxx), LDA xxx -> LDA <xxx, PHA */
+			if (match(list, PEI, LDA, [&](BasicLine *a, BasicLine *b){
+
+				dp_register reg_a, reg_b;
+				if (b->opcode.addressMode() == zp 
+					&& a->operands[0]->is_register(reg_a)
+					&& b->operands[0]->is_register(reg_b)
+				){
+					if (reg_a == reg_b) {
+
+						BasicLine *tmp = new BasicLine(PHA, implied);
+						tmp->calc_registers();
+
+						list.pop_front();
+						list.pop_front();
+
+						list.insert(list.begin(), {b, tmp});
+
+						delete a;
+
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
+				
 			break;
+
 
 		case PHA:
 			/* PHA, PLA -> NOP */
