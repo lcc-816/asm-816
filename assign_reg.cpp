@@ -173,7 +173,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	segment->prologue_code = std::move(tmp);
 	tmp.clear();
 
-	if (segment->convention == Segment::stdcall || segment->convention == Segment::pascal) {
+	if ((segment->convention == Segment::stdcall || segment->convention == Segment::pascal) && segment->parm_size) {
 
 		unsigned xfer = (rtlb + 1 ) & ~0x01;
 		unsigned dest = locals + rtlb + segment->parm_size;
@@ -181,7 +181,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 		// move the return address.
 		while (xfer) {
 			tmp.push_back(new BasicLine(LDA, zp, Expression::Integer(1 + locals + xfer - 2)));
-			tmp.push_back(new BasicLine(STA, zp, Expression::Integer(1 + dest - 2)));
+			tmp.push_back(new BasicLine(STA, zp, Expression::Integer(1 + dest - 1)));
 			xfer -= 2;
 			dest -= 2;
 		}
