@@ -23,6 +23,151 @@ namespace {
 	}
 }
 
+
+/*
+ * convert dp registers to stack relative...
+ *
+ * 1. check for adc #%dp -- not allowed (must be done above, before reg assignment)
+ * 2. check for zp,x zp,y (zp), (zp,x), [zp] [zp],y -- not allowed
+ * 3. check if opcode has stack_relative as a possible address mode
+ *
+ * then
+ *
+ * 1. swap address mode / operand.
+ */
+
+bool can_convert_to_sr(const BlockQueue &blocks) {
+
+
+	for (auto block : blocks) {
+
+		for (auto line : block->lines) {
+
+			OpCode op = line->opcode;
+			ExpressionPtr e = line->operands[0];
+
+			// hmm... how can we track it... consider stdcall vs cdecl...
+			switch (op.opcode()) {
+				// todo -- use attributes...
+				case PEI:
+				case PER:
+				case PEA:
+				case PHB:
+				case PHK:
+				case PHA:
+				case PHX:
+				case PHY:
+				case TCS:
+				case TSC:
+				case PLA:
+				case PLX:
+				case PLY:
+				case PLB:
+				case PHP:
+				case PLP:
+				case PHD:
+				case PLD:
+					return false;
+				default:
+					break;
+			}
+
+			switch (op.addressMode()) {
+
+				case zp: // lda zp -> lda offset,s
+					{
+						Instruction instr(m65816, op.mnemonic());
+						if (!instr.hasAddressMode(stack_relative))
+							return false;
+
+						if (!e->is_register() && !e->is_integer())
+							return false;
+						break;
+					}
+				case zp_indirect_y: // lda (zp),y -> lda (offset,s),y 
+					{
+						Instruction instr(m65816, op.mnemonic());
+						if (!instr.hasAddressMode(stack_relative_y))
+							return false;
+
+						if (!e->is_register() && !e->is_integer())
+							return false;
+						break;
+					}
+				case zp_x:
+				case zp_y:
+				case zp_indirect:
+				case zp_indirect_x:
+				case zp_indirect_z:
+				case zp_relative:
+
+				case zp_indirect_long:
+				case zp_indirect_long_y:
+						return false;
+
+				case immediate:
+					if (e->is_register())
+						return false;
+					break;
+
+				default:
+					break;;
+			}
+		}
+	}
+	return true;
+}
+
+void make_sr(BasicLine *line, AddressMode mode) {
+
+	OpCode op = line->opcode;
+	line->opcode = OpCode(m65816, op.mnemonic(), mode);
+
+	// dp value is same as stack relative value.
+	// crap -- also need to track the current stack adjustment --- 
+	// pha
+	// lda 1,s --> lda 3,s
+	//
+}
+
+void convert_to_sr(BlockQueue &blocks) {
+
+
+	for (auto block : blocks) {
+
+		for (auto line : block->lines) {
+
+			OpCode op = line->opcode;
+
+			switch (op.addressMode()) {
+
+				case zp: // lda zp -> lda offset,s
+					make_sr(line, stack_relative);
+					break;
+
+				case zp_indirect_y: // lda (zp),y -> lda (offset,s),y 
+					make_sr(line, stack_relative_y);
+					break;
+
+				case zp_x:
+				case zp_y:
+				case zp_indirect:
+				case zp_indirect_x:
+				case zp_indirect_z:
+				case zp_relative:
+
+				case zp_indirect_long:
+				case zp_indirect_long_y:
+						throw std::runtime_error("cannot convert to stack_relative address mode.");
+
+				default:
+					break;;
+
+			}
+		}
+	}
+}
+
 void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	Expression::register_info ri;
@@ -34,6 +179,8 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	if (segment->databank) rtlb++;
 
 	// if no registers used, no need to set/restore dp.
+
+	bool make_sr = can_convert_to_sr(blocks);
 
 
 	// pragma locals=...
@@ -114,6 +261,10 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 		}
 	}
 
+	// convert to sr...
+	if (make_sr) convert_to_sr(blocks);
+
+
 	// can generate epilogue / prologue now.
 
 	if (segment->convention == Segment::naked) return;
@@ -157,17 +308,24 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 		if (locals <= 8) {
 			for (unsigned i = 0; i < locals; i += 2)
 				tmp.push_back(new BasicLine(PHY, implied));
-			tmp.push_back(new BasicLine(TSC, implied));
-			tmp.push_back(new BasicLine(PHD, implied));
-			tmp.push_back(new BasicLine(TCD, implied));
+
+
+			if (!make_sr) {
+				tmp.push_back(new BasicLine(TSC, implied));
+				tmp.push_back(new BasicLine(PHD, implied));
+				tmp.push_back(new BasicLine(TCD, implied));
+			}
 		}
 		else {
 			tmp.push_back(new BasicLine(TSC, implied));
 			tmp.push_back(new BasicLine(SEC, implied));
 			tmp.push_back(new BasicLine(SBC, immediate, Expression::Integer(locals)));
 			tmp.push_back(new BasicLine(TCS, implied));
-			tmp.push_back(new BasicLine(PHD, implied));
-			tmp.push_back(new BasicLine(TCD, implied));
+
+			if (!make_sr) {
+				tmp.push_back(new BasicLine(PHD, implied));
+				tmp.push_back(new BasicLine(TCD, implied));
+			}
 		}
 	}
 	segment->prologue_code = std::move(tmp);
@@ -175,13 +333,27 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	if ((segment->convention == Segment::stdcall || segment->convention == Segment::pascal) && segment->parm_size) {
 
-		unsigned xfer = (rtlb + 1 ) & ~0x01;
+		unsigned xfer = rtlb;
 		unsigned dest = locals + rtlb + segment->parm_size;
+
+		AddressMode mode = zp;
+		if (make_sr) mode = stack_relative;
+
+		// 3 bytes...
+		if (xfer & 0x01) {
+
+			tmp.push_back(new BasicLine(LDA, mode, Expression::Integer(1 + locals + xfer - 2)));
+			tmp.push_back(new BasicLine(STA, mode, Expression::Integer(1 + dest - 2)));
+
+			xfer -= 1;
+			dest -= 1;
+		}
 
 		// move the return address.
 		while (xfer) {
-			tmp.push_back(new BasicLine(LDA, zp, Expression::Integer(1 + locals + xfer - 2)));
-			tmp.push_back(new BasicLine(STA, zp, Expression::Integer(1 + dest - 1)));
+
+			tmp.push_back(new BasicLine(LDA, mode, Expression::Integer(1 + locals + xfer - 2)));
+			tmp.push_back(new BasicLine(STA, mode, Expression::Integer(1 + dest - 2)));
 			xfer -= 2;
 			dest -= 2;
 		}
@@ -191,7 +363,9 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	// prologue...
 	if (locals || segment->parm_size) {
-		tmp.push_back(new BasicLine(PLD, implied));
+		if (!make_sr) {
+			tmp.push_back(new BasicLine(PLD, implied));
+		}
 
 		if (locals <= 8) {
 			for (unsigned i = 0; i < locals; i += 2)
@@ -217,3 +391,6 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	segment->epilogue_code = std::move(tmp);
 
 }
+
+
+
