@@ -67,6 +67,8 @@ bool can_convert_to_sr(const BlockQueue &blocks) {
 				case PLP:
 				case PHD:
 				case PLD:
+				case TDC: // could replace w/ TSC?
+				case TCD:
 					return false;
 				default:
 					break;
