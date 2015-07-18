@@ -47,7 +47,7 @@ bool can_convert_to_sr(const BlockQueue &blocks) {
 			ExpressionPtr e = line->operands[0];
 
 			// hmm... how can we track it... consider stdcall vs cdecl...
-			switch (op.opcode()) {
+			switch (op.mnemonic()) {
 				// todo -- use attributes...
 				case PEI:
 				case PER:
