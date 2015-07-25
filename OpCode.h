@@ -138,7 +138,7 @@ private:
     
     static void InitHashTable();
     
-    OpCode(unsigned OpCode, Machine machine, Mnemonic mnemonic, AddressMode addressMode, unsigned bytes, unsigned cycles, uint32_t attributes = 0);
+    OpCode(unsigned OpCode, Machine machine, Mnemonic mnemonic, uint_least32_t addressModes, AddressMode addressMode, unsigned bytes, unsigned cycles, uint32_t attributes = 0);
     
     unsigned _opcode = 0;
     AddressMode _addressMode = kUndefinedAddressMode;
@@ -148,8 +148,8 @@ private:
 };
 
 
-inline OpCode::OpCode(unsigned opcode, Machine machine, Mnemonic mnemonic, AddressMode addressMode, unsigned bytes, unsigned cycles, uint32_t attributes) :
-    Instruction(machine, mnemonic, 1 << addressMode),
+inline OpCode::OpCode(unsigned opcode, Machine machine, Mnemonic mnemonic, uint_least32_t addressModes, AddressMode addressMode, unsigned bytes, unsigned cycles, uint32_t attributes) :
+    Instruction(machine, mnemonic, addressModes),
     _opcode(opcode),
     _addressMode(addressMode),
     _bytes(bytes),

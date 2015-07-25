@@ -1,4 +1,6 @@
-/* gen-i-table.pl Sat Jul 25 09:52:00 2015 */
+/* gen-i-table.pl Sat Jul 25 13:27:25 2015 */
+
+#include "gen-address-modes.h"
 
 Mnemonic Instruction::m6502_mnemonics[] = {
   ADC, AND, ASL, BCC, BCS, BEQ, BIT, BMI, 
@@ -86,2354 +88,548 @@ Mnemonic Instruction::m65816_mnemonics[] = {
   WAI, WDM, XBA, XCE, 
 };
 
-template<unsigned...>
-struct make_bitmask;
-
-template<>
-struct make_bitmask<> : public std::integral_constant<uint32_t, 0>
-{};
-
-template<unsigned First, unsigned... Rest>
-struct make_bitmask<First, Rest...> :
-public std::integral_constant<uint32_t, (1 << First) | make_bitmask<Rest...>::value >
-{};
-
-
 Instruction Instruction::m6502_instructions[] = {
-  Instruction(m6502, ADC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m6502, AND, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m6502, ASL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m6502, BCC, make_bitmask<
-    relative
-    >::value),
-  Instruction(m6502, BCS, make_bitmask<
-    relative
-    >::value),
-  Instruction(m6502, BEQ, make_bitmask<
-    relative
-    >::value),
-  Instruction(m6502, BIT, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(m6502, BMI, make_bitmask<
-    relative
-    >::value),
-  Instruction(m6502, BNE, make_bitmask<
-    relative
-    >::value),
-  Instruction(m6502, BPL, make_bitmask<
-    relative
-    >::value),
-  Instruction(m6502, BRK, make_bitmask<
-    interrupt
-    >::value),
-  Instruction(m6502, BVC, make_bitmask<
-    relative
-    >::value),
-  Instruction(m6502, BVS, make_bitmask<
-    relative
-    >::value),
-  Instruction(m6502, CLC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, CLD, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, CLI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, CLV, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, CMP, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m6502, CPX, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m6502, CPY, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m6502, DEC, make_bitmask<
-    absolute,
-    absolute_x,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m6502, DEX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, DEY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, EOR, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m6502, INC, make_bitmask<
-    absolute,
-    absolute_x,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m6502, INX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, INY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, JMP, make_bitmask<
-    absolute,
-    absolute_indirect
-    >::value),
-  Instruction(m6502, JSR, make_bitmask<
-    absolute
-    >::value),
-  Instruction(m6502, LDA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m6502, LDX, make_bitmask<
-    absolute,
-    absolute_y,
-    immediate,
-    zp,
-    zp_y
-    >::value),
-  Instruction(m6502, LDY, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m6502, LSR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m6502, NOP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, ORA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m6502, PHA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, PHP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, PLA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, PLP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, ROL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m6502, ROR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m6502, RTI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, RTS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, SBC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m6502, SEC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, SED, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, SEI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, STA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m6502, STX, make_bitmask<
-    absolute,
-    zp,
-    zp_y
-    >::value),
-  Instruction(m6502, STY, make_bitmask<
-    absolute,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m6502, TAX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, TAY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, TSX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, TXA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, TXS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m6502, TYA, make_bitmask<
-    implied
-    >::value),
+  Instruction(m6502, ADC, address_modes<m6502, ADC>::value),
+  Instruction(m6502, AND, address_modes<m6502, AND>::value),
+  Instruction(m6502, ASL, address_modes<m6502, ASL>::value),
+  Instruction(m6502, BCC, address_modes<m6502, BCC>::value),
+  Instruction(m6502, BCS, address_modes<m6502, BCS>::value),
+  Instruction(m6502, BEQ, address_modes<m6502, BEQ>::value),
+  Instruction(m6502, BIT, address_modes<m6502, BIT>::value),
+  Instruction(m6502, BMI, address_modes<m6502, BMI>::value),
+  Instruction(m6502, BNE, address_modes<m6502, BNE>::value),
+  Instruction(m6502, BPL, address_modes<m6502, BPL>::value),
+  Instruction(m6502, BRK, address_modes<m6502, BRK>::value),
+  Instruction(m6502, BVC, address_modes<m6502, BVC>::value),
+  Instruction(m6502, BVS, address_modes<m6502, BVS>::value),
+  Instruction(m6502, CLC, address_modes<m6502, CLC>::value),
+  Instruction(m6502, CLD, address_modes<m6502, CLD>::value),
+  Instruction(m6502, CLI, address_modes<m6502, CLI>::value),
+  Instruction(m6502, CLV, address_modes<m6502, CLV>::value),
+  Instruction(m6502, CMP, address_modes<m6502, CMP>::value),
+  Instruction(m6502, CPX, address_modes<m6502, CPX>::value),
+  Instruction(m6502, CPY, address_modes<m6502, CPY>::value),
+  Instruction(m6502, DEC, address_modes<m6502, DEC>::value),
+  Instruction(m6502, DEX, address_modes<m6502, DEX>::value),
+  Instruction(m6502, DEY, address_modes<m6502, DEY>::value),
+  Instruction(m6502, EOR, address_modes<m6502, EOR>::value),
+  Instruction(m6502, INC, address_modes<m6502, INC>::value),
+  Instruction(m6502, INX, address_modes<m6502, INX>::value),
+  Instruction(m6502, INY, address_modes<m6502, INY>::value),
+  Instruction(m6502, JMP, address_modes<m6502, JMP>::value),
+  Instruction(m6502, JSR, address_modes<m6502, JSR>::value),
+  Instruction(m6502, LDA, address_modes<m6502, LDA>::value),
+  Instruction(m6502, LDX, address_modes<m6502, LDX>::value),
+  Instruction(m6502, LDY, address_modes<m6502, LDY>::value),
+  Instruction(m6502, LSR, address_modes<m6502, LSR>::value),
+  Instruction(m6502, NOP, address_modes<m6502, NOP>::value),
+  Instruction(m6502, ORA, address_modes<m6502, ORA>::value),
+  Instruction(m6502, PHA, address_modes<m6502, PHA>::value),
+  Instruction(m6502, PHP, address_modes<m6502, PHP>::value),
+  Instruction(m6502, PLA, address_modes<m6502, PLA>::value),
+  Instruction(m6502, PLP, address_modes<m6502, PLP>::value),
+  Instruction(m6502, ROL, address_modes<m6502, ROL>::value),
+  Instruction(m6502, ROR, address_modes<m6502, ROR>::value),
+  Instruction(m6502, RTI, address_modes<m6502, RTI>::value),
+  Instruction(m6502, RTS, address_modes<m6502, RTS>::value),
+  Instruction(m6502, SBC, address_modes<m6502, SBC>::value),
+  Instruction(m6502, SEC, address_modes<m6502, SEC>::value),
+  Instruction(m6502, SED, address_modes<m6502, SED>::value),
+  Instruction(m6502, SEI, address_modes<m6502, SEI>::value),
+  Instruction(m6502, STA, address_modes<m6502, STA>::value),
+  Instruction(m6502, STX, address_modes<m6502, STX>::value),
+  Instruction(m6502, STY, address_modes<m6502, STY>::value),
+  Instruction(m6502, TAX, address_modes<m6502, TAX>::value),
+  Instruction(m6502, TAY, address_modes<m6502, TAY>::value),
+  Instruction(m6502, TSX, address_modes<m6502, TSX>::value),
+  Instruction(m6502, TXA, address_modes<m6502, TXA>::value),
+  Instruction(m6502, TXS, address_modes<m6502, TXS>::value),
+  Instruction(m6502, TYA, address_modes<m6502, TYA>::value),
 };
 
 Instruction Instruction::m65c02_instructions[] = {
-  Instruction(m65c02, ADC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65c02, AND, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65c02, ASL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, BCC, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, BCS, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, BEQ, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, BIT, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, BMI, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, BNE, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, BPL, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, BRA, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, BRK, make_bitmask<
-    interrupt
-    >::value),
-  Instruction(m65c02, BVC, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, BVS, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65c02, CLC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, CLD, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, CLI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, CLV, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, CMP, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65c02, CPX, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m65c02, CPY, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m65c02, DEC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, DEX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, DEY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, EOR, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65c02, INC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, INX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, INY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, JMP, make_bitmask<
-    absolute,
-    absolute_indirect,
-    absolute_indirect_x
-    >::value),
-  Instruction(m65c02, JSR, make_bitmask<
-    absolute
-    >::value),
-  Instruction(m65c02, LDA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65c02, LDX, make_bitmask<
-    absolute,
-    absolute_y,
-    immediate,
-    zp,
-    zp_y
-    >::value),
-  Instruction(m65c02, LDY, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, LSR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, NOP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, ORA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65c02, PHA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, PHP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, PHX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, PHY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, PLA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, PLP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, PLX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, PLY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, ROL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, ROR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, RTI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, RTS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, SBC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65c02, SEC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, SED, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, SEI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, STA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65c02, STP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, STX, make_bitmask<
-    absolute,
-    zp,
-    zp_y
-    >::value),
-  Instruction(m65c02, STY, make_bitmask<
-    absolute,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, STZ, make_bitmask<
-    absolute,
-    absolute_x,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65c02, TAX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, TAY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, TRB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(m65c02, TSB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(m65c02, TSX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, TXA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, TXS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, TYA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65c02, WAI, make_bitmask<
-    implied
-    >::value),
+  Instruction(m65c02, ADC, address_modes<m65c02, ADC>::value),
+  Instruction(m65c02, AND, address_modes<m65c02, AND>::value),
+  Instruction(m65c02, ASL, address_modes<m65c02, ASL>::value),
+  Instruction(m65c02, BCC, address_modes<m65c02, BCC>::value),
+  Instruction(m65c02, BCS, address_modes<m65c02, BCS>::value),
+  Instruction(m65c02, BEQ, address_modes<m65c02, BEQ>::value),
+  Instruction(m65c02, BIT, address_modes<m65c02, BIT>::value),
+  Instruction(m65c02, BMI, address_modes<m65c02, BMI>::value),
+  Instruction(m65c02, BNE, address_modes<m65c02, BNE>::value),
+  Instruction(m65c02, BPL, address_modes<m65c02, BPL>::value),
+  Instruction(m65c02, BRA, address_modes<m65c02, BRA>::value),
+  Instruction(m65c02, BRK, address_modes<m65c02, BRK>::value),
+  Instruction(m65c02, BVC, address_modes<m65c02, BVC>::value),
+  Instruction(m65c02, BVS, address_modes<m65c02, BVS>::value),
+  Instruction(m65c02, CLC, address_modes<m65c02, CLC>::value),
+  Instruction(m65c02, CLD, address_modes<m65c02, CLD>::value),
+  Instruction(m65c02, CLI, address_modes<m65c02, CLI>::value),
+  Instruction(m65c02, CLV, address_modes<m65c02, CLV>::value),
+  Instruction(m65c02, CMP, address_modes<m65c02, CMP>::value),
+  Instruction(m65c02, CPX, address_modes<m65c02, CPX>::value),
+  Instruction(m65c02, CPY, address_modes<m65c02, CPY>::value),
+  Instruction(m65c02, DEC, address_modes<m65c02, DEC>::value),
+  Instruction(m65c02, DEX, address_modes<m65c02, DEX>::value),
+  Instruction(m65c02, DEY, address_modes<m65c02, DEY>::value),
+  Instruction(m65c02, EOR, address_modes<m65c02, EOR>::value),
+  Instruction(m65c02, INC, address_modes<m65c02, INC>::value),
+  Instruction(m65c02, INX, address_modes<m65c02, INX>::value),
+  Instruction(m65c02, INY, address_modes<m65c02, INY>::value),
+  Instruction(m65c02, JMP, address_modes<m65c02, JMP>::value),
+  Instruction(m65c02, JSR, address_modes<m65c02, JSR>::value),
+  Instruction(m65c02, LDA, address_modes<m65c02, LDA>::value),
+  Instruction(m65c02, LDX, address_modes<m65c02, LDX>::value),
+  Instruction(m65c02, LDY, address_modes<m65c02, LDY>::value),
+  Instruction(m65c02, LSR, address_modes<m65c02, LSR>::value),
+  Instruction(m65c02, NOP, address_modes<m65c02, NOP>::value),
+  Instruction(m65c02, ORA, address_modes<m65c02, ORA>::value),
+  Instruction(m65c02, PHA, address_modes<m65c02, PHA>::value),
+  Instruction(m65c02, PHP, address_modes<m65c02, PHP>::value),
+  Instruction(m65c02, PHX, address_modes<m65c02, PHX>::value),
+  Instruction(m65c02, PHY, address_modes<m65c02, PHY>::value),
+  Instruction(m65c02, PLA, address_modes<m65c02, PLA>::value),
+  Instruction(m65c02, PLP, address_modes<m65c02, PLP>::value),
+  Instruction(m65c02, PLX, address_modes<m65c02, PLX>::value),
+  Instruction(m65c02, PLY, address_modes<m65c02, PLY>::value),
+  Instruction(m65c02, ROL, address_modes<m65c02, ROL>::value),
+  Instruction(m65c02, ROR, address_modes<m65c02, ROR>::value),
+  Instruction(m65c02, RTI, address_modes<m65c02, RTI>::value),
+  Instruction(m65c02, RTS, address_modes<m65c02, RTS>::value),
+  Instruction(m65c02, SBC, address_modes<m65c02, SBC>::value),
+  Instruction(m65c02, SEC, address_modes<m65c02, SEC>::value),
+  Instruction(m65c02, SED, address_modes<m65c02, SED>::value),
+  Instruction(m65c02, SEI, address_modes<m65c02, SEI>::value),
+  Instruction(m65c02, STA, address_modes<m65c02, STA>::value),
+  Instruction(m65c02, STP, address_modes<m65c02, STP>::value),
+  Instruction(m65c02, STX, address_modes<m65c02, STX>::value),
+  Instruction(m65c02, STY, address_modes<m65c02, STY>::value),
+  Instruction(m65c02, STZ, address_modes<m65c02, STZ>::value),
+  Instruction(m65c02, TAX, address_modes<m65c02, TAX>::value),
+  Instruction(m65c02, TAY, address_modes<m65c02, TAY>::value),
+  Instruction(m65c02, TRB, address_modes<m65c02, TRB>::value),
+  Instruction(m65c02, TSB, address_modes<m65c02, TSB>::value),
+  Instruction(m65c02, TSX, address_modes<m65c02, TSX>::value),
+  Instruction(m65c02, TXA, address_modes<m65c02, TXA>::value),
+  Instruction(m65c02, TXS, address_modes<m65c02, TXS>::value),
+  Instruction(m65c02, TYA, address_modes<m65c02, TYA>::value),
+  Instruction(m65c02, WAI, address_modes<m65c02, WAI>::value),
 };
 
 Instruction Instruction::mw65c02_instructions[] = {
-  Instruction(mw65c02, ADC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mw65c02, AND, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mw65c02, ASL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, BBR0, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBR1, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBR2, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBR3, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBR4, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBR5, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBR6, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBR7, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBS0, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBS1, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBS2, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBS3, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBS4, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBS5, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBS6, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BBS7, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mw65c02, BCC, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, BCS, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, BEQ, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, BIT, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, BMI, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, BNE, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, BPL, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, BRA, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, BRK, make_bitmask<
-    interrupt
-    >::value),
-  Instruction(mw65c02, BVC, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, BVS, make_bitmask<
-    relative
-    >::value),
-  Instruction(mw65c02, CLC, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, CLD, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, CLI, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, CLV, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, CMP, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mw65c02, CPX, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(mw65c02, CPY, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(mw65c02, DEC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, DEX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, DEY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, EOR, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mw65c02, INC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, INX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, INY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, JMP, make_bitmask<
-    absolute,
-    absolute_indirect,
-    absolute_indirect_x
-    >::value),
-  Instruction(mw65c02, JSR, make_bitmask<
-    absolute
-    >::value),
-  Instruction(mw65c02, LDA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mw65c02, LDX, make_bitmask<
-    absolute,
-    absolute_y,
-    immediate,
-    zp,
-    zp_y
-    >::value),
-  Instruction(mw65c02, LDY, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, LSR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, NOP, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, ORA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mw65c02, PHA, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, PHP, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, PHX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, PHY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, PLA, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, PLP, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, PLX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, PLY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, RMB0, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, RMB1, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, RMB2, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, RMB3, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, RMB4, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, RMB5, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, RMB6, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, RMB7, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, ROL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, ROR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, RTI, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, RTS, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, SBC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mw65c02, SEC, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, SED, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, SEI, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, SMB0, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, SMB1, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, SMB2, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, SMB3, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, SMB4, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, SMB5, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, SMB6, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, SMB7, make_bitmask<
-    zp
-    >::value),
-  Instruction(mw65c02, STA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mw65c02, STP, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, STX, make_bitmask<
-    absolute,
-    zp,
-    zp_y
-    >::value),
-  Instruction(mw65c02, STY, make_bitmask<
-    absolute,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, STZ, make_bitmask<
-    absolute,
-    absolute_x,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mw65c02, TAX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, TAY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, TRB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(mw65c02, TSB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(mw65c02, TSX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, TXA, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, TXS, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, TYA, make_bitmask<
-    implied
-    >::value),
-  Instruction(mw65c02, WAI, make_bitmask<
-    implied
-    >::value),
+  Instruction(mw65c02, ADC, address_modes<mw65c02, ADC>::value),
+  Instruction(mw65c02, AND, address_modes<mw65c02, AND>::value),
+  Instruction(mw65c02, ASL, address_modes<mw65c02, ASL>::value),
+  Instruction(mw65c02, BBR0, address_modes<mw65c02, BBR0>::value),
+  Instruction(mw65c02, BBR1, address_modes<mw65c02, BBR1>::value),
+  Instruction(mw65c02, BBR2, address_modes<mw65c02, BBR2>::value),
+  Instruction(mw65c02, BBR3, address_modes<mw65c02, BBR3>::value),
+  Instruction(mw65c02, BBR4, address_modes<mw65c02, BBR4>::value),
+  Instruction(mw65c02, BBR5, address_modes<mw65c02, BBR5>::value),
+  Instruction(mw65c02, BBR6, address_modes<mw65c02, BBR6>::value),
+  Instruction(mw65c02, BBR7, address_modes<mw65c02, BBR7>::value),
+  Instruction(mw65c02, BBS0, address_modes<mw65c02, BBS0>::value),
+  Instruction(mw65c02, BBS1, address_modes<mw65c02, BBS1>::value),
+  Instruction(mw65c02, BBS2, address_modes<mw65c02, BBS2>::value),
+  Instruction(mw65c02, BBS3, address_modes<mw65c02, BBS3>::value),
+  Instruction(mw65c02, BBS4, address_modes<mw65c02, BBS4>::value),
+  Instruction(mw65c02, BBS5, address_modes<mw65c02, BBS5>::value),
+  Instruction(mw65c02, BBS6, address_modes<mw65c02, BBS6>::value),
+  Instruction(mw65c02, BBS7, address_modes<mw65c02, BBS7>::value),
+  Instruction(mw65c02, BCC, address_modes<mw65c02, BCC>::value),
+  Instruction(mw65c02, BCS, address_modes<mw65c02, BCS>::value),
+  Instruction(mw65c02, BEQ, address_modes<mw65c02, BEQ>::value),
+  Instruction(mw65c02, BIT, address_modes<mw65c02, BIT>::value),
+  Instruction(mw65c02, BMI, address_modes<mw65c02, BMI>::value),
+  Instruction(mw65c02, BNE, address_modes<mw65c02, BNE>::value),
+  Instruction(mw65c02, BPL, address_modes<mw65c02, BPL>::value),
+  Instruction(mw65c02, BRA, address_modes<mw65c02, BRA>::value),
+  Instruction(mw65c02, BRK, address_modes<mw65c02, BRK>::value),
+  Instruction(mw65c02, BVC, address_modes<mw65c02, BVC>::value),
+  Instruction(mw65c02, BVS, address_modes<mw65c02, BVS>::value),
+  Instruction(mw65c02, CLC, address_modes<mw65c02, CLC>::value),
+  Instruction(mw65c02, CLD, address_modes<mw65c02, CLD>::value),
+  Instruction(mw65c02, CLI, address_modes<mw65c02, CLI>::value),
+  Instruction(mw65c02, CLV, address_modes<mw65c02, CLV>::value),
+  Instruction(mw65c02, CMP, address_modes<mw65c02, CMP>::value),
+  Instruction(mw65c02, CPX, address_modes<mw65c02, CPX>::value),
+  Instruction(mw65c02, CPY, address_modes<mw65c02, CPY>::value),
+  Instruction(mw65c02, DEC, address_modes<mw65c02, DEC>::value),
+  Instruction(mw65c02, DEX, address_modes<mw65c02, DEX>::value),
+  Instruction(mw65c02, DEY, address_modes<mw65c02, DEY>::value),
+  Instruction(mw65c02, EOR, address_modes<mw65c02, EOR>::value),
+  Instruction(mw65c02, INC, address_modes<mw65c02, INC>::value),
+  Instruction(mw65c02, INX, address_modes<mw65c02, INX>::value),
+  Instruction(mw65c02, INY, address_modes<mw65c02, INY>::value),
+  Instruction(mw65c02, JMP, address_modes<mw65c02, JMP>::value),
+  Instruction(mw65c02, JSR, address_modes<mw65c02, JSR>::value),
+  Instruction(mw65c02, LDA, address_modes<mw65c02, LDA>::value),
+  Instruction(mw65c02, LDX, address_modes<mw65c02, LDX>::value),
+  Instruction(mw65c02, LDY, address_modes<mw65c02, LDY>::value),
+  Instruction(mw65c02, LSR, address_modes<mw65c02, LSR>::value),
+  Instruction(mw65c02, NOP, address_modes<mw65c02, NOP>::value),
+  Instruction(mw65c02, ORA, address_modes<mw65c02, ORA>::value),
+  Instruction(mw65c02, PHA, address_modes<mw65c02, PHA>::value),
+  Instruction(mw65c02, PHP, address_modes<mw65c02, PHP>::value),
+  Instruction(mw65c02, PHX, address_modes<mw65c02, PHX>::value),
+  Instruction(mw65c02, PHY, address_modes<mw65c02, PHY>::value),
+  Instruction(mw65c02, PLA, address_modes<mw65c02, PLA>::value),
+  Instruction(mw65c02, PLP, address_modes<mw65c02, PLP>::value),
+  Instruction(mw65c02, PLX, address_modes<mw65c02, PLX>::value),
+  Instruction(mw65c02, PLY, address_modes<mw65c02, PLY>::value),
+  Instruction(mw65c02, RMB0, address_modes<mw65c02, RMB0>::value),
+  Instruction(mw65c02, RMB1, address_modes<mw65c02, RMB1>::value),
+  Instruction(mw65c02, RMB2, address_modes<mw65c02, RMB2>::value),
+  Instruction(mw65c02, RMB3, address_modes<mw65c02, RMB3>::value),
+  Instruction(mw65c02, RMB4, address_modes<mw65c02, RMB4>::value),
+  Instruction(mw65c02, RMB5, address_modes<mw65c02, RMB5>::value),
+  Instruction(mw65c02, RMB6, address_modes<mw65c02, RMB6>::value),
+  Instruction(mw65c02, RMB7, address_modes<mw65c02, RMB7>::value),
+  Instruction(mw65c02, ROL, address_modes<mw65c02, ROL>::value),
+  Instruction(mw65c02, ROR, address_modes<mw65c02, ROR>::value),
+  Instruction(mw65c02, RTI, address_modes<mw65c02, RTI>::value),
+  Instruction(mw65c02, RTS, address_modes<mw65c02, RTS>::value),
+  Instruction(mw65c02, SBC, address_modes<mw65c02, SBC>::value),
+  Instruction(mw65c02, SEC, address_modes<mw65c02, SEC>::value),
+  Instruction(mw65c02, SED, address_modes<mw65c02, SED>::value),
+  Instruction(mw65c02, SEI, address_modes<mw65c02, SEI>::value),
+  Instruction(mw65c02, SMB0, address_modes<mw65c02, SMB0>::value),
+  Instruction(mw65c02, SMB1, address_modes<mw65c02, SMB1>::value),
+  Instruction(mw65c02, SMB2, address_modes<mw65c02, SMB2>::value),
+  Instruction(mw65c02, SMB3, address_modes<mw65c02, SMB3>::value),
+  Instruction(mw65c02, SMB4, address_modes<mw65c02, SMB4>::value),
+  Instruction(mw65c02, SMB5, address_modes<mw65c02, SMB5>::value),
+  Instruction(mw65c02, SMB6, address_modes<mw65c02, SMB6>::value),
+  Instruction(mw65c02, SMB7, address_modes<mw65c02, SMB7>::value),
+  Instruction(mw65c02, STA, address_modes<mw65c02, STA>::value),
+  Instruction(mw65c02, STP, address_modes<mw65c02, STP>::value),
+  Instruction(mw65c02, STX, address_modes<mw65c02, STX>::value),
+  Instruction(mw65c02, STY, address_modes<mw65c02, STY>::value),
+  Instruction(mw65c02, STZ, address_modes<mw65c02, STZ>::value),
+  Instruction(mw65c02, TAX, address_modes<mw65c02, TAX>::value),
+  Instruction(mw65c02, TAY, address_modes<mw65c02, TAY>::value),
+  Instruction(mw65c02, TRB, address_modes<mw65c02, TRB>::value),
+  Instruction(mw65c02, TSB, address_modes<mw65c02, TSB>::value),
+  Instruction(mw65c02, TSX, address_modes<mw65c02, TSX>::value),
+  Instruction(mw65c02, TXA, address_modes<mw65c02, TXA>::value),
+  Instruction(mw65c02, TXS, address_modes<mw65c02, TXS>::value),
+  Instruction(mw65c02, TYA, address_modes<mw65c02, TYA>::value),
+  Instruction(mw65c02, WAI, address_modes<mw65c02, WAI>::value),
 };
 
 Instruction Instruction::mr65c02_instructions[] = {
-  Instruction(mr65c02, ADC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mr65c02, AND, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mr65c02, ASL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, BBR0, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBR1, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBR2, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBR3, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBR4, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBR5, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBR6, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBR7, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBS0, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBS1, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBS2, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBS3, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBS4, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBS5, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBS6, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BBS7, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(mr65c02, BCC, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, BCS, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, BEQ, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, BIT, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, BMI, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, BNE, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, BPL, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, BRA, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, BRK, make_bitmask<
-    interrupt
-    >::value),
-  Instruction(mr65c02, BVC, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, BVS, make_bitmask<
-    relative
-    >::value),
-  Instruction(mr65c02, CLC, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, CLD, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, CLI, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, CLV, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, CMP, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mr65c02, CPX, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(mr65c02, CPY, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(mr65c02, DEC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, DEX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, DEY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, EOR, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mr65c02, INC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, INX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, INY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, JMP, make_bitmask<
-    absolute,
-    absolute_indirect,
-    absolute_indirect_x
-    >::value),
-  Instruction(mr65c02, JSR, make_bitmask<
-    absolute
-    >::value),
-  Instruction(mr65c02, LDA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mr65c02, LDX, make_bitmask<
-    absolute,
-    absolute_y,
-    immediate,
-    zp,
-    zp_y
-    >::value),
-  Instruction(mr65c02, LDY, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, LSR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, NOP, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, ORA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mr65c02, PHA, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, PHP, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, PHX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, PHY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, PLA, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, PLP, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, PLX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, PLY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, RMB0, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, RMB1, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, RMB2, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, RMB3, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, RMB4, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, RMB5, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, RMB6, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, RMB7, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, ROL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, ROR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, RTI, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, RTS, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, SBC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mr65c02, SEC, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, SED, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, SEI, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, SMB0, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, SMB1, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, SMB2, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, SMB3, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, SMB4, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, SMB5, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, SMB6, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, SMB7, make_bitmask<
-    zp
-    >::value),
-  Instruction(mr65c02, STA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    zp,
-    zp_indirect,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(mr65c02, STX, make_bitmask<
-    absolute,
-    zp,
-    zp_y
-    >::value),
-  Instruction(mr65c02, STY, make_bitmask<
-    absolute,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, STZ, make_bitmask<
-    absolute,
-    absolute_x,
-    zp,
-    zp_x
-    >::value),
-  Instruction(mr65c02, TAX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, TAY, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, TRB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(mr65c02, TSB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(mr65c02, TSX, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, TXA, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, TXS, make_bitmask<
-    implied
-    >::value),
-  Instruction(mr65c02, TYA, make_bitmask<
-    implied
-    >::value),
+  Instruction(mr65c02, ADC, address_modes<mr65c02, ADC>::value),
+  Instruction(mr65c02, AND, address_modes<mr65c02, AND>::value),
+  Instruction(mr65c02, ASL, address_modes<mr65c02, ASL>::value),
+  Instruction(mr65c02, BBR0, address_modes<mr65c02, BBR0>::value),
+  Instruction(mr65c02, BBR1, address_modes<mr65c02, BBR1>::value),
+  Instruction(mr65c02, BBR2, address_modes<mr65c02, BBR2>::value),
+  Instruction(mr65c02, BBR3, address_modes<mr65c02, BBR3>::value),
+  Instruction(mr65c02, BBR4, address_modes<mr65c02, BBR4>::value),
+  Instruction(mr65c02, BBR5, address_modes<mr65c02, BBR5>::value),
+  Instruction(mr65c02, BBR6, address_modes<mr65c02, BBR6>::value),
+  Instruction(mr65c02, BBR7, address_modes<mr65c02, BBR7>::value),
+  Instruction(mr65c02, BBS0, address_modes<mr65c02, BBS0>::value),
+  Instruction(mr65c02, BBS1, address_modes<mr65c02, BBS1>::value),
+  Instruction(mr65c02, BBS2, address_modes<mr65c02, BBS2>::value),
+  Instruction(mr65c02, BBS3, address_modes<mr65c02, BBS3>::value),
+  Instruction(mr65c02, BBS4, address_modes<mr65c02, BBS4>::value),
+  Instruction(mr65c02, BBS5, address_modes<mr65c02, BBS5>::value),
+  Instruction(mr65c02, BBS6, address_modes<mr65c02, BBS6>::value),
+  Instruction(mr65c02, BBS7, address_modes<mr65c02, BBS7>::value),
+  Instruction(mr65c02, BCC, address_modes<mr65c02, BCC>::value),
+  Instruction(mr65c02, BCS, address_modes<mr65c02, BCS>::value),
+  Instruction(mr65c02, BEQ, address_modes<mr65c02, BEQ>::value),
+  Instruction(mr65c02, BIT, address_modes<mr65c02, BIT>::value),
+  Instruction(mr65c02, BMI, address_modes<mr65c02, BMI>::value),
+  Instruction(mr65c02, BNE, address_modes<mr65c02, BNE>::value),
+  Instruction(mr65c02, BPL, address_modes<mr65c02, BPL>::value),
+  Instruction(mr65c02, BRA, address_modes<mr65c02, BRA>::value),
+  Instruction(mr65c02, BRK, address_modes<mr65c02, BRK>::value),
+  Instruction(mr65c02, BVC, address_modes<mr65c02, BVC>::value),
+  Instruction(mr65c02, BVS, address_modes<mr65c02, BVS>::value),
+  Instruction(mr65c02, CLC, address_modes<mr65c02, CLC>::value),
+  Instruction(mr65c02, CLD, address_modes<mr65c02, CLD>::value),
+  Instruction(mr65c02, CLI, address_modes<mr65c02, CLI>::value),
+  Instruction(mr65c02, CLV, address_modes<mr65c02, CLV>::value),
+  Instruction(mr65c02, CMP, address_modes<mr65c02, CMP>::value),
+  Instruction(mr65c02, CPX, address_modes<mr65c02, CPX>::value),
+  Instruction(mr65c02, CPY, address_modes<mr65c02, CPY>::value),
+  Instruction(mr65c02, DEC, address_modes<mr65c02, DEC>::value),
+  Instruction(mr65c02, DEX, address_modes<mr65c02, DEX>::value),
+  Instruction(mr65c02, DEY, address_modes<mr65c02, DEY>::value),
+  Instruction(mr65c02, EOR, address_modes<mr65c02, EOR>::value),
+  Instruction(mr65c02, INC, address_modes<mr65c02, INC>::value),
+  Instruction(mr65c02, INX, address_modes<mr65c02, INX>::value),
+  Instruction(mr65c02, INY, address_modes<mr65c02, INY>::value),
+  Instruction(mr65c02, JMP, address_modes<mr65c02, JMP>::value),
+  Instruction(mr65c02, JSR, address_modes<mr65c02, JSR>::value),
+  Instruction(mr65c02, LDA, address_modes<mr65c02, LDA>::value),
+  Instruction(mr65c02, LDX, address_modes<mr65c02, LDX>::value),
+  Instruction(mr65c02, LDY, address_modes<mr65c02, LDY>::value),
+  Instruction(mr65c02, LSR, address_modes<mr65c02, LSR>::value),
+  Instruction(mr65c02, NOP, address_modes<mr65c02, NOP>::value),
+  Instruction(mr65c02, ORA, address_modes<mr65c02, ORA>::value),
+  Instruction(mr65c02, PHA, address_modes<mr65c02, PHA>::value),
+  Instruction(mr65c02, PHP, address_modes<mr65c02, PHP>::value),
+  Instruction(mr65c02, PHX, address_modes<mr65c02, PHX>::value),
+  Instruction(mr65c02, PHY, address_modes<mr65c02, PHY>::value),
+  Instruction(mr65c02, PLA, address_modes<mr65c02, PLA>::value),
+  Instruction(mr65c02, PLP, address_modes<mr65c02, PLP>::value),
+  Instruction(mr65c02, PLX, address_modes<mr65c02, PLX>::value),
+  Instruction(mr65c02, PLY, address_modes<mr65c02, PLY>::value),
+  Instruction(mr65c02, RMB0, address_modes<mr65c02, RMB0>::value),
+  Instruction(mr65c02, RMB1, address_modes<mr65c02, RMB1>::value),
+  Instruction(mr65c02, RMB2, address_modes<mr65c02, RMB2>::value),
+  Instruction(mr65c02, RMB3, address_modes<mr65c02, RMB3>::value),
+  Instruction(mr65c02, RMB4, address_modes<mr65c02, RMB4>::value),
+  Instruction(mr65c02, RMB5, address_modes<mr65c02, RMB5>::value),
+  Instruction(mr65c02, RMB6, address_modes<mr65c02, RMB6>::value),
+  Instruction(mr65c02, RMB7, address_modes<mr65c02, RMB7>::value),
+  Instruction(mr65c02, ROL, address_modes<mr65c02, ROL>::value),
+  Instruction(mr65c02, ROR, address_modes<mr65c02, ROR>::value),
+  Instruction(mr65c02, RTI, address_modes<mr65c02, RTI>::value),
+  Instruction(mr65c02, RTS, address_modes<mr65c02, RTS>::value),
+  Instruction(mr65c02, SBC, address_modes<mr65c02, SBC>::value),
+  Instruction(mr65c02, SEC, address_modes<mr65c02, SEC>::value),
+  Instruction(mr65c02, SED, address_modes<mr65c02, SED>::value),
+  Instruction(mr65c02, SEI, address_modes<mr65c02, SEI>::value),
+  Instruction(mr65c02, SMB0, address_modes<mr65c02, SMB0>::value),
+  Instruction(mr65c02, SMB1, address_modes<mr65c02, SMB1>::value),
+  Instruction(mr65c02, SMB2, address_modes<mr65c02, SMB2>::value),
+  Instruction(mr65c02, SMB3, address_modes<mr65c02, SMB3>::value),
+  Instruction(mr65c02, SMB4, address_modes<mr65c02, SMB4>::value),
+  Instruction(mr65c02, SMB5, address_modes<mr65c02, SMB5>::value),
+  Instruction(mr65c02, SMB6, address_modes<mr65c02, SMB6>::value),
+  Instruction(mr65c02, SMB7, address_modes<mr65c02, SMB7>::value),
+  Instruction(mr65c02, STA, address_modes<mr65c02, STA>::value),
+  Instruction(mr65c02, STX, address_modes<mr65c02, STX>::value),
+  Instruction(mr65c02, STY, address_modes<mr65c02, STY>::value),
+  Instruction(mr65c02, STZ, address_modes<mr65c02, STZ>::value),
+  Instruction(mr65c02, TAX, address_modes<mr65c02, TAX>::value),
+  Instruction(mr65c02, TAY, address_modes<mr65c02, TAY>::value),
+  Instruction(mr65c02, TRB, address_modes<mr65c02, TRB>::value),
+  Instruction(mr65c02, TSB, address_modes<mr65c02, TSB>::value),
+  Instruction(mr65c02, TSX, address_modes<mr65c02, TSX>::value),
+  Instruction(mr65c02, TXA, address_modes<mr65c02, TXA>::value),
+  Instruction(mr65c02, TXS, address_modes<mr65c02, TXS>::value),
+  Instruction(mr65c02, TYA, address_modes<mr65c02, TYA>::value),
 };
 
 Instruction Instruction::m65ce02_instructions[] = {
-  Instruction(m65ce02, ADC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_indirect_z,
-    zp_x
-    >::value),
-  Instruction(m65ce02, AND, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_indirect_z,
-    zp_x
-    >::value),
-  Instruction(m65ce02, ASL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, ASR, make_bitmask<
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, ASW, make_bitmask<
-    absolute
-    >::value),
-  Instruction(m65ce02, AUG, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, BBR0, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBR1, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBR2, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBR3, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBR4, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBR5, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBR6, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBR7, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBS0, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBS1, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBS2, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBS3, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBS4, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBS5, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBS6, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BBS7, make_bitmask<
-    zp_relative
-    >::value),
-  Instruction(m65ce02, BCC, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, BCS, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, BEQ, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, BIT, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, BMI, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, BNE, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, BPL, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, BRA, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, BRK, make_bitmask<
-    interrupt
-    >::value),
-  Instruction(m65ce02, BSR, make_bitmask<
-    relative_long
-    >::value),
-  Instruction(m65ce02, BVC, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, BVS, make_bitmask<
-    relative,
-    relative_long
-    >::value),
-  Instruction(m65ce02, CLC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, CLD, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, CLE, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, CLI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, CLV, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, CMP, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_indirect_z,
-    zp_x
-    >::value),
-  Instruction(m65ce02, CPX, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m65ce02, CPY, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m65ce02, CPZ, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m65ce02, DEC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, DEW, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, DEX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, DEY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, DEZ, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, EOR, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_indirect_z,
-    zp_x
-    >::value),
-  Instruction(m65ce02, INC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, INW, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, INX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, INY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, INZ, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, JMP, make_bitmask<
-    absolute,
-    absolute_indirect,
-    absolute_indirect_x
-    >::value),
-  Instruction(m65ce02, JSR, make_bitmask<
-    absolute,
-    absolute_indirect,
-    absolute_indirect_x
-    >::value),
-  Instruction(m65ce02, LDA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    stack_relative_y,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_indirect_z,
-    zp_x
-    >::value),
-  Instruction(m65ce02, LDX, make_bitmask<
-    absolute,
-    absolute_y,
-    immediate,
-    zp,
-    zp_y
-    >::value),
-  Instruction(m65ce02, LDY, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, LDZ, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate
-    >::value),
-  Instruction(m65ce02, LSR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, NEG, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, NOP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, ORA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_indirect_z,
-    zp_x
-    >::value),
-  Instruction(m65ce02, PHA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PHP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PHW, make_bitmask<
-    absolute,
-    immediate
-    >::value),
-  Instruction(m65ce02, PHX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PHY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PHZ, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PLA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PLP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PLX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PLY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, PLZ, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, RMB0, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, RMB1, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, RMB2, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, RMB3, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, RMB4, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, RMB5, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, RMB6, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, RMB7, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, ROL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, ROR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, ROW, make_bitmask<
-    absolute
-    >::value),
-  Instruction(m65ce02, RTI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, RTN, make_bitmask<
-    immediate
-    >::value),
-  Instruction(m65ce02, RTS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, SBC, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    immediate,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_indirect_z,
-    zp_x
-    >::value),
-  Instruction(m65ce02, SEC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, SED, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, SEE, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, SEI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, SMB0, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, SMB1, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, SMB2, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, SMB3, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, SMB4, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, SMB5, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, SMB6, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, SMB7, make_bitmask<
-    zp
-    >::value),
-  Instruction(m65ce02, STA, make_bitmask<
-    absolute,
-    absolute_x,
-    absolute_y,
-    stack_relative_y,
-    zp,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_indirect_z,
-    zp_x
-    >::value),
-  Instruction(m65ce02, STX, make_bitmask<
-    absolute,
-    absolute_y,
-    zp,
-    zp_y
-    >::value),
-  Instruction(m65ce02, STY, make_bitmask<
-    absolute,
-    absolute_x,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, STZ, make_bitmask<
-    absolute,
-    absolute_x,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65ce02, TAB, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TAX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TAY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TAZ, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TBA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TRB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(m65ce02, TSB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(m65ce02, TSX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TSY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TXA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TXS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TYA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TYS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65ce02, TZA, make_bitmask<
-    implied
-    >::value),
+  Instruction(m65ce02, ADC, address_modes<m65ce02, ADC>::value),
+  Instruction(m65ce02, AND, address_modes<m65ce02, AND>::value),
+  Instruction(m65ce02, ASL, address_modes<m65ce02, ASL>::value),
+  Instruction(m65ce02, ASR, address_modes<m65ce02, ASR>::value),
+  Instruction(m65ce02, ASW, address_modes<m65ce02, ASW>::value),
+  Instruction(m65ce02, AUG, address_modes<m65ce02, AUG>::value),
+  Instruction(m65ce02, BBR0, address_modes<m65ce02, BBR0>::value),
+  Instruction(m65ce02, BBR1, address_modes<m65ce02, BBR1>::value),
+  Instruction(m65ce02, BBR2, address_modes<m65ce02, BBR2>::value),
+  Instruction(m65ce02, BBR3, address_modes<m65ce02, BBR3>::value),
+  Instruction(m65ce02, BBR4, address_modes<m65ce02, BBR4>::value),
+  Instruction(m65ce02, BBR5, address_modes<m65ce02, BBR5>::value),
+  Instruction(m65ce02, BBR6, address_modes<m65ce02, BBR6>::value),
+  Instruction(m65ce02, BBR7, address_modes<m65ce02, BBR7>::value),
+  Instruction(m65ce02, BBS0, address_modes<m65ce02, BBS0>::value),
+  Instruction(m65ce02, BBS1, address_modes<m65ce02, BBS1>::value),
+  Instruction(m65ce02, BBS2, address_modes<m65ce02, BBS2>::value),
+  Instruction(m65ce02, BBS3, address_modes<m65ce02, BBS3>::value),
+  Instruction(m65ce02, BBS4, address_modes<m65ce02, BBS4>::value),
+  Instruction(m65ce02, BBS5, address_modes<m65ce02, BBS5>::value),
+  Instruction(m65ce02, BBS6, address_modes<m65ce02, BBS6>::value),
+  Instruction(m65ce02, BBS7, address_modes<m65ce02, BBS7>::value),
+  Instruction(m65ce02, BCC, address_modes<m65ce02, BCC>::value),
+  Instruction(m65ce02, BCS, address_modes<m65ce02, BCS>::value),
+  Instruction(m65ce02, BEQ, address_modes<m65ce02, BEQ>::value),
+  Instruction(m65ce02, BIT, address_modes<m65ce02, BIT>::value),
+  Instruction(m65ce02, BMI, address_modes<m65ce02, BMI>::value),
+  Instruction(m65ce02, BNE, address_modes<m65ce02, BNE>::value),
+  Instruction(m65ce02, BPL, address_modes<m65ce02, BPL>::value),
+  Instruction(m65ce02, BRA, address_modes<m65ce02, BRA>::value),
+  Instruction(m65ce02, BRK, address_modes<m65ce02, BRK>::value),
+  Instruction(m65ce02, BSR, address_modes<m65ce02, BSR>::value),
+  Instruction(m65ce02, BVC, address_modes<m65ce02, BVC>::value),
+  Instruction(m65ce02, BVS, address_modes<m65ce02, BVS>::value),
+  Instruction(m65ce02, CLC, address_modes<m65ce02, CLC>::value),
+  Instruction(m65ce02, CLD, address_modes<m65ce02, CLD>::value),
+  Instruction(m65ce02, CLE, address_modes<m65ce02, CLE>::value),
+  Instruction(m65ce02, CLI, address_modes<m65ce02, CLI>::value),
+  Instruction(m65ce02, CLV, address_modes<m65ce02, CLV>::value),
+  Instruction(m65ce02, CMP, address_modes<m65ce02, CMP>::value),
+  Instruction(m65ce02, CPX, address_modes<m65ce02, CPX>::value),
+  Instruction(m65ce02, CPY, address_modes<m65ce02, CPY>::value),
+  Instruction(m65ce02, CPZ, address_modes<m65ce02, CPZ>::value),
+  Instruction(m65ce02, DEC, address_modes<m65ce02, DEC>::value),
+  Instruction(m65ce02, DEW, address_modes<m65ce02, DEW>::value),
+  Instruction(m65ce02, DEX, address_modes<m65ce02, DEX>::value),
+  Instruction(m65ce02, DEY, address_modes<m65ce02, DEY>::value),
+  Instruction(m65ce02, DEZ, address_modes<m65ce02, DEZ>::value),
+  Instruction(m65ce02, EOR, address_modes<m65ce02, EOR>::value),
+  Instruction(m65ce02, INC, address_modes<m65ce02, INC>::value),
+  Instruction(m65ce02, INW, address_modes<m65ce02, INW>::value),
+  Instruction(m65ce02, INX, address_modes<m65ce02, INX>::value),
+  Instruction(m65ce02, INY, address_modes<m65ce02, INY>::value),
+  Instruction(m65ce02, INZ, address_modes<m65ce02, INZ>::value),
+  Instruction(m65ce02, JMP, address_modes<m65ce02, JMP>::value),
+  Instruction(m65ce02, JSR, address_modes<m65ce02, JSR>::value),
+  Instruction(m65ce02, LDA, address_modes<m65ce02, LDA>::value),
+  Instruction(m65ce02, LDX, address_modes<m65ce02, LDX>::value),
+  Instruction(m65ce02, LDY, address_modes<m65ce02, LDY>::value),
+  Instruction(m65ce02, LDZ, address_modes<m65ce02, LDZ>::value),
+  Instruction(m65ce02, LSR, address_modes<m65ce02, LSR>::value),
+  Instruction(m65ce02, NEG, address_modes<m65ce02, NEG>::value),
+  Instruction(m65ce02, NOP, address_modes<m65ce02, NOP>::value),
+  Instruction(m65ce02, ORA, address_modes<m65ce02, ORA>::value),
+  Instruction(m65ce02, PHA, address_modes<m65ce02, PHA>::value),
+  Instruction(m65ce02, PHP, address_modes<m65ce02, PHP>::value),
+  Instruction(m65ce02, PHW, address_modes<m65ce02, PHW>::value),
+  Instruction(m65ce02, PHX, address_modes<m65ce02, PHX>::value),
+  Instruction(m65ce02, PHY, address_modes<m65ce02, PHY>::value),
+  Instruction(m65ce02, PHZ, address_modes<m65ce02, PHZ>::value),
+  Instruction(m65ce02, PLA, address_modes<m65ce02, PLA>::value),
+  Instruction(m65ce02, PLP, address_modes<m65ce02, PLP>::value),
+  Instruction(m65ce02, PLX, address_modes<m65ce02, PLX>::value),
+  Instruction(m65ce02, PLY, address_modes<m65ce02, PLY>::value),
+  Instruction(m65ce02, PLZ, address_modes<m65ce02, PLZ>::value),
+  Instruction(m65ce02, RMB0, address_modes<m65ce02, RMB0>::value),
+  Instruction(m65ce02, RMB1, address_modes<m65ce02, RMB1>::value),
+  Instruction(m65ce02, RMB2, address_modes<m65ce02, RMB2>::value),
+  Instruction(m65ce02, RMB3, address_modes<m65ce02, RMB3>::value),
+  Instruction(m65ce02, RMB4, address_modes<m65ce02, RMB4>::value),
+  Instruction(m65ce02, RMB5, address_modes<m65ce02, RMB5>::value),
+  Instruction(m65ce02, RMB6, address_modes<m65ce02, RMB6>::value),
+  Instruction(m65ce02, RMB7, address_modes<m65ce02, RMB7>::value),
+  Instruction(m65ce02, ROL, address_modes<m65ce02, ROL>::value),
+  Instruction(m65ce02, ROR, address_modes<m65ce02, ROR>::value),
+  Instruction(m65ce02, ROW, address_modes<m65ce02, ROW>::value),
+  Instruction(m65ce02, RTI, address_modes<m65ce02, RTI>::value),
+  Instruction(m65ce02, RTN, address_modes<m65ce02, RTN>::value),
+  Instruction(m65ce02, RTS, address_modes<m65ce02, RTS>::value),
+  Instruction(m65ce02, SBC, address_modes<m65ce02, SBC>::value),
+  Instruction(m65ce02, SEC, address_modes<m65ce02, SEC>::value),
+  Instruction(m65ce02, SED, address_modes<m65ce02, SED>::value),
+  Instruction(m65ce02, SEE, address_modes<m65ce02, SEE>::value),
+  Instruction(m65ce02, SEI, address_modes<m65ce02, SEI>::value),
+  Instruction(m65ce02, SMB0, address_modes<m65ce02, SMB0>::value),
+  Instruction(m65ce02, SMB1, address_modes<m65ce02, SMB1>::value),
+  Instruction(m65ce02, SMB2, address_modes<m65ce02, SMB2>::value),
+  Instruction(m65ce02, SMB3, address_modes<m65ce02, SMB3>::value),
+  Instruction(m65ce02, SMB4, address_modes<m65ce02, SMB4>::value),
+  Instruction(m65ce02, SMB5, address_modes<m65ce02, SMB5>::value),
+  Instruction(m65ce02, SMB6, address_modes<m65ce02, SMB6>::value),
+  Instruction(m65ce02, SMB7, address_modes<m65ce02, SMB7>::value),
+  Instruction(m65ce02, STA, address_modes<m65ce02, STA>::value),
+  Instruction(m65ce02, STX, address_modes<m65ce02, STX>::value),
+  Instruction(m65ce02, STY, address_modes<m65ce02, STY>::value),
+  Instruction(m65ce02, STZ, address_modes<m65ce02, STZ>::value),
+  Instruction(m65ce02, TAB, address_modes<m65ce02, TAB>::value),
+  Instruction(m65ce02, TAX, address_modes<m65ce02, TAX>::value),
+  Instruction(m65ce02, TAY, address_modes<m65ce02, TAY>::value),
+  Instruction(m65ce02, TAZ, address_modes<m65ce02, TAZ>::value),
+  Instruction(m65ce02, TBA, address_modes<m65ce02, TBA>::value),
+  Instruction(m65ce02, TRB, address_modes<m65ce02, TRB>::value),
+  Instruction(m65ce02, TSB, address_modes<m65ce02, TSB>::value),
+  Instruction(m65ce02, TSX, address_modes<m65ce02, TSX>::value),
+  Instruction(m65ce02, TSY, address_modes<m65ce02, TSY>::value),
+  Instruction(m65ce02, TXA, address_modes<m65ce02, TXA>::value),
+  Instruction(m65ce02, TXS, address_modes<m65ce02, TXS>::value),
+  Instruction(m65ce02, TYA, address_modes<m65ce02, TYA>::value),
+  Instruction(m65ce02, TYS, address_modes<m65ce02, TYS>::value),
+  Instruction(m65ce02, TZA, address_modes<m65ce02, TZA>::value),
 };
 
 Instruction Instruction::m65816_instructions[] = {
-  Instruction(m65816, ADC, make_bitmask<
-    absolute,
-    absolute_long,
-    absolute_long_x,
-    absolute_x,
-    absolute_y,
-    immediate,
-    stack_relative,
-    stack_relative_y,
-    zp,
-    zp_indirect,
-    zp_indirect_long,
-    zp_indirect_long_y,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65816, AND, make_bitmask<
-    absolute,
-    absolute_long,
-    absolute_long_x,
-    absolute_x,
-    absolute_y,
-    immediate,
-    stack_relative,
-    stack_relative_y,
-    zp,
-    zp_indirect,
-    zp_indirect_long,
-    zp_indirect_long_y,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65816, ASL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, BCC, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, BCS, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, BEQ, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, BIT, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, BMI, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, BNE, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, BPL, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, BRA, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, BRK, make_bitmask<
-    interrupt
-    >::value),
-  Instruction(m65816, BRL, make_bitmask<
-    relative_long
-    >::value),
-  Instruction(m65816, BVC, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, BVS, make_bitmask<
-    relative
-    >::value),
-  Instruction(m65816, CLC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, CLD, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, CLI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, CLV, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, CMP, make_bitmask<
-    absolute,
-    absolute_long,
-    absolute_long_x,
-    absolute_x,
-    absolute_y,
-    immediate,
-    stack_relative,
-    stack_relative_y,
-    zp,
-    zp_indirect,
-    zp_indirect_long,
-    zp_indirect_long_y,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65816, COP, make_bitmask<
-    interrupt
-    >::value),
-  Instruction(m65816, CPX, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m65816, CPY, make_bitmask<
-    absolute,
-    immediate,
-    zp
-    >::value),
-  Instruction(m65816, DEC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, DEX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, DEY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, EOR, make_bitmask<
-    absolute,
-    absolute_long,
-    absolute_long_x,
-    absolute_x,
-    absolute_y,
-    immediate,
-    stack_relative,
-    stack_relative_y,
-    zp,
-    zp_indirect,
-    zp_indirect_long,
-    zp_indirect_long_y,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65816, INC, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, INX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, INY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, JML, make_bitmask<
-    absolute_indirect_long,
-    absolute_long
-    >::value),
-  Instruction(m65816, JMP, make_bitmask<
-    absolute,
-    absolute_indirect,
-    absolute_indirect_x
-    >::value),
-  Instruction(m65816, JSL, make_bitmask<
-    absolute_long
-    >::value),
-  Instruction(m65816, JSR, make_bitmask<
-    absolute,
-    absolute_indirect_x
-    >::value),
-  Instruction(m65816, LDA, make_bitmask<
-    absolute,
-    absolute_long,
-    absolute_long_x,
-    absolute_x,
-    absolute_y,
-    immediate,
-    stack_relative,
-    stack_relative_y,
-    zp,
-    zp_indirect,
-    zp_indirect_long,
-    zp_indirect_long_y,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65816, LDX, make_bitmask<
-    absolute,
-    absolute_y,
-    immediate,
-    zp,
-    zp_y
-    >::value),
-  Instruction(m65816, LDY, make_bitmask<
-    absolute,
-    absolute_x,
-    immediate,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, LSR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, MVN, make_bitmask<
-    block
-    >::value),
-  Instruction(m65816, MVP, make_bitmask<
-    block
-    >::value),
-  Instruction(m65816, NOP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, ORA, make_bitmask<
-    absolute,
-    absolute_long,
-    absolute_long_x,
-    absolute_x,
-    absolute_y,
-    immediate,
-    stack_relative,
-    stack_relative_y,
-    zp,
-    zp_indirect,
-    zp_indirect_long,
-    zp_indirect_long_y,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65816, PEA, make_bitmask<
-    absolute
-    >::value),
-  Instruction(m65816, PEI, make_bitmask<
-    zp_indirect
-    >::value),
-  Instruction(m65816, PER, make_bitmask<
-    relative_long
-    >::value),
-  Instruction(m65816, PHA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PHB, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PHD, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PHK, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PHP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PHX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PHY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PLA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PLB, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PLD, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PLP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PLX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, PLY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, REP, make_bitmask<
-    immediate
-    >::value),
-  Instruction(m65816, ROL, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, ROR, make_bitmask<
-    absolute,
-    absolute_x,
-    implied,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, RTI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, RTL, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, RTS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, SBC, make_bitmask<
-    absolute,
-    absolute_long,
-    absolute_long_x,
-    absolute_x,
-    absolute_y,
-    immediate,
-    stack_relative,
-    stack_relative_y,
-    zp,
-    zp_indirect,
-    zp_indirect_long,
-    zp_indirect_long_y,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65816, SEC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, SED, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, SEI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, SEP, make_bitmask<
-    immediate
-    >::value),
-  Instruction(m65816, STA, make_bitmask<
-    absolute,
-    absolute_long,
-    absolute_long_x,
-    absolute_x,
-    absolute_y,
-    stack_relative,
-    stack_relative_y,
-    zp,
-    zp_indirect,
-    zp_indirect_long,
-    zp_indirect_long_y,
-    zp_indirect_x,
-    zp_indirect_y,
-    zp_x
-    >::value),
-  Instruction(m65816, STP, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, STX, make_bitmask<
-    absolute,
-    zp,
-    zp_y
-    >::value),
-  Instruction(m65816, STY, make_bitmask<
-    absolute,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, STZ, make_bitmask<
-    absolute,
-    absolute_x,
-    zp,
-    zp_x
-    >::value),
-  Instruction(m65816, TAX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TAY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TCD, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TCS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TDC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TRB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(m65816, TSB, make_bitmask<
-    absolute,
-    zp
-    >::value),
-  Instruction(m65816, TSC, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TSX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TXA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TXS, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TXY, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TYA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, TYX, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, WAI, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, WDM, make_bitmask<
-    interrupt
-    >::value),
-  Instruction(m65816, XBA, make_bitmask<
-    implied
-    >::value),
-  Instruction(m65816, XCE, make_bitmask<
-    implied
-    >::value),
+  Instruction(m65816, ADC, address_modes<m65816, ADC>::value),
+  Instruction(m65816, AND, address_modes<m65816, AND>::value),
+  Instruction(m65816, ASL, address_modes<m65816, ASL>::value),
+  Instruction(m65816, BCC, address_modes<m65816, BCC>::value),
+  Instruction(m65816, BCS, address_modes<m65816, BCS>::value),
+  Instruction(m65816, BEQ, address_modes<m65816, BEQ>::value),
+  Instruction(m65816, BIT, address_modes<m65816, BIT>::value),
+  Instruction(m65816, BMI, address_modes<m65816, BMI>::value),
+  Instruction(m65816, BNE, address_modes<m65816, BNE>::value),
+  Instruction(m65816, BPL, address_modes<m65816, BPL>::value),
+  Instruction(m65816, BRA, address_modes<m65816, BRA>::value),
+  Instruction(m65816, BRK, address_modes<m65816, BRK>::value),
+  Instruction(m65816, BRL, address_modes<m65816, BRL>::value),
+  Instruction(m65816, BVC, address_modes<m65816, BVC>::value),
+  Instruction(m65816, BVS, address_modes<m65816, BVS>::value),
+  Instruction(m65816, CLC, address_modes<m65816, CLC>::value),
+  Instruction(m65816, CLD, address_modes<m65816, CLD>::value),
+  Instruction(m65816, CLI, address_modes<m65816, CLI>::value),
+  Instruction(m65816, CLV, address_modes<m65816, CLV>::value),
+  Instruction(m65816, CMP, address_modes<m65816, CMP>::value),
+  Instruction(m65816, COP, address_modes<m65816, COP>::value),
+  Instruction(m65816, CPX, address_modes<m65816, CPX>::value),
+  Instruction(m65816, CPY, address_modes<m65816, CPY>::value),
+  Instruction(m65816, DEC, address_modes<m65816, DEC>::value),
+  Instruction(m65816, DEX, address_modes<m65816, DEX>::value),
+  Instruction(m65816, DEY, address_modes<m65816, DEY>::value),
+  Instruction(m65816, EOR, address_modes<m65816, EOR>::value),
+  Instruction(m65816, INC, address_modes<m65816, INC>::value),
+  Instruction(m65816, INX, address_modes<m65816, INX>::value),
+  Instruction(m65816, INY, address_modes<m65816, INY>::value),
+  Instruction(m65816, JML, address_modes<m65816, JML>::value),
+  Instruction(m65816, JMP, address_modes<m65816, JMP>::value),
+  Instruction(m65816, JSL, address_modes<m65816, JSL>::value),
+  Instruction(m65816, JSR, address_modes<m65816, JSR>::value),
+  Instruction(m65816, LDA, address_modes<m65816, LDA>::value),
+  Instruction(m65816, LDX, address_modes<m65816, LDX>::value),
+  Instruction(m65816, LDY, address_modes<m65816, LDY>::value),
+  Instruction(m65816, LSR, address_modes<m65816, LSR>::value),
+  Instruction(m65816, MVN, address_modes<m65816, MVN>::value),
+  Instruction(m65816, MVP, address_modes<m65816, MVP>::value),
+  Instruction(m65816, NOP, address_modes<m65816, NOP>::value),
+  Instruction(m65816, ORA, address_modes<m65816, ORA>::value),
+  Instruction(m65816, PEA, address_modes<m65816, PEA>::value),
+  Instruction(m65816, PEI, address_modes<m65816, PEI>::value),
+  Instruction(m65816, PER, address_modes<m65816, PER>::value),
+  Instruction(m65816, PHA, address_modes<m65816, PHA>::value),
+  Instruction(m65816, PHB, address_modes<m65816, PHB>::value),
+  Instruction(m65816, PHD, address_modes<m65816, PHD>::value),
+  Instruction(m65816, PHK, address_modes<m65816, PHK>::value),
+  Instruction(m65816, PHP, address_modes<m65816, PHP>::value),
+  Instruction(m65816, PHX, address_modes<m65816, PHX>::value),
+  Instruction(m65816, PHY, address_modes<m65816, PHY>::value),
+  Instruction(m65816, PLA, address_modes<m65816, PLA>::value),
+  Instruction(m65816, PLB, address_modes<m65816, PLB>::value),
+  Instruction(m65816, PLD, address_modes<m65816, PLD>::value),
+  Instruction(m65816, PLP, address_modes<m65816, PLP>::value),
+  Instruction(m65816, PLX, address_modes<m65816, PLX>::value),
+  Instruction(m65816, PLY, address_modes<m65816, PLY>::value),
+  Instruction(m65816, REP, address_modes<m65816, REP>::value),
+  Instruction(m65816, ROL, address_modes<m65816, ROL>::value),
+  Instruction(m65816, ROR, address_modes<m65816, ROR>::value),
+  Instruction(m65816, RTI, address_modes<m65816, RTI>::value),
+  Instruction(m65816, RTL, address_modes<m65816, RTL>::value),
+  Instruction(m65816, RTS, address_modes<m65816, RTS>::value),
+  Instruction(m65816, SBC, address_modes<m65816, SBC>::value),
+  Instruction(m65816, SEC, address_modes<m65816, SEC>::value),
+  Instruction(m65816, SED, address_modes<m65816, SED>::value),
+  Instruction(m65816, SEI, address_modes<m65816, SEI>::value),
+  Instruction(m65816, SEP, address_modes<m65816, SEP>::value),
+  Instruction(m65816, STA, address_modes<m65816, STA>::value),
+  Instruction(m65816, STP, address_modes<m65816, STP>::value),
+  Instruction(m65816, STX, address_modes<m65816, STX>::value),
+  Instruction(m65816, STY, address_modes<m65816, STY>::value),
+  Instruction(m65816, STZ, address_modes<m65816, STZ>::value),
+  Instruction(m65816, TAX, address_modes<m65816, TAX>::value),
+  Instruction(m65816, TAY, address_modes<m65816, TAY>::value),
+  Instruction(m65816, TCD, address_modes<m65816, TCD>::value),
+  Instruction(m65816, TCS, address_modes<m65816, TCS>::value),
+  Instruction(m65816, TDC, address_modes<m65816, TDC>::value),
+  Instruction(m65816, TRB, address_modes<m65816, TRB>::value),
+  Instruction(m65816, TSB, address_modes<m65816, TSB>::value),
+  Instruction(m65816, TSC, address_modes<m65816, TSC>::value),
+  Instruction(m65816, TSX, address_modes<m65816, TSX>::value),
+  Instruction(m65816, TXA, address_modes<m65816, TXA>::value),
+  Instruction(m65816, TXS, address_modes<m65816, TXS>::value),
+  Instruction(m65816, TXY, address_modes<m65816, TXY>::value),
+  Instruction(m65816, TYA, address_modes<m65816, TYA>::value),
+  Instruction(m65816, TYX, address_modes<m65816, TYX>::value),
+  Instruction(m65816, WAI, address_modes<m65816, WAI>::value),
+  Instruction(m65816, WDM, address_modes<m65816, WDM>::value),
+  Instruction(m65816, XBA, address_modes<m65816, XBA>::value),
+  Instruction(m65816, XCE, address_modes<m65816, XCE>::value),
 };
