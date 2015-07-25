@@ -21,9 +21,9 @@ class Instruction {
 
     
 private:
-    Machine _machine;
-    Mnemonic _mnemonic;
-    uint_least32_t _addressModes;  
+    Machine _machine = kUndefinedMachine;
+    Mnemonic _mnemonic = kUndefinedMnemonic;
+    uint_least32_t _addressModes = 0;  
     
 public:
     // static methods
@@ -31,12 +31,14 @@ public:
     static bool coerce(Instruction &instruction, AddressMode &addressMode, bool explicitAddress);
     
     // constructors
-    Instruction();
-    Instruction(const Instruction & rhs);
     Instruction(Machine machine, const std::string &s) : Instruction(machine, s.c_str()) {}
+    Instruction() = default;
+    Instruction(const Instruction & rhs) = default;
     Instruction(Machine machine, const char *name);
     Instruction(Machine machine, Mnemonic mnemonic);
     
+    Instruction &operator=(const Instruction&) = default;
+
     // -- instance methods
     Machine machine() const;
     Mnemonic mnemonic() const;
@@ -74,12 +76,14 @@ private:
     
     static Instruction m6502_instructions[];
     static Instruction m65c02_instructions[];
+    static Instruction m65ce02_instructions[];
     static Instruction mw65c02_instructions[];
     static Instruction mr65c02_instructions[];
     static Instruction m65816_instructions[];
 
     static Mnemonic m6502_mnemonics[];
     static Mnemonic m65c02_mnemonics[];
+    static Mnemonic m65ce02_mnemonics[];
     static Mnemonic mw65c02_mnemonics[];
     static Mnemonic mr65c02_mnemonics[];
     static Mnemonic m65816_mnemonics[];
@@ -93,15 +97,6 @@ private:
 
 
 
-inline Instruction::Instruction() : 
-_machine(kUndefinedMachine), _mnemonic(kUndefinedMnemonic), _addressModes(0)
-{
-}
-
-inline Instruction::Instruction(const Instruction & rhs) :
-_machine(rhs._machine), _mnemonic(rhs._mnemonic), _addressModes(rhs._addressModes)
-{
-}
 
 inline Instruction::Instruction(Machine machine, Mnemonic mnemonic, uint_least32_t addressModes) :
 _machine(machine), _mnemonic(mnemonic), _addressModes(addressModes)

@@ -31,6 +31,7 @@ enum Machine {
     m65c02,
     mr65c02,
     mw65c02,
+    m65ce02,
     m65802,
     m65816,
     m65816_e
@@ -51,7 +52,7 @@ enum AddressMode {
     zp_indirect,
     zp_indirect_x,
     zp_indirect_y,
-    zp_indirect_z,
+    zp_indirect_z, // 65ce02
     zp_relative, // bbr/bbs
     
     zp_indirect_long,
@@ -69,7 +70,6 @@ enum AddressMode {
     block,
     stack_relative,
     stack_relative_y
-
 };
 
 
@@ -198,7 +198,34 @@ enum Mnemonic {
     WAI,
     WDM,
     XBA,
-    XCE
+    XCE,
+
+    //65ce02
+    // BRU = BRA/BRL
+    BSR,
+    RTN,
+    NEG,
+    ASR,
+    INW,
+    DEW,
+    INZ,
+    DEZ,
+    ASW,
+    ROW,
+    CPZ,
+    LDZ,
+    CLE,
+    SEE,
+    PHW,
+    PHZ,
+    PLZ,
+    TAZ,
+    TZA,
+    TAB,
+    TBA,
+    TSY,
+    TYS,
+    AUG,
 };
 
 #ifdef __cplusplus

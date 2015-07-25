@@ -23,13 +23,17 @@ public:
     static const_vector<OpCode> OpCodes(Machine machine); // 256 entries.
     
     
-    OpCode();
-    OpCode(const OpCode& OpCode);
+    OpCode() = default;
+    OpCode(const OpCode&) = default;
+    //OpCode(OpCode&&) = default;
+    
     OpCode(Instruction instr, AddressMode addressMode);
     OpCode(Machine machine, Mnemonic m, AddressMode mode);
     OpCode(Machine machine, uint8_t opcode);
     
 
+    OpCode &operator=(const OpCode &) = default;
+    //OpCode &operator=(OpCode &&) = default;
     
 #ifdef __OBJC__
     NSString *formatOperand(uint32_t operand, uint16_t address, bool longM = false, bool longX = false) const;
@@ -49,48 +53,111 @@ public:
     static int opcode(Instruction instruction, AddressMode addressMode);
     
     
+    bool reads_a() const {
+        return _attributes & 0x01;
+    }
+
+    bool writes_a() const {
+        return _attributes & 0x02;
+    }
+
+    bool reads_x() const {
+        return _attributes & 0x04;
+    }
+    
+    bool writes_x() const {
+        return _attributes & 0x08;
+    }
+    
+    bool reads_y() const {
+        return _attributes & 0x10;
+    }
+    
+    bool writes_y() const {
+        return _attributes & 0x20;
+    }
+    
+    bool reads_s() const {
+        return _attributes & 0x40;
+    }
+    
+    bool writes_s() const {
+        return _attributes & 0x80;
+    }
+
+    bool reads_d() const {
+        return _attributes & 0x100;
+    }
+    
+    bool writes_d() const {
+        return _attributes & 0x200;
+    }
+
+    bool reads_b() const {
+        return _attributes & 0x400;
+    }
+    
+    bool writes_b() const {
+        return _attributes & 0x800;
+    }
+
+    bool reads_k() const {
+        return _attributes & 0x1000;
+    }
+    
+    bool writes_k() const {
+        return _attributes & 0x2000;
+    }
+
+    bool reads_pc() const {
+        return _attributes & 0x4000;
+    }
+    
+    bool writes_pc() const {
+        return _attributes & 0x8000;
+    }
+
+    bool reads_zp() const {
+        return _attributes & 0x10000;
+    }
+    
+    bool writes_zp() const {
+        return _attributes & 0x20000;
+    }
+
+    
 private:
     friend class Instruction;
     
     static class OpCode m6502_opcodes[256];
     static class OpCode m65c02_opcodes[256];
+    static class OpCode m65ce02_opcodes[256];
     static class OpCode mw65c02_opcodes[256];
     static class OpCode mr65c02_opcodes[256];
     static class OpCode m65816_opcodes[256];
     
     static void InitHashTable();
     
-    OpCode(unsigned OpCode, Machine machine, Mnemonic mnemonic, AddressMode addressMode, unsigned bytes, unsigned cycles);
+    OpCode(unsigned OpCode, Machine machine, Mnemonic mnemonic, AddressMode addressMode, unsigned bytes, unsigned cycles, uint32_t attributes = 0);
     
-    unsigned _opcode;
-    AddressMode _addressMode;
-    unsigned _bytes;
-    unsigned _cycles;
+    unsigned _opcode = 0;
+    AddressMode _addressMode = kUndefinedAddressMode;
+    unsigned _bytes = 0;
+    unsigned _cycles = 0;
+    uint32_t _attributes = 0;
 };
 
 
-inline OpCode::OpCode(unsigned opcode, Machine machine, Mnemonic mnemonic, AddressMode addressMode, unsigned bytes, unsigned cycles) :
+inline OpCode::OpCode(unsigned opcode, Machine machine, Mnemonic mnemonic, AddressMode addressMode, unsigned bytes, unsigned cycles, uint32_t attributes) :
     Instruction(machine, mnemonic, 1 << addressMode),
     _opcode(opcode),
     _addressMode(addressMode),
     _bytes(bytes),
-    _cycles(cycles)
+    _cycles(cycles),
+    _attributes(attributes)
 {
 }
 
-
-inline OpCode::OpCode() :
-    _opcode(0), 
-    _addressMode(kUndefinedAddressMode), 
-    _bytes(0), 
-    _cycles(0)
-{
-}
-
-inline OpCode::OpCode(const OpCode& opcode)
-{
-    *this = opcode;
-}
 
 inline uint8_t OpCode::opcode() const
 {
