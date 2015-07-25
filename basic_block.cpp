@@ -759,6 +759,28 @@ void basic_block(Segment *segment) {
 		block->lines.clear();
 	}
 	
+	// optimize JSL address / RTL to JML address.
+
+	if (out.size() && segment->epilogue_code.size() == 1) {
+		BasicLine *back = out.back();
+		BasicLine *tmp = segment->epilogue_code.back();
+
+		if (back->opcode.mnemonic() == JSL && back->opcode.addressMode() == absolute_long) {
+			if (tmp->opcode.mnemonic() == RTL) {
+				back->opcode = OpCode(m65816, JML, absolute_long);
+				segment->epilogue_code.clear();
+			}
+		}
+
+		if (back->opcode.mnemonic() == JSR && back->opcode.addressMode() == absolute) {
+			if (tmp->opcode.mnemonic() == RTS) {
+				back->opcode = OpCode(m65816, JMP, absolute);
+				segment->epilogue_code.clear();
+			}
+		}
+
+	}
+
 	out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
 
 	segment->lines = std::move(out);
