@@ -462,6 +462,26 @@ bool peephole(LineQueue &list) {
 		 	})) continue;
 
 
+			// LDA %t0, STA %t0 -- drop the store
+			if (match(list, LDA, STA, [&](BasicLine *a, BasicLine *b){
+				dp_register reg_a, reg_b;
+
+				if (a->opcode.addressMode() != zp) return false;
+				if (b->opcode.addressMode() != zp) return false;
+
+				if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
+					if (reg_a == reg_b) {
+						list.pop_front();
+						list.pop_front();
+						list.push_front(a);
+
+						delete b;
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
 			break;
 
 
