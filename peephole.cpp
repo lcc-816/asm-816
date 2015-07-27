@@ -585,11 +585,11 @@ bool peephole(LineQueue &list) {
 
 
 			// LDA %t0, STA %t0 -- drop the store
-			if (match(list, LDA, STA, [&](BasicLine *a, BasicLine *b){
+			if (match(list, LDA/zp, STA/zp, [&](BasicLine *a, BasicLine *b){
 				dp_register reg_a, reg_b;
 
-				if (a->opcode.addressMode() != zp) return false;
-				if (b->opcode.addressMode() != zp) return false;
+				//if (a->opcode.addressMode() != zp) return false;
+				//if (b->opcode.addressMode() != zp) return false;
 
 				if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
 					if (reg_a == reg_b) {
@@ -602,6 +602,30 @@ bool peephole(LineQueue &list) {
 					}
 				}
 				return false;
+			})) continue;
+
+			// LDA #0, sta reg, lda ...
+			if (match(list, LDA/immediate, STA/zp, LDA, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+
+				uint32_t int_a;
+				dp_register reg_b;
+				if (a->operands[0]->is_integer(int_a) && b->operands[0]->is_register(reg_b)) {
+					if ((int_a & 0xffff) == 0) {
+						list.pop_front();
+						list.pop_front();
+
+						BasicLine *tmp = new BasicLine(STZ, zp);
+						tmp->operands[0] = b->operands[0];
+						tmp->calc_registers();
+
+						list.push_front(tmp);
+						delete a;
+						delete b;
+						return true;
+					}
+				}
+				return false;
+
 			})) continue;
 
 			break;
