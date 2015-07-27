@@ -9,6 +9,128 @@
 #include "OpCode.h"
 #include "register_set.h"
 
+/*
+inline OpCode operator/(Mnemonic m, AddressMode mode) {
+	OpCode op(m65816, m, mode);
+	if (op.mnemonic() == kUndefinedMnemonic) throw std::runtime_error("Invalid opcode");
+	return op;
+}
+*/
+
+inline std::pair<Mnemonic, AddressMode> operator/(Mnemonic m, AddressMode mode) {
+	return std::make_pair(m, mode);
+}
+
+
+bool matches(const BasicLine &line, Mnemonic m) {
+	return line.opcode.mnemonic() == m;
+}
+
+bool matches(const BasicLine &line, Directive d) {
+	return line.directive == d;
+}
+
+bool matches(const BasicLine &line, const OpCode &op) {
+	return line.opcode == op;
+}
+
+bool matches(const BasicLine &line, const std::pair<Mnemonic, AddressMode> &mm) {
+	return line.opcode.mnemonic() == mm.first && line.opcode.addressMode() == mm.second;
+}
+
+template<unsigned Offset=0, std::size_t N>
+bool matches(const std::array<BasicLine *, N> &) {
+	return true;
+}
+
+template<unsigned Offset=0, std::size_t N, class T, class ...Rest>
+bool matches(const std::array<BasicLine *, N> &lines, T &&t, Rest&& ...args) {
+	if (!matches(*lines[Offset], std::forward<T>(t))) return false;
+	return matches<Offset+1>(lines, std::forward<Rest>(args)...);
+}
+
+
+template<class A, class B, class FX>
+bool match(LineQueue &list, A m1, B m2, FX fx) {
+	const unsigned Size = 2;
+	std::array<BasicLine *, Size> lines;
+
+	if (list.size() < Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1, m2)) return false;
+
+	return fx(lines[0], lines[1]);
+}
+
+template<class A, class B, class C, class FX>
+bool match(LineQueue &list, A m1, B m2, C m3, FX fx) {
+	const unsigned Size = 3;
+	std::array<BasicLine *, Size> lines;
+
+	if (list.size() < Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1, m2, m3)) return false;
+
+	return fx(lines[0], lines[1], lines[2]);
+}
+
+
+template<class A, class B, class C, class D, class FX>
+bool match(LineQueue &list, A m1, B m2, C m3, D m4, FX fx) {
+	const unsigned Size = 4;
+	std::array<BasicLine *, Size> lines;
+
+	if (list.size() < Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1, m2, m3, m4)) return false;
+
+	return fx(lines[0], lines[1], lines[2], lines[3]);
+}
+
+template<class A, class B, class C, class D, class E, class FX>
+bool match(LineQueue &list, A m1, B m2, C m3, D m4, E m5, FX fx) {
+	const unsigned Size = 5;
+	std::array<BasicLine *, Size> lines;
+
+	if (list.size() < Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1, m2, m3, m4, m5)) return false;
+
+	return fx(lines[0], lines[1], lines[2], lines[3], lines[4]);
+}
+
+
+#if 0
+template<class A, class B, class C, class FX>
+bool match(LineQueue &list, A m1, B m2, C m3, FX fx) {
+	const unsigned Size = 3;
+	if (list.size() < Size) return false;
+
+	BasicLine *lines[Size] = {0};
+	auto iter = list.begin();
+	unsigned i = 0;
+
+	if (!matches(**iter, m1)) return false;
+	lines[i++] = *iter++;
+
+	if (!matches(**iter, m2)) return false;
+	lines[i++] = *iter++;
+
+	if (!matches(**iter, m3)) return false;
+	lines[i++] = *iter++;
+
+	return fx(lines[0], lines[1], lines[2]);
+}
+
+
 template<class FX>
 bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, FX fx) {
 	const unsigned Size = 2;
@@ -82,7 +204,7 @@ bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Mnemonic m4, 
 
 	return fx(lines[0], lines[1], lines[2], lines[3], lines[4]);
 }
-
+#endif
 
 // lda xxx, cmp #0, branch 
 template<class FX>
