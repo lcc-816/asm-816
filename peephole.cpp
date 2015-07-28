@@ -969,7 +969,6 @@ bool peephole(LineQueue &list) {
 
 			/* STA %t0, LDY %t0 -> STA %t0, TAY */
 			if (match(list, STA, LDX, [&](BasicLine *a, BasicLine *b){
-				//printf("STA %d/ LDA %d\n" , a->opcode.addressMode(), b->opcode.addressMode());
 
 				if (a->opcode.addressMode() == b->opcode.addressMode()) {
 
@@ -992,10 +991,8 @@ bool peephole(LineQueue &list) {
 
 
 			/* STA %t0, PEI (<%t0) -> STA %t0, PHA */
-			if (match(list, STA, PEI, [&](BasicLine *a, BasicLine *b){
+			if (match(list, STA/zp, PEI, [&](BasicLine *a, BasicLine *b){
 				dp_register reg_a, reg_b;
-
-				if (a->opcode.addressMode() != zp) return false;
 
 				if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
 					if (reg_a == reg_b) {
@@ -1016,35 +1013,9 @@ bool peephole(LineQueue &list) {
 				return false;
 			})) continue;
 
-			/* STA %t0, PLY, LDA %t0  -> STA %t0, PLY */
-			/* PLY is used to clean the stack after a cdecl call */
-			if (match(list, STA, PLY, LDA, [&](BasicLine *a, BasicLine *b, BasicLine *c){
-				dp_register reg_a, reg_c;
-
-				if (a->opcode.addressMode() != zp) return false;
-				if (c->opcode.addressMode() != zp) return false;
-
-				if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
-					if (reg_a == reg_c) {
-
-						list.pop_front(); // a
-						list.pop_front(); // b
-						list.pop_front(); //c
-						list.insert(list.begin(), {a, b});
-						delete c;
-						return true;
-					}
-				}
-				return false;
-			})) continue;
-
-
 			/* STA %t0, STA %t2, PEI %t0 */
-			// should handle this elsewhere?
-			if (match(list, STA, STA, PEI, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+			if (match(list, STA/zp, STA, PEI, [&](BasicLine *a, BasicLine *b, BasicLine *c){
 				dp_register reg_a, reg_c;
-
-				if (a->opcode.addressMode() != zp) return false;
 
 				if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
 					if (reg_a == reg_c) {
@@ -1064,13 +1035,35 @@ bool peephole(LineQueue &list) {
 			})) continue;
 
 
+			/* STA %t0, PLY, LDA %t0  -> STA %t0, PLY */
+			/* PLY is used to clean the stack after a cdecl call */
+			/* doesn't preserve nz bits... */
+			if (match(list, STA/zp, PLY, LDA/zp, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+				dp_register reg_a, reg_c;
+
+				if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
+					if (reg_a == reg_c) {
+
+						list.pop_front(); // a
+						list.pop_front(); // b
+						list.pop_front(); //c
+						list.insert(list.begin(), {a, b});
+						delete c;
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
+
+
+
+
 			/* STA %t0, LDA xxx, CLC, ADC %t0 -> STA %t0, CLC, ADC xxx */
 			// works for dp or immediate (or absolute...)
-			if (match(list, STA, LDA, CLC, ADC, 
+			if (match(list, STA/zp, LDA, CLC, ADC/zp, 
 				[&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d){
 					dp_register reg_a, reg_d;
-					if (a->opcode.addressMode() != zp) return false;
-					if (d->opcode.addressMode() != zp) return false;
 
 					if (a->operands[0]->is_register(reg_a)
 						&& d->operands[0]->is_register(reg_d)
@@ -1099,43 +1092,52 @@ bool peephole(LineQueue &list) {
 
 
 			// STX first to improve other optimizations.
-			if (match(list, STA, STX, [&](BasicLine *a, BasicLine *b){
-					dp_register reg_a, reg_e;
+			if (match(list, STA/zp, STX/zp, [&](BasicLine *a, BasicLine *b){
+					dp_register reg_a, reg_b;
 
-					if (a->opcode.addressMode() != zp) return false;
-					if (b->opcode.addressMode() != zp) return false;
+					if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
+						if (reg_a == reg_b) {
 
-					list.pop_front();
-					list.pop_front();
+							// can drop the sta... unless m != x.
+							list.pop_front();
 
-					list.insert(list.begin(), {b, a});
+						} else {
+							list.pop_front();
+							list.pop_front();
 
-					return true;
+							list.insert(list.begin(), {b, a});
+						}
+						return true;
+					}
+					return false;
 
 		 	})) continue;
 
 			// STY first to improve other optimizations.
-			if (match(list, STA, STY, [&](BasicLine *a, BasicLine *b){
-					dp_register reg_a, reg_e;
+			if (match(list, STA/zp, STY/zp, [&](BasicLine *a, BasicLine *b){
+					dp_register reg_a, reg_b;
 
-					if (a->opcode.addressMode() != zp) return false;
-					if (b->opcode.addressMode() != zp) return false;
+					if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
+						if (reg_a == reg_b) {
 
-					list.pop_front();
-					list.pop_front();
+							// can drop the sta... unless m != x.
+							list.pop_front();
 
-					list.insert(list.begin(), {b, a});
+						} else {
+							list.pop_front();
+							list.pop_front();
 
-					return true;
-
+							list.insert(list.begin(), {b, a});
+						}
+						return true;
+					}
+					return false;
+	
 		 	})) continue;
 
 			// STZ first to improve other optimizations.
-			if (match(list, STA, STZ, [&](BasicLine *a, BasicLine *b){
+			if (match(list, STA/zp, STZ/zp, [&](BasicLine *a, BasicLine *b){
 					dp_register reg_a, reg_e;
-
-					if (a->opcode.addressMode() != zp) return false;
-					if (b->opcode.addressMode() != zp) return false;
 
 					list.pop_front();
 					list.pop_front();
@@ -1162,7 +1164,7 @@ bool peephole(LineQueue &list) {
 				and #$ff				
 			 */
 
-			if (match(list, STA, REP, LDA, AND, [&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d) {
+			if (match(list, STA/zp, REP, LDA/zp, AND/immediate, [&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d) {
 
 				dp_register reg_a, reg_c;
 				uint32_t int_b, int_d;
@@ -1252,9 +1254,8 @@ bool peephole(LineQueue &list) {
 		case STX:
 			/* STX %t0, PHA, pei %t0 -> pha, phx, stx */
 			/* makes dead-write elimination easier */
-			if (match(list, STX, PHA, PEI, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+			if (match(list, STX/zp, PHA, PEI, [&](BasicLine *a, BasicLine *b, BasicLine *c){
 				dp_register reg_a, reg_c;
-				if (a->opcode.addressMode() != zp) return false;
 				if (a->operands[0]->is_register(reg_a) && c->operands[0]->is_register(reg_c)) {
 					if (reg_a != reg_c) return false;
 
@@ -1264,7 +1265,7 @@ bool peephole(LineQueue &list) {
 					list.pop_front();
 					BasicLine *tmp = new BasicLine(PHX, implied);
 					tmp->calc_registers();
-					list.insert(list.begin(), {b, tmp, a});
+					list.insert(list.begin(), {a, b, tmp});
 
 					delete c;
 					return true;
@@ -1283,6 +1284,7 @@ bool peephole(LineQueue &list) {
 				return true;
 			})) continue;	
 
+#if 0
 		case BRA:
 			/* bra label, label: -> label */
 			if (match(list, BRA, kUndefinedMnemonic, [&](BasicLine *a, BasicLine *b){
@@ -1329,7 +1331,7 @@ bool peephole(LineQueue &list) {
 				return false;
 			})) continue;
 			break;
-
+#endif
 
 		}
 
@@ -1373,15 +1375,15 @@ bool final_peephole(LineQueue &list) {
 		case JSL:
 			/* jsl $e10000, sta >_toolErr, cmp #0, beq/bne -> */
 			/* jsl $e10000, sta >_toolErr, bcc / bcs */
-			if (match(list, JSL, STA, CMP, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d) {
+			if (match(list, JSL/absolute_long, STA/absolute_long, CMP/immediate, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d) {
 				uint32_t vector;
 				identifier te;
 				uint32_t zero;
 
 				if (
-					a->opcode.addressMode() == absolute_long && a->operands[0]->is_integer(vector) &&
-					b->opcode.addressMode() == absolute_long && b->operands[0]->is_identifier(te) &&
-					c->opcode.addressMode() == immediate && c->operands[0]->is_integer(zero)
+					a->operands[0]->is_integer(vector) &&
+					b->operands[0]->is_identifier(te) &&
+					c->operands[0]->is_integer(zero)
 				) {
 
 
@@ -1441,9 +1443,9 @@ bool final_peephole(LineQueue &list) {
 		case SBC:
 			// INC / DEC / ASL / LSR / ROL / ROR as well, but that shouldn't happen?
 			/* LDA xxx, CMP #0, branch -> LDA xxx, branch */
-			if (match(list, opcode.mnemonic(), CMP, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+			if (match(list, opcode.mnemonic(), CMP/immediate, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c){
 				uint32_t value;
-				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
+				if (b->operands[0]->is_integer(value)) {
 					if (value == 0 && !c->branch.reads_c() && !c->branch.reads_v()) {
 						// drop the cmp
 						list.pop_front();
