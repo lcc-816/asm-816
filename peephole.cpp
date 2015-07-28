@@ -21,6 +21,10 @@ inline std::pair<Mnemonic, AddressMode> operator/(Mnemonic m, AddressMode mode) 
 	return std::make_pair(m, mode);
 }
 
+inline std::pair<Mnemonic, Mnemonic> operator|(Mnemonic m1, Mnemonic m2) {
+	return std::make_pair(m1, m2);
+}
+
 
 bool matches(const BasicLine &line, Mnemonic m) {
 	return line.opcode.mnemonic() == m;
@@ -37,6 +41,13 @@ bool matches(const BasicLine &line, const OpCode &op) {
 bool matches(const BasicLine &line, const std::pair<Mnemonic, AddressMode> &mm) {
 	return line.opcode.mnemonic() == mm.first && line.opcode.addressMode() == mm.second;
 }
+
+
+bool matches(const BasicLine &line, const std::pair<Mnemonic, Mnemonic> &mm) {
+	Mnemonic m = line.opcode.mnemonic();
+	return m == mm.first || m == mm.second;
+}
+
 
 template<unsigned Offset=0, std::size_t N>
 bool matches(const std::array<BasicLine *, N> &) {
