@@ -1431,6 +1431,23 @@ bool final_peephole(LineQueue &list) {
 		// ASL, ROR, etc?
 
 		case LDA:
+			// lda 1,s ply rtl -> pla rtl
+			if (match(list, LDA/stack_relative, PLY, RTL|RTS, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+				uint32_t int_a;
+				if (a->operands[0]->is_integer(int_a)) {
+					if (int_a == 1) {
+						auto tmp = new BasicLine(PLA, implied);
+						tmp->calc_registers();
+
+						list.pop_front();
+						list.pop_front();
+						list.push_front(tmp);
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
 		case PLA:
 		case TYA:
 		case TXA:
