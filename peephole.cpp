@@ -838,9 +838,7 @@ bool peephole(LineQueue &list) {
 			})) continue;
 			break;
 
-#if 0
-		// first can be dropped... need to check m/x bits
-		// before dropping both.
+		// TODO -- check m/x bits? before dropping?
 		case REP:
 			/* 	rep #$20, sep #$20 -> nop */
 			if (match(list, REP, SEP, [&](BasicLine *a, BasicLine *b){
@@ -860,7 +858,7 @@ bool peephole(LineQueue &list) {
 				return false;
 			})) continue;
 			break;
-
+#if 0
 		case SEP:
 			/* 	sep #$20, rep #$20 -> nop */
 			if (match(list, REP, SEP, [&](BasicLine *a, BasicLine *b){
