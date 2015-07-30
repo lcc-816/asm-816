@@ -1279,6 +1279,28 @@ bool peephole(LineQueue &list) {
 
 
 		case STX:
+			/* STX %t0 PEI %t0 -> STX, PHX */
+			if (match(list, STX/zp, PEI, [&](BasicLine *a, BasicLine *b){
+				dp_register reg_a, reg_b;
+				if (a->operands[0]->is_register(reg_a) && b->operands[0]->is_register(reg_b)) {
+					if (reg_a == reg_b) {
+
+						list.pop_front();
+						list.pop_front();
+
+						BasicLine *tmp = new BasicLine(PHX, implied);
+
+						list.insert(list.begin(), {a, tmp});
+
+						delete b;
+
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
+
 			/* STX %t0, PHA, pei %t0 -> pha, phx, stx */
 			/* makes dead-write elimination easier */
 			if (match(list, STX/zp, PHA, PEI, [&](BasicLine *a, BasicLine *b, BasicLine *c){
