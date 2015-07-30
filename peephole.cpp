@@ -17,6 +17,11 @@ inline OpCode operator/(Mnemonic m, AddressMode mode) {
 }
 */
 
+namespace {
+	struct match_any_t {};
+	static const match_any_t _{};
+}
+
 inline std::pair<Mnemonic, AddressMode> operator/(Mnemonic m, AddressMode mode) {
 	return std::make_pair(m, mode);
 }
@@ -34,6 +39,11 @@ bool matches(const BasicLine &line, Directive d) {
 	return line.directive == d;
 }
 
+bool matches(const BasicLine &line, match_any_t) {
+	return true;
+}
+
+
 bool matches(const BasicLine &line, const OpCode &op) {
 	return line.opcode == op;
 }
@@ -49,6 +59,7 @@ bool matches(const BasicLine &line, const std::pair<Mnemonic, Mnemonic> &mm) {
 }
 
 
+
 template<unsigned Offset=0, std::size_t N>
 bool matches(const std::array<BasicLine *, N> &) {
 	return true;
@@ -60,6 +71,22 @@ bool matches(const std::array<BasicLine *, N> &lines, T &&t, Rest&& ...args) {
 	return matches<Offset+1>(lines, std::forward<Rest>(args)...);
 }
 
+
+//#if 0
+template<class ...Args, class FX>
+bool match(LineQueue &list, Args && ...args, FX fx) {
+	const unsigned Size = sizeof...(args);
+	std::array<BasicLine *, Size> lines;
+
+	if (list.size() < Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	//if (!matches(lines, m1, m2)) return false;
+	if (!matches(lines, std::forward<Args>(args)...)) return false;
+	return fx(lines);
+}
+//#endif
 
 template<class A, class B, class FX>
 bool match(LineQueue &list, A m1, B m2, FX fx) {
