@@ -6,13 +6,13 @@ OBJDIR = o
 
 ifeq ($(OS),Linux)
 CXX = g++
-CXXFLAGS = -std=c++11 -g -MMD -Wno-multichar
+CXXFLAGS = -std=c++14 -g -MMD -Wno-multichar
 endif
 
 
 ifeq ($(OS),Darwin)
 CXX = clang++
-CXXFLAGS = -std=c++11 -stdlib=libc++ -g -MMD -Wno-multichar
+CXXFLAGS = -std=c++14 -stdlib=libc++ -g -MMD -Wno-multichar
 endif
 
 
@@ -20,7 +20,7 @@ SRC = grammar.cpp main.cpp lexer.cpp Instruction.cpp Machine.cpp OpCode.cpp \
 	Expression.cpp Expression_evaluate.cpp Expression_simplify.cpp Expression_visitor.cpp \
 	register_set.cpp classify.cpp peephole.cpp classify.cpp basic_block.cpp \
 	intern.cpp symbol_table.cpp data.cpp omf.cpp assign_pc.cpp assign_reg.cpp \
-	line.cpp branch.cpp propagate_const.cpp \
+	line.cpp branch.cpp propagate_const.cpp reg_const.cpp \
 	cxx/filesystem.cpp cxx/path.cpp cxx/directory_iterator.cpp
 
 OBJS = $(addprefix $(OBJDIR)/, $(SRC:.cpp=.o))
