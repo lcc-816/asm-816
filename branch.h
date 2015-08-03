@@ -49,6 +49,9 @@ struct branch {
 		return type != always;
 	}
 
+	bool reads_a() const;
+	bool writes_a() const;
+
 	unsigned flags() const;
 
 

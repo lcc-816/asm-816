@@ -11,10 +11,10 @@
 bool branch::is_signed() const {
 
 	switch(type) {
-		signed_gt:
-		signed_ge:
-		signed_lt:
-		signed_le:
+		case signed_gt:
+		case signed_ge:
+		case signed_lt:
+		case signed_le:
 			return true;
 		default:
 			return false;
@@ -38,10 +38,10 @@ bool branch::reads_c() const {
 
 bool branch::reads_v() const {
 	switch(type) {
-		signed_gt:
-		signed_ge:
-		signed_lt:
-		signed_le:
+		case signed_gt:
+		case signed_ge:
+		case signed_lt:
+		case signed_le:
 		case vs:
 		case vc:
 			return true;
@@ -49,6 +49,30 @@ bool branch::reads_v() const {
 			return false;
 	}
 }
+
+bool branch::reads_a() const {
+	switch(type) {
+		case signed_gt:
+		case signed_ge:
+		case signed_lt:
+		case signed_le:
+			return true;
+		default:
+			return false;
+	}
+}
+bool branch::writes_a() const {
+	switch(type) {
+		case signed_gt:
+		case signed_ge:
+		case signed_lt:
+		case signed_le:
+			return true;
+		default:
+			return false;
+	}
+}
+
 
 unsigned branch::size() const {
 	
