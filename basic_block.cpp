@@ -671,36 +671,47 @@ void basic_block(Segment *segment) {
 	// across blocks.
 
 	bool propagate_const(LineQueue &list);
+	bool reg_const(LineQueue &list);
 
-	for (BasicBlock * block : bq) {
-		for(;;) {
+	for(;;) {
+		bool any_delta = false;
+
+		for (BasicBlock * block : bq) {
+			// these probably don't need multiple passes...
+			if (propagate_const(block->lines)) any_delta = true;
+			if (reg_const(block->lines)) any_delta = true;
+
+			for(;; any_delta = true) {
+				bool delta = false;
+
+				if (peephole(block->lines)) delta = true;
+				if (analyze_block_2(block)) delta = true;
+				//if (propagate_const(block->lines)) delta = true; // multipass?
+				if (!delta) break;
+				any_delta = true;
+
+			}
+		}
+
+
+		// merge and remove blocks.
+		for(;; any_delta = true) {
+
 			bool delta = false;
+			if (merge_blocks(bq)) delta = true;
 
-			if (peephole(block->lines)) delta = true;
-			if (analyze_block_2(block)) delta = true;
-			if (propagate_const(block->lines)) delta = true;
+			if (delta) {
+				remove_if(bq, [](BasicBlock *block) {
+					return block->dead;
+				});
+			}
 			if (!delta) break;
-
 		}
+
+		// remove any redundant branches.
+		remove_branches(bq);
+		if (!any_delta) break;
 	}
-
-
-	// merge and remove blocks.
-	bool delta = false;
-	do {
-		delta = false;
-		if (merge_blocks(bq)) delta = true;
-
-		if (delta) {
-			remove_if(bq, [](BasicBlock *block) {
-				return block->dead;
-			});
-		}
-
-	} while (delta);
-
-	// remove any redundant branches.
-	remove_branches(bq);
 
 	// todo -- remove trailing branch to next block
 	// if only 1 exit.
