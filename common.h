@@ -136,7 +136,8 @@ struct BasicBlock {
 
 	bool processed = false;
 	bool dead = false; // mark for dead-code elimination.
-	bool entry = false; // this is an entry point (can't dead-code eliminate)
+	bool entry_node = false; // this is an entry point (can't dead-code eliminate)
+	bool exit_node = false;
 
 	std::vector<BasicBlock *> next_set;
 	std::vector<BasicBlock *> prev_set;

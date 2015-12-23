@@ -139,7 +139,7 @@ void convert_to_sr(BlockQueue &blocks) {
 
 		for (auto line : block->lines) {
 
-			OpCode op = line->opcode;
+			const OpCode &op = line->opcode;
 
 			switch (op.addressMode()) {
 
@@ -170,6 +170,23 @@ void convert_to_sr(BlockQueue &blocks) {
 	}
 }
 
+bool reads_dp(BlockQueue &blocks) {
+
+	for (auto block : blocks) {
+
+		for (auto line : block->lines) {
+
+			const OpCode &op = line->opcode;
+
+			if (op.reads_zp()) return true;
+			if (op.writes_zp()) return true;
+
+		}
+	}
+
+	return false;
+}
+
 void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	Expression::register_info ri;
@@ -183,7 +200,8 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	// if no registers used, no need to set/restore dp.
 
 	bool make_sr = can_convert_to_sr(blocks);
-
+	bool save_d = reads_dp(blocks);
+	if (make_sr) save_d = false;
 
 	// pragma locals=...
 	// pragma parameters=...
@@ -312,7 +330,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 				tmp.push_back(new BasicLine(PHY, implied));
 
 
-			if (!make_sr) {
+			if (save_d) {
 				tmp.push_back(new BasicLine(TSC, implied));
 				tmp.push_back(new BasicLine(PHD, implied));
 				tmp.push_back(new BasicLine(TCD, implied));
@@ -324,7 +342,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 			tmp.push_back(new BasicLine(SBC, immediate, Expression::Integer(locals)));
 			tmp.push_back(new BasicLine(TCS, implied));
 
-			if (!make_sr) {
+			if (save_d) {
 				tmp.push_back(new BasicLine(PHD, implied));
 				tmp.push_back(new BasicLine(TCD, implied));
 			}
@@ -365,7 +383,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	// prologue...
 	if (locals || segment->parm_size) {
-		if (!make_sr) {
+		if (save_d) {
 			tmp.push_back(new BasicLine(PLD, implied));
 		}
 

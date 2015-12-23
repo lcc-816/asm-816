@@ -179,7 +179,8 @@ bool merge_blocks(BlockQueue &bq) {
 
 		assert(next->prev_set.front() == block);
 
-		if (next->entry) continue; // can't merge.
+		if (next->entry_node) continue; // can't merge.
+		if (next->exit_node) block->exit_node = true;
 
 		LineQueue &lines = block->lines;
 
@@ -275,8 +276,8 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 	}
 	lines.clear();
 
-	if (!out.empty()) out.front()->entry = true;
-
+	if (!out.empty()) out.front()->entry_node = true;
+	if (!out.empty()) out.back()->exit_node = true;
 
 	// check for drop-through
 	for (auto iter = out.begin(); iter != out.end(); ++iter) {
@@ -296,8 +297,9 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 			if (!is_branch(m))
 				fallthrough = true;
 
-			if (line->directive == SMART_BRANCH && line->branch.is_conditional())
-				fallthrough = true;
+			if (line->directive == SMART_BRANCH) {
+				fallthrough = line->branch.is_conditional();
+			}
 
 		} 
 
@@ -546,8 +548,10 @@ void dead_code_eliminate(BlockQueue &bq) {
 	do {
 		delta = false;
 		for (BasicBlock *block : bq) {
-			if (block->entry) continue;
 			if (block->dead) continue;
+			if (block->entry_node) continue;
+			if (block->exit_node) continue; //
+
 			if (block->prev_set.empty()) {
 				delta = true;
 				block->dead = true;
@@ -732,25 +736,62 @@ void basic_block(Segment *segment) {
 	//
 	LineQueue out;
 
-	out.insert(out.end(), segment->prologue_code.begin(), segment->prologue_code.end());
+	//out.insert(out.end(), segment->prologue_code.begin(), segment->prologue_code.end());
 
 	for (BasicBlock *block : bq) {
 
 		if (block->dead) continue;
 
+		auto &lines = block->lines;
+
+		if (block->entry_node) {
+			// insert it here so it can be peepholed.
+			lines.insert(lines.begin(), 
+				segment->prologue_code.begin(), 
+				segment->prologue_code.end()
+			);
+		}
+
 		if (block->label) {
 			BasicLine *tmp = new BasicLine;
 			tmp->label = block->label;
-			out.push_back(tmp);
+			//out.push_back(tmp);
+			lines.push_front(tmp);
 		}
-		final_peephole(block->lines); // remove extraneous cmp #0
 
-		for (auto &line : block->lines) {
+		// if this branches to an exit node and the exit code is small, just do it here.
+		// can't be too big or it could screw up branching.
+
+		if (
+			!lines.empty()
+			&& lines.back()->directive == SMART_BRANCH
+			&& lines.back()->branch.type == branch::always
+			&& block->next_set.size() == 1 
+			&& block->next_set.front()->exit_node
+			&& block->next_set.front()->lines.empty()
+			&& segment->epilogue_code.size() < 3) {
+
+			lines.pop_back();
+			block->exit_node = true;
+		}
+
+		if (block->exit_node) {
+			lines.insert(lines.end(), 
+				segment->epilogue_code.begin(), 
+				segment->epilogue_code.end()
+			);
+		}
+
+
+
+		final_peephole(lines); // remove extraneous cmp #0, etc.
+
+		for (auto &line : lines) {
 			switch(line->directive) {
 				case SMART_BRANCH:
 					{
 						auto tmp = line->branch.to_code(line->operands[0]);
-						out.insert(out.end(), tmp.begin(), tmp.end()); 
+						out.insert(out.end(), tmp.begin(), tmp.end());
 					}
 					break;
 				case PROLOGUE:
@@ -771,7 +812,8 @@ void basic_block(Segment *segment) {
 	}
 	
 	// optimize JSL address / RTL to JML address.
-
+	// now handled by peephole.
+#if 0
 	if (out.size() && segment->epilogue_code.size() == 1) {
 		BasicLine *back = out.back();
 		BasicLine *tmp = segment->epilogue_code.back();
@@ -791,8 +833,9 @@ void basic_block(Segment *segment) {
 		}
 
 	}
+#endif
 
-	out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
+	//out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
 
 	segment->lines = std::move(out);
 }

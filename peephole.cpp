@@ -22,12 +22,25 @@ namespace {
 	static const match_any_t _{};
 }
 
-inline std::pair<Mnemonic, AddressMode> operator/(Mnemonic m, AddressMode mode) {
+typedef std::pair<Mnemonic, AddressMode> ma_pair;
+typedef std::pair<Mnemonic, Mnemonic> mm_pair;
+
+inline ma_pair operator/(Mnemonic m, AddressMode mode) {
 	return std::make_pair(m, mode);
 }
 
 inline std::pair<Mnemonic, Mnemonic> operator|(Mnemonic m1, Mnemonic m2) {
 	return std::make_pair(m1, m2);
+}
+
+template<class T1, class T2>
+inline std::pair<std::pair<T1, T2>, Mnemonic> operator|(std::pair<T1, T2> lhs, Mnemonic rhs) {
+	return std::make_pair(lhs, rhs);
+}
+
+template<class T1, class T2>
+inline std::pair<std::pair<T1, T2>, ma_pair> operator|(std::pair<T1, T2> lhs, ma_pair rhs) {
+	return std::make_pair(lhs, rhs);
 }
 
 
@@ -52,12 +65,18 @@ bool matches(const BasicLine &line, const std::pair<Mnemonic, AddressMode> &mm) 
 	return line.opcode.mnemonic() == mm.first && line.opcode.addressMode() == mm.second;
 }
 
-
 bool matches(const BasicLine &line, const std::pair<Mnemonic, Mnemonic> &mm) {
 	Mnemonic m = line.opcode.mnemonic();
 	return m == mm.first || m == mm.second;
 }
 
+// built up from a set of | ops.
+template<class T1, class T2>
+bool matches(const BasicLine &line, const std::pair<T1, T2> &p) {
+	if (matches(line, p.first)) return true;
+	if (matches(line, p.second)) return true;
+	return false;
+}
 
 
 template<unsigned Offset=0, std::size_t N>
@@ -88,6 +107,21 @@ bool match(LineQueue &list, Args && ...args, FX fx) {
 }
 //#endif
 
+template<class A, class FX>
+bool match(LineQueue &list, A m1, FX fx) {
+	const unsigned Size = 1;
+	std::array<BasicLine *, Size> lines;
+
+	if (list.size() < Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1)) return false;
+
+	return fx(lines[0]);
+}
+
+
 template<class A, class B, class FX>
 bool match(LineQueue &list, A m1, B m2, FX fx) {
 	const unsigned Size = 2;
@@ -116,7 +150,6 @@ bool match(LineQueue &list, A m1, B m2, C m3, FX fx) {
 	return fx(lines[0], lines[1], lines[2]);
 }
 
-
 template<class A, class B, class C, class D, class FX>
 bool match(LineQueue &list, A m1, B m2, C m3, D m4, FX fx) {
 	const unsigned Size = 4;
@@ -144,7 +177,6 @@ bool match(LineQueue &list, A m1, B m2, C m3, D m4, E m5, FX fx) {
 
 	return fx(lines[0], lines[1], lines[2], lines[3], lines[4]);
 }
-
 
 #if 0
 template<class A, class B, class C, class FX>
@@ -242,7 +274,6 @@ bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Mnemonic m4, 
 
 	return fx(lines[0], lines[1], lines[2], lines[3], lines[4]);
 }
-#endif
 
 // lda xxx, cmp #0, branch 
 template<class FX>
@@ -328,6 +359,7 @@ bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Directive d4,
 	return fx(lines[0], lines[1], lines[2], lines[3]);
 }
 
+#endif
 
 bool peephole(LineQueue &list) {
 
@@ -355,6 +387,28 @@ bool peephole(LineQueue &list) {
 
 		case ADC:
 
+			// ADC #%t0, inc, inc -> adc #%t2
+			if (match(list, ADC/immediate, INC/implied, INC/implied, [&](BasicLine *a, BasicLine *b, BasicLine *c){
+
+				dp_register reg;
+				if (a->operands[0]->is_register(reg)) {
+
+					list.pop_front();
+					list.pop_front();
+					list.pop_front();
+
+					reg += 2;
+					a->operands[0] = Expression::Register(reg);
+					a->calc_registers();
+					list.push_front(a);
+					delete b;
+					delete c;
+
+					return true;
+				}
+				return false;
+			})) continue;
+
 			#if 0
 			if (match(list, ADC, INC, INC, [&](BasicLine *a, BasicLine *b, BasicLine *c){
 				if (a->opcode.addressMode() != immediate) return false;
@@ -376,7 +430,6 @@ bool peephole(LineQueue &list) {
 				return false;
 
 			})) continue;
-			#endif
 			/* ADC const, inc a -> adc const+1 */
 			// n.b. if carry flag is relevant, this could affect it */
 			if (match(list, ADC, INC,[&](BasicLine *a, BasicLine *b){
@@ -396,6 +449,7 @@ bool peephole(LineQueue &list) {
 				return false;
 
 			})) continue;
+			#endif
 
 			break;
 
@@ -449,6 +503,23 @@ bool peephole(LineQueue &list) {
 				}
 				return false;
 
+			})) continue;
+
+			/* AND #0 -> LDA #0 */
+			if (match(list, AND/immediate, [&](BasicLine *a){
+				uint32_t value;
+				if (line->operands[0]->is_integer(value)) {
+					if ((value & 0xffff) == 0) {
+						BasicLine *tmp = new BasicLine(LDA, immediate);
+						tmp->operands[0] = Expression::Integer(0);
+						tmp->calc_registers();
+						list.pop_front();
+						list.push_front(tmp);
+						delete a;
+						return true;
+					}
+				}
+				return false;
 			})) continue;
 
 			break;
@@ -521,29 +592,10 @@ bool peephole(LineQueue &list) {
 				return true;
 			})) continue;
 
-			/* lda xxx, CMP #0 -> lda xxx */
-			// not safe... doesn't set carry flag 
-			#if 0
-			if (match(list, LDA, CMP, [&](BasicLine *a, BasicLine *b){
-				uint32_t value;
-				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
-					if (value == 0) {
-						list.pop_front();
-						list.pop_front();
-						delete b;
-						list.push_front(a);
-						return true;
-					}
-				}
-				return false;
-			})) continue;
-			#endif
 
 
 			/* LDA #const, AND #const -> LDA #const */
-			if (match(list, LDA, AND, [&](BasicLine *a, BasicLine *b){
-				if (a->opcode.addressMode() != immediate) return false;
-				if (b->opcode.addressMode() != immediate) return false;
+			if (match(list, LDA/immediate, AND/immediate, [&](BasicLine *a, BasicLine *b){
 
 				uint32_t value_a, value_b;
 				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
@@ -561,9 +613,7 @@ bool peephole(LineQueue &list) {
 			})) continue;
 
 			/* LDA #const, ORA #const -> LDA #const */
-			if (match(list, LDA, ORA, [&](BasicLine *a, BasicLine *b){
-				if (a->opcode.addressMode() != immediate) return false;
-				if (b->opcode.addressMode() != immediate) return false;
+			if (match(list, LDA/immediate, ORA/immediate, [&](BasicLine *a, BasicLine *b){
 
 				uint32_t value_a, value_b;
 				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
@@ -581,9 +631,7 @@ bool peephole(LineQueue &list) {
 			})) continue;
 
 			/* LDA #const, EOR #const -> LDA #const */
-			if (match(list, LDA, EOR, [&](BasicLine *a, BasicLine *b){
-				if (a->opcode.addressMode() != immediate) return false;
-				if (b->opcode.addressMode() != immediate) return false;
+			if (match(list, LDA/immediate, EOR/immediate, [&](BasicLine *a, BasicLine *b){
 
 				uint32_t value_a, value_b;
 				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
@@ -671,9 +719,7 @@ bool peephole(LineQueue &list) {
 
 		case ORA:
 			/* ORA #const1, ORA #const2 -> ORA #(const1 | const 2) */
-			if (match(list, ORA, ORA, [&](BasicLine *a, BasicLine *b){
-				if (a->opcode.addressMode() != immediate) return false;
-				if (b->opcode.addressMode() != immediate) return false;
+			if (match(list, ORA/immediate, ORA/immediate, [&](BasicLine *a, BasicLine *b){
 
 				uint32_t value_a, value_b;
 				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
@@ -1140,6 +1186,9 @@ bool peephole(LineQueue &list) {
 
 		 	})) continue;
 
+
+
+
 			// STY first to improve other optimizations.
 			if (match(list, STA/zp, STY/zp, [&](BasicLine *a, BasicLine *b){
 					dp_register reg_a, reg_b;
@@ -1219,6 +1268,34 @@ bool peephole(LineQueue &list) {
 				}
 				return false;
 
+			})) continue;
+
+			// sta %t0, lda %t2, eor %t0 -> sta %t0, eor %t2
+			// also applies to AND, ORA.
+			if (match(list, STA/zp, LDA/zp, (AND/zp)|(EOR/zp)|(ORA/zp), [&](BasicLine *a, BasicLine *b, BasicLine *c){
+				dp_register reg_a, reg_b, reg_c;
+
+				if (a->operands[0]->is_register(reg_a) 
+					&& b->operands[0]->is_register(reg_b) 
+					&& c->operands[0]->is_register(reg_c)) {
+
+					if (reg_a == reg_c) {
+
+						list.pop_front();
+						list.pop_front();
+						list.pop_front();
+
+						BasicLine *tmp = new BasicLine(c->opcode.mnemonic(), zp, b->operands[0]);
+						tmp->calc_registers();
+
+						list.insert(list.begin(), {a, tmp});
+						delete b;
+						delete c;
+
+						return true;
+					}
+				}
+				return false;
 			})) continue;
 
 			break;
@@ -1422,6 +1499,21 @@ bool final_peephole(LineQueue &list) {
 		default: break;
 
 		case JSL:
+			// JSL, RTL -> JML
+			if (match(list, JSL/absolute_long, RTL, [&](BasicLine *a, BasicLine *b){
+				list.pop_front();
+				list.pop_front();
+
+				BasicLine *tmp = new BasicLine(JML, absolute_long,  a->operands[0]);
+				tmp->calc_registers();
+
+				list.push_front(tmp);
+
+				delete a;
+				delete b;
+				return true;
+			})) continue;
+
 			/* jsl $e10000, sta >_toolErr, cmp #0, beq/bne -> */
 			/* jsl $e10000, sta >_toolErr, bcc / bcs */
 			if (match(list, JSL/absolute_long, STA/absolute_long, CMP/immediate, SMART_BRANCH, [&](BasicLine *a, BasicLine *b, BasicLine *c, BasicLine *d) {
@@ -1474,6 +1566,23 @@ bool final_peephole(LineQueue &list) {
 			})) continue;
 			break;
 
+		case JSR:
+
+			// JSL, RTL -> JMP
+			if (match(list, JSR/absolute, RTS, [&](BasicLine *a, BasicLine *b){
+				list.pop_front();
+				list.pop_front();
+
+				BasicLine *tmp = new BasicLine(JMP, absolute,  a->operands[0]);
+				tmp->calc_registers();
+
+				list.push_front(tmp);
+
+				delete a;
+				delete b;
+				return true;
+			})) continue;
+
 		// AND xxx, cmp #0
 		// ORA xxx, cmp #0
 		// EOR xxx, cmp #0
@@ -1524,6 +1633,16 @@ bool final_peephole(LineQueue &list) {
 				return false;
 			})) continue;
 			break;
+
+		case TCD:
+			if (match(list, TCD, TDC, [&](BasicLine *a, BasicLine *b){
+
+				list.pop_front();
+				list.pop_front();
+				list.push_front(a);
+				delete b;
+				return true;
+			})) continue;
 
 #if 0
 		case LDX:

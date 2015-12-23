@@ -49,6 +49,7 @@ bool propagate_const(LineQueue &list) {
 				}
 				break;
 
+#if 0
 			case STA:
 			case STX:
 			case STY:
@@ -61,10 +62,9 @@ bool propagate_const(LineQueue &list) {
 			case LSR:
 			case ROR:
 			case ROL:
-				if (opcode.addressMode() == zp && e->is_temporary(reg)) {
-					known_zeroes.erase(reg);
-				}
-				break;
+#endif
+
+
 
 
 			case PEI:
@@ -95,7 +95,12 @@ bool propagate_const(LineQueue &list) {
 					}	
 				}
 				break;
+
 			default:
+
+				if (opcode.writes_zp() && opcode.addressMode() == zp && e->is_temporary(reg)) {
+					known_zeroes.erase(reg);
+				}
 				break;
 		}
 
