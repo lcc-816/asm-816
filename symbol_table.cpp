@@ -20,7 +20,7 @@ void symbol_table::insert(identifier key, ExpressionPtr value) {
 	_spine.back().insert(std::make_pair(key, value));
 }
 
-Expression *symbol_table::find(identifier key) {
+ExpressionPtr symbol_table::find(identifier key) {
 	
 	for (auto iter = _spine.rbegin(); iter != _spine.rend(); ++iter) {
 		auto kv = iter->find(key);

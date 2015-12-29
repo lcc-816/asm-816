@@ -73,8 +73,9 @@ ExpressionPtr UnaryExpression::accept(MapVisitor &v) const {
 	);
 
 	if (tmp == _children) return v.visit(*this);
-	auto self = Unary(_op, tmp[0]);
-	return v.visit(*(UnaryExpression *)self);
+	//auto self = static_pointer_cast<UnaryExpression>(Unary(_op, tmp[0]));
+	auto self = std::make_shared<UnaryExpression>(_op, tmp[0]);
+	return v.visit(*self);
 }
 
 
@@ -86,8 +87,9 @@ ExpressionPtr BinaryExpression::accept(MapVisitor &v) const {
 	);
 
 	if (tmp == _children) return v.visit(*this);
-	auto self = Binary(_op, tmp[0], tmp[1]);
-	return v.visit(*(BinaryExpression *)self);
+	//auto self = static_pointer_cast<BinaryExpression>(Binary(_op, tmp[0], tmp[1]));
+	auto self = std::make_shared<BinaryExpression>(_op, tmp[0], tmp[1]);
+	return v.visit(*self);
 }
 
 ExpressionPtr VectorExpression::accept(MapVisitor &v) const {

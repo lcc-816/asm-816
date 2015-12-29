@@ -18,9 +18,9 @@
 #include "OpCode.h"
 #include "Expression.h"
 #include "common.h"
-#include "grammar.h"
 #include "intern.h"
 #include "cookie.h"
+#include "grammar.h"
 
 
 namespace {
@@ -83,43 +83,40 @@ void Parse(void *yyp, int yymajor, Token yyminor, Cookie *cookie);
 
 void Parse(void *yyp, int yymajor, const std::string &string_value, Cookie *cookie)
 {
-	Token t;
-	t.line = cookie->line_number;
-	t.string_value = intern(string_value);
+	Token t(cookie->line_number, intern(string_value));
 	Parse(yyp, yymajor, t, cookie);
 }
 
-void Parse(void *yyp, int yymajor, uint32_t int_value, Cookie *cookie)
+void Parse(void *yyp, int yymajor, uint32_t value, Cookie *cookie)
 {
-	Token t;
-	t.line = cookie->line_number;
-	t.int_value = int_value;
+	Token t(cookie->line_number, value);
 	Parse(yyp, yymajor, t, cookie);
 }
 
 
-void Parse(void *yyp, int yymajor, dp_register register_value, Cookie *cookie)
+void Parse(void *yyp, int yymajor, dp_register value, Cookie *cookie)
 {
-	Token t;
-	t.line = cookie->line_number;
-	t.register_value = register_value;
+	Token t(cookie->line_number, std::move(value));
 	Parse(yyp, yymajor, t, cookie);
 }
 
-void Parse(void *yyp, int yymajor, Expression &expr_value, Cookie *cookie)
+void Parse(void *yyp, int yymajor, ExpressionPtr value, Cookie *cookie)
 {
-	Token t;
-	t.line = cookie->line_number;
-	t.expr_value = std::addressof(expr_value);
+	Token t(cookie->line_number, std::move(value));
 	Parse(yyp, yymajor, t, cookie);
 }
 
 
-void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
+void Parse(void *yyp, int yymajor, const branch &value, Cookie *cookie)
 {
-	Token t;
-	t.line = cookie->line_number;
-	t.branch_value = branch_value;
+	Token t(cookie->line_number, std::move(value));
+	Parse(yyp, yymajor, t, cookie);
+}
+
+
+void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
+{
+	Token t(cookie->line_number, std::move(value));
 	Parse(yyp, yymajor, t, cookie);
 }
 
@@ -251,19 +248,14 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 		'*' { Parse(parser, tkSTAR, 0, &cookie); };
 
 		# dp-registers -- %t0, etc
-		'%' [prtv] digit+ {
-			unsigned type = ts[1];
-			unsigned number = scan10(ts+2, te);
-			dp_register dp = {type, number };
-			Parse(parser, tkDP_REGISTER, dp, &cookie);
-		};
+		dp_register => parse_dp_register;
 
 		# real registers
-		#'a'i { Parse(parser, tkREGISTER_A, 0, &cookie); };
-		'x'i { Parse(parser, tkREGISTER_X, 0, &cookie); };
-		'y'i { Parse(parser, tkREGISTER_Y, 0, &cookie); };
-		'z'i { Parse(parser, tkREGISTER_Z, 0, &cookie); };
-		's'i { Parse(parser, tkREGISTER_S, 0, &cookie); };
+		#'a'i { Parse(parser, tkREGISTER_A, std::string(ts, te), &cookie); };
+		'x'i { Parse(parser, tkREGISTER_X, std::string(ts, te), &cookie); };
+		'y'i { Parse(parser, tkREGISTER_Y, std::string(ts, te), &cookie); };
+		'z'i { Parse(parser, tkREGISTER_Z, std::string(ts, te), &cookie); };
+		's'i { Parse(parser, tkREGISTER_S, std::string(ts, te), &cookie); };
 
 		# numbers
 		'$' xdigit + {
@@ -323,7 +315,7 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 				if (e->is_register(dp)) {
 					Parse(parser, tkDP_REGISTER, dp, &cookie);
 				}
-				else Parse(parser, tkEXPRESSION, *e, &cookie);
+				else Parse(parser, tkEXPRESSION, e, &cookie);
 			} else {
 				Parse(parser, tkIDENTIFIER, s, &cookie);
 			}
@@ -725,11 +717,11 @@ void Parse(void *yyp, int yymajor, const branch &branch_value, Cookie *cookie)
 				// just insert the instruction directly into the cookie.
 				// since it's easier than dealing with c++ unions.
 
-				cookie.scratch.instruction = instr;
+				//cookie.scratch.instruction = instr;
 				unsigned tk = tkOPCODE;
 				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
 				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
-				Parse(parser, tk, 0, &cookie);
+				Parse(parser, tk, instr, &cookie);
 				//fgoto operand;
 
 			} else {
@@ -844,12 +836,15 @@ void parse_text(void *parser, Cookie &cookie, const char *p, const char *pe, boo
 }
 
 
+void ParseTrace(FILE *TraceFILE, char *zTracePrompt);
 
 void *init(Cookie &cookie) {
 	
 	void *parser;
 
 	parser = ParseAlloc(malloc);
+
+	//ParseTrace(stderr, (char *)": ");
 
 	cookie.data_segment.reset(new Segment);
 	cookie.data_segment->convention = Segment::data;
@@ -881,6 +876,7 @@ void cleanup_cookie(Cookie &cookie, SegmentQueue &rv) {
 
 	rv = std::move(cookie.segments);
 }
+
 
 bool parse_file(FILE *file, SegmentQueue &rv) {
 

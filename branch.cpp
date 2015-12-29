@@ -260,195 +260,195 @@ namespace {
 		return Expression::Binary('+', Expression::PC(), Expression::Integer(offset));
 	}
 }
-std::vector<BasicLine *> branch::to_code(ExpressionPtr target) const {
+std::vector<BasicLinePtr> branch::to_code(ExpressionPtr target) const {
 
-	std::vector<BasicLine *> rv;
+	std::vector<BasicLinePtr> rv;
 
 	switch(type) {
 		case always:
 			if (far) {
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BRA, relative, target));
+				rv.emplace_back(BasicLine::Make(BRA, relative, target));
 			}
 			break;
 
 		case eq:
 			if (far) {
-				rv.push_back(new BasicLine(BNE, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BNE, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BEQ, relative, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, target));
 			}
 			break;
 
 		case ne:
 			if (far) {
-				rv.push_back(new BasicLine(BEQ, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BNE, relative, target));
+				rv.emplace_back(BasicLine::Make(BNE, relative, target));
 			}
 			break;
 
 		case cc:
 			if (far) {
-				rv.push_back(new BasicLine(BCS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BCS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BCC, relative, target));
+				rv.emplace_back(BasicLine::Make(BCC, relative, target));
 			}
 			break;
 
 		case cs:
 			if (far) {
-				rv.push_back(new BasicLine(BCC, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BCC, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BCS, relative, target));
+				rv.emplace_back(BasicLine::Make(BCS, relative, target));
 			}
 			break;
 
 
 		case vc:
 			if (far) {
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BVC, relative, target));
+				rv.emplace_back(BasicLine::Make(BVC, relative, target));
 			}
 			break;
 
 		case vs:
 			if (far) {
-				rv.push_back(new BasicLine(BVC, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BVC, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BVS, relative, target));
+				rv.emplace_back(BasicLine::Make(BVS, relative, target));
 			}
 			break;
 
 
 		case mi:
 			if (far) {
-				rv.push_back(new BasicLine(BPL, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BPL, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BMI, relative, target));
+				rv.emplace_back(BasicLine::Make(BMI, relative, target));
 			}
 			break;
 
 		case pl:
 			if (far) {
-				rv.push_back(new BasicLine(BMI, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BMI, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BPL, relative, target));
+				rv.emplace_back(BasicLine::Make(BPL, relative, target));
 			}
 			break;
 
 
 		case unsigned_ge:
 			if (far) {
-				rv.push_back(new BasicLine(BCC, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BCC, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BCS, relative, target));
+				rv.emplace_back(BasicLine::Make(BCS, relative, target));
 			}
 			break;
 
 		case unsigned_lt:
 			if (far) {
-				rv.push_back(new BasicLine(BCS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BCS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BCC, relative, target));
+				rv.emplace_back(BasicLine::Make(BCC, relative, target));
 			}
 			break;
 
 		case unsigned_gt:
 			if (far) {
-				rv.push_back(new BasicLine(BEQ, relative, star_plus(7)));
-				rv.push_back(new BasicLine(BCC, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, star_plus(7)));
+				rv.emplace_back(BasicLine::Make(BCC, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
-				rv.push_back(new BasicLine(BEQ, relative, star_plus(4)));
-				rv.push_back(new BasicLine(BCS, relative, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, star_plus(4)));
+				rv.emplace_back(BasicLine::Make(BCS, relative, target));
 			}
 			break;
 
 
 		case unsigned_le:
 			if (far) {
-				rv.push_back(new BasicLine(BEQ, relative, star_plus(4)));
-				rv.push_back(new BasicLine(BCS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, star_plus(4)));
+				rv.emplace_back(BasicLine::Make(BCS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 			} else {
 				// assume bcc more likely than beq
-				rv.push_back(new BasicLine(BCC, relative, target));
-				rv.push_back(new BasicLine(BEQ, relative, target));
+				rv.emplace_back(BasicLine::Make(BCC, relative, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, target));
 			}
 			break;
 
 
 		case signed_ge:
 			if (far) {
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(EOR, immediate, Expression::Integer(0x8000)));
-				rv.push_back(new BasicLine(BPL, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(EOR, immediate, Expression::Integer(0x8000)));
+				rv.emplace_back(BasicLine::Make(BPL, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 
 			} else {
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(EOR, immediate, Expression::Integer(0x8000)));
-				rv.push_back(new BasicLine(BMI, relative, target));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(EOR, immediate, Expression::Integer(0x8000)));
+				rv.emplace_back(BasicLine::Make(BMI, relative, target));
 			}
 			break;
 
 		case signed_lt:
 			if (far) {
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(EOR, immediate, Expression::Integer(0x8000)));
-				rv.push_back(new BasicLine(BMI, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(EOR, immediate, Expression::Integer(0x8000)));
+				rv.emplace_back(BasicLine::Make(BMI, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 
 			} else {
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(EOR, immediate, Expression::Integer(0x8000)));
-				rv.push_back(new BasicLine(BPL, relative, target));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(EOR, immediate, Expression::Integer(0x8000)));
+				rv.emplace_back(BasicLine::Make(BPL, relative, target));
 			}
 			break;
 
 		case signed_gt:
 			if (far) {
-				rv.push_back(new BasicLine(BEQ, relative, star_plus(12)));
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(EOR, immediate, Expression::Integer(0x8000)));
-				rv.push_back(new BasicLine(BPL, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, star_plus(12)));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(EOR, immediate, Expression::Integer(0x8000)));
+				rv.emplace_back(BasicLine::Make(BPL, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 
 			} else {
-				rv.push_back(new BasicLine(BEQ, relative, star_plus(9)));
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(EOR, immediate, Expression::Integer(0x8000)));
-				rv.push_back(new BasicLine(BMI, relative, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, star_plus(9)));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(EOR, immediate, Expression::Integer(0x8000)));
+				rv.emplace_back(BasicLine::Make(BMI, relative, target));
 			}
 			break;
 
 
 		case signed_le:
 			if (far) {
-				rv.push_back(new BasicLine(BEQ, relative, star_plus(9)));
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(EOR, immediate, Expression::Integer(0x8000)));
-				rv.push_back(new BasicLine(BMI, relative, star_plus(5)));
-				rv.push_back(new BasicLine(BRL, relative_long, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, star_plus(9)));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(EOR, immediate, Expression::Integer(0x8000)));
+				rv.emplace_back(BasicLine::Make(BMI, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
 
 			} else {
-				rv.push_back(new BasicLine(BEQ, relative, target));
-				rv.push_back(new BasicLine(BVS, relative, star_plus(5)));
-				rv.push_back(new BasicLine(EOR, immediate, Expression::Integer(0x8000)));
-				rv.push_back(new BasicLine(BPL, relative, target));
+				rv.emplace_back(BasicLine::Make(BEQ, relative, target));
+				rv.emplace_back(BasicLine::Make(BVS, relative, star_plus(5)));
+				rv.emplace_back(BasicLine::Make(EOR, immediate, Expression::Integer(0x8000)));
+				rv.emplace_back(BasicLine::Make(BPL, relative, target));
 			}
 			break;
 

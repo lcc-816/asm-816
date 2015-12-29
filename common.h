@@ -14,7 +14,8 @@
 #include "register_set.h"
 #include "branch.h"
 
-class Expression;
+
+#include "types.h"
 
 
 enum Directive {
@@ -37,32 +38,6 @@ enum Directive {
 
 
 
-struct Token {
-	unsigned line;
-	union {
-		const std::string *string_value;
-		uint32_t int_value;
-		dp_register register_value;
-		Mnemonic mnemonic_value;
-		Expression *expr_value;
-		branch branch_value;
-	};
-};
-
-struct Line {
-
-	// Line data while parsing.
-	const std::string *label = nullptr;
-	Directive directive = kUndefinedDirective;
-
-	Instruction instruction;
-	AddressMode mode = kUndefinedAddressMode;
-	bool explicit_mode = false;
-	bool error = false;
-	branch branch;
-
-	Expression *operands[2] = {0, 0};
-};
 
 
 enum {
@@ -79,24 +54,65 @@ struct BasicLine {
 	BasicLine(const BasicLine &) = default;
 	BasicLine(BasicLine &&) = default;
 
-	BasicLine(Mnemonic m, AddressMode mode, ExpressionPtr e = nullptr) {
+
+	BasicLine(identifier l) : label(l)
+	{}
+
+	BasicLine(Mnemonic m, AddressMode mode) {
 		opcode = OpCode(m65816, m, mode);
-		operands[0] = e;
 	}
 
-	BasicLine(Directive d, ExpressionPtr e = nullptr) {
+	template<class E>
+	BasicLine(Mnemonic m, AddressMode mode, E && a) {
+		opcode = OpCode(m65816, m, mode);
+		operands[0] = std::move(a);
+	}
+
+	template<class E>
+	BasicLine(Mnemonic m, AddressMode mode, E && a, E && b) {
+		opcode = OpCode(m65816, m, mode);
+		operands[0] = std::move(a);
+		operands[1] = std::move(b);
+	}
+
+	template<class E>
+	BasicLine(const OpCode &op, E &&a) {
+		opcode = op;
+		operands[0] = std::move(a);
+	}
+
+	template<class E>
+	BasicLine(const OpCode &op, E && a, E && b) {
+		opcode = op;
+		operands[0] = std::move(a);
+		operands[1] = std::move(b);
+	}
+
+	BasicLine(Directive d) {
 		directive = d;
-		operands[0] = e;
 	}
 
-	const std::string *label = nullptr;
+	template<class E>
+	BasicLine(Directive d, E &&e) {
+		directive = d;
+		operands[0] = std::move(e);
+	}
+
+
+
+	template<class...Args>
+	static BasicLinePtr Make(Args&&... args) {
+		return std::make_shared<BasicLine>(std::forward<Args>(args)...);
+	}
+
+	identifier label = nullptr;
 	bool global = false;
 
 	Directive directive = kUndefinedDirective;
 
 	OpCode opcode;
 
-	Expression *operands[2] = {0, 0};
+	ExpressionPtr operands[2];
 
 	bool longM = true;
 	bool longX = true;
@@ -108,7 +124,7 @@ struct BasicLine {
 	// live registers, etc.
 
 	register_set reg_live;
-	dp_register reg = { 0, 0 }; // from operands.
+	dp_register reg; // from operands.
 	unsigned reg_count = 0; 
 	unsigned reg_status = reg_none;
 
@@ -118,7 +134,9 @@ struct BasicLine {
 	void calc_registers();
 };
 
-typedef std::deque<BasicLine *> LineQueue;
+
+typedef std::deque<BasicLinePtr> LineQueue;
+
 
 struct BasicBlock {
 
@@ -126,7 +144,13 @@ struct BasicBlock {
 	unsigned pc = 0;
 	unsigned id = 0;
 
-	const std::string *label = nullptr;
+	identifier label = nullptr;
+
+	template<class...Args>
+	static BasicBlockPtr Make(Args&&... args) {
+		return std::make_shared<BasicBlock>(std::forward<Args>(args)...);
+	}
+
 
 	LineQueue lines;
 
@@ -139,16 +163,17 @@ struct BasicBlock {
 	bool entry_node = false; // this is an entry point (can't dead-code eliminate)
 	bool exit_node = false;
 
-	std::vector<BasicBlock *> next_set;
-	std::vector<BasicBlock *> prev_set;
+	std::vector<BasicBlockPtr> next_set;
+	std::vector<BasicBlockPtr> prev_set;
 
 };
-typedef std::deque<BasicBlock *> BlockQueue;
+
+typedef std::deque<BasicBlockPtr> BlockQueue;
 
 
 struct Segment {
-	const std::string *name = nullptr;
-	const std::string *segment = nullptr;
+	identifier name = nullptr;
+	identifier segment = nullptr;
 
 	//BlockQueue blocks;
 	LineQueue lines;
@@ -176,12 +201,12 @@ struct Segment {
 		stdcall
 	} convention = naked;
 
-	std::vector<BasicLine *> prologue_code;
-	std::vector<BasicLine *> epilogue_code;
+	std::vector<BasicLinePtr> prologue_code;
+	std::vector<BasicLinePtr> epilogue_code;
 };
 
 // n. b. -- other stuff outside of segment, like export / import set.
-typedef std::deque< std::unique_ptr<Segment> > SegmentQueue;
+typedef std::deque< SegmentPtr> SegmentQueue;
 
 
 // Translation unit aka file

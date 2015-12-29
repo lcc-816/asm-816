@@ -59,7 +59,7 @@ namespace {
 }
 
 
-void assign_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
+void assign_pc(BasicLinePtr line, uint32_t &pc, identifier_map *map = nullptr) {
 
 	line->pc = pc;
 
@@ -91,17 +91,17 @@ void assign_pc(BasicLine *line, uint32_t &pc, identifier_map *map = nullptr) {
 
 			case DCB:
 				assert(operand->is_vector());
-				pc += ((VectorExpression *)operand)->size() * 1;
+				pc += std::static_pointer_cast<VectorExpression>(operand)->size() * 1;
 				return;
 
 			case DCW:
 				assert(operand->is_vector());
-				pc += ((VectorExpression *)operand)->size() * 2;
+				pc += std::static_pointer_cast<VectorExpression>(operand)->size() * 2;
 				return;
 
 			case DCL:
 				assert(operand->is_vector());
-				pc += ((VectorExpression *)operand)->size() * 4;
+				pc += std::static_pointer_cast<VectorExpression>(operand)->size() * 4;
 				return;
 
 			case SMART_BRANCH:

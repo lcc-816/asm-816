@@ -4,7 +4,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include "Expression.h"
+#include "types.h"
 
 class symbol_table {
 	
@@ -14,8 +14,8 @@ public:
 	symbol_table(symbol_table &&) = default;
 	symbol_table(const symbol_table &) = default;
 
-symbol_table& operator=(symbol_table &&) = default;
-symbol_table& operator=(const symbol_table &) = default;
+	symbol_table& operator=(symbol_table &&) = default;
+	symbol_table& operator=(const symbol_table &) = default;
 
 
 	ExpressionPtr find(identifier key);

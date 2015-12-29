@@ -19,6 +19,7 @@
 #include "unordered_set"
 
 #include "cxx/filesystem.h"
+#include "intern.h"
 
 namespace fs = filesystem;
 
@@ -26,6 +27,7 @@ struct {
 
 	bool S = false;
 	bool v = false;
+	int O = 0;
 	std::string o;
 
 } flags;
@@ -74,7 +76,7 @@ int set_ftype(int fd, uint16_t fileType, uint32_t auxType) {
 
 void simplify(LineQueue &lines) {
 
-	for (BasicLine *line : lines) {
+	for (BasicLinePtr line : lines) {
 		for (auto &e : line->operands)
 			if (e) e = e->simplify();
 
@@ -84,7 +86,7 @@ void simplify(LineQueue &lines) {
 
 void print(FILE *file, const LineQueue &lines) {
 
-	for (const BasicLine *line : lines) {
+	for (const BasicLinePtr line : lines) {
 
 		if (line->label) { fprintf(file, "%s\n", line->label->c_str()); }
 
@@ -257,7 +259,7 @@ void print(FILE *file, const Segment *segment) {
 }
 
 
-void process_segments(SegmentQueue segments, fs::path &outfile) {
+void process_segments(SegmentQueue &segments, fs::path &outfile) {
 
 	int segnum = 1;
 	FILE *f = nullptr;
@@ -333,7 +335,7 @@ void help() {
 int main(int argc, char **argv) {
 
 	int c;
-	while ((c = getopt(argc, argv, "hvSVo:")) != -1) {
+	while ((c = getopt(argc, argv, "hvSVo:O:")) != -1) {
 		switch(c) {
 
 			case 'S': // output source code
@@ -344,6 +346,12 @@ int main(int argc, char **argv) {
 				flags.o = optarg;
 				break;
 
+			case 'O':
+				{
+					char c = *optarg;
+					if (c >= '0' && c <= '3') flags.O = c - '0';
+				}
+				break;
 
 			case 'h':
 				help();
@@ -370,6 +378,8 @@ int main(int argc, char **argv) {
 	argv += optind;
 	argc -= optind;
 
+	//atexit(clear_intern_table);
+
 	if (argc == 0) {
 
 		extern bool parse_file(FILE *file, SegmentQueue &rv);
@@ -383,7 +393,7 @@ int main(int argc, char **argv) {
 			fs::path ofn  = std::move(flags.o);
 			flags.o.clear();
 
-			process_segments(std::move(segments), ofn);
+			process_segments(segments, ofn);
 		}
 
 		if (!ok) exit(EX_DATAERR);
@@ -406,8 +416,9 @@ int main(int argc, char **argv) {
 				ofn.replace_extension(".omf");
 			}
 
-			process_segments(std::move(segments), ofn);
+			process_segments(segments, ofn);
 		}
+
 		if (!ok) exit(EX_DATAERR);
 	}
 

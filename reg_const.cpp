@@ -56,7 +56,7 @@ public:
 
 	uint16_t value() const {
 		if (_engaged) return _data;
-		throw std::experimental::bad_optional_access("");
+		throw std::experimental::bad_optional_access();
 	}
 
 	uint16_t value_or(uint16_t value) const {
@@ -289,7 +289,7 @@ bool reg_const(LineQueue &list) {
 	while (!list.empty()) {
 		bool kill = false;
 
-		BasicLine *line = list.front();
+		BasicLinePtr line = list.front();
 		list.pop_front();
 
 
@@ -473,14 +473,41 @@ bool reg_const(LineQueue &list) {
 						kill = true;
 
 
-					if (mnemonic == PEI && dp_reg) {
-						line->opcode = OpCode(m65816, PEA, absolute);
+					if (mnemonic == PEI) {
+						if (dp_reg) {
+							line->opcode = OpCode(m65816, PEA, absolute);
 							line->operands[0] = Expression::Integer(*dp_reg);
 							line->calc_registers();
 
 							out.push_back(line);
 							continue;
+						}
+						if (dp_reg == reg_a) {
+							// if PEI a dp_reg and the value is known to be in a, x, or y,
+							// push it.  todo -- need to track x/y bits...
+							// does this work if 
+							BasicLinePtr tmp = BasicLine::Make(PHA, implied);
+							tmp->calc_registers();
+							out.emplace_back(std::move(tmp));
+							continue;
+						}
+
+						if (dp_reg == reg_x) {
+							BasicLinePtr tmp = BasicLine::Make(PHX, implied);
+							tmp->calc_registers();
+							out.emplace_back(std::move(tmp));
+							continue;
+						}
+
+						if (dp_reg == reg_y) {
+							BasicLinePtr tmp = BasicLine::Make(PHY, implied);
+							tmp->calc_registers();
+							out.emplace_back(std::move(tmp));
+							continue;
+						}
+
 					}
+
 					// replace lda <%t0 w/ lda #xxx if value known.
 					if (!kill && dp_reg) {
 						if (op.hasAddressMode(immediate)) {
@@ -611,7 +638,6 @@ store:
 
 		if (kill) {
 				delta = true;
-				delete line;
 		} else {
 			out.push_back(line);
 		}

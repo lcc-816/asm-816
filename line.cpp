@@ -87,7 +87,7 @@ void BasicLine::calc_registers() {
 
 	reg_status = reg_none;
 	reg_count = 0;
-	reg = dp_register::make();
+	reg = dp_register();
 
 	if (!opcode) {
 		return;

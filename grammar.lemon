@@ -1,12 +1,16 @@
 
 
-%start_symbol  line
+%start_symbol  program
 
 %include {
 #include <string>
 #include <memory>
+#include <stdexcept>
 #include <cstdint>
 #include <cassert>
+
+#include "cxx/variant.h"
+
 
 #include "Machine.h"
 #include "Instruction.h"
@@ -22,13 +26,15 @@
 #define warn(x) warn(x, *cookie)
 
 
-#define CopyExpression(a, b) a = b
 }
 
 %extra_argument {Cookie *cookie}
 %token_type {Token}
+%default_type {int}
 %token_prefix tk
 
+// allow X, Y, Z to be used as identifiers if appropriate.
+%fallback IDENTIFIER REGISTER_X REGISTER_Y REGISTER_S REGISTER_Z.
 
 %left PIPEPIPE.
 %left AMPAMP.
@@ -42,23 +48,27 @@
 %left STAR SLASH PERCENT.
 %right BANG TILDE.
 
-// parse_failure vs syntax_error ... 
 
 %parse_failure {
 	error("parse failure.");
 
-	cookie->scratch = Line();
+	cookie->parse_error = 1;
 }
 
 
 %syntax_error {
-	error("syntax error.");
-	cookie->scratch.error = true;
+	// TOKEN is the most recent token.
 
-	// todo -- flag the line?
-	// error should prevent further processing, anyhow.
+	fprintf(stderr, "--> %d: %s\n", yymajor, yyTokenName[yymajor]);
+
+	error("syntax error.");
+	cookie->syntax_error = true;
 }
 
+
+%parse_accept {
+	//printf("parsing complete!\n");
+}
 
 
 %include {
@@ -137,259 +147,220 @@
 	}
 
 
-	static void AddLabel(Cookie *cookie, const std::string *label) {
-		if (!label) return;
+	OpCode find_opcode(Instruction &instr, AddressMode mode, bool explicit_mode, ExpressionPtr e) {
 
-
-
-		if (cookie->lines) {
-			BasicLine *tmp = new BasicLine;
-			tmp->label = label;
-			cookie->lines->push_back(tmp);
+		if (e && e->is_register() && mode != immediate) {
+			if (!is_zp(mode)) {
+				if (explicit_mode) {
+					throw std::domain_error("Invalid address mode for dp register.");
+				} else {
+					mode = to_zp(mode);
+				}
+			}
 		}
+
+		uint32_t value;
+		if (!explicit_mode && e->is_integer(value)) {
+			if (value <= 256) {
+				mode = to_zp(mode);
+			}
+		}
+
+		bool ok = Instruction::coerce(instr, mode, explicit_mode);
+
+		if (!ok) {
+			throw std::domain_error("Invalid address mode for this instruction.");
+			return OpCode();
+		}
+
+		return OpCode(instr, mode);
+	}
+
+	void Cookie::add_label(identifier label) {
+		if (!label) return;
+		if (!segment) return; // ?
+
+		lines->emplace_back(BasicLine::Make(label));
+
 
 		if (label->find('@') == label->npos)
-			cookie->current_label = label;
+			current_label = label;
 	}
 
-	static void AddLine(Cookie *cookie) {
+	void Cookie::begin_segment(identifier name, SegmentType type) {
 
-
-		Line &scratch = cookie->scratch;
-
-		if (scratch.error) return;
-
-		if (!scratch.instruction && !scratch.label && !scratch.directive) return;
-
-		for (auto &e : scratch.operands)
-			if (e) e = e->simplify();
-
-
-		if (scratch.directive) {
-
-			if (scratch.directive == START) {
-				if (cookie->seg_type) warn("previous segment still active\n");
-				if (!scratch.label) error("code segment must have a name\n");
-
-				Segment *seg = new Segment;
-
-				seg->name = scratch.label;
-
-				cookie->seg_type = Cookie::data;
-				cookie->segments.emplace_back(seg);
-				cookie->segment = seg;
-
-				cookie->lines = &cookie->segment->lines;
-				cookie->current_label = scratch.label;
-
-				return;
-			}
-
-			if (scratch.directive == DATA) {
-				// label currently unused...
-				if (cookie->seg_type) warn("previous segment still active\n");
-				cookie->segment = cookie->data_segment.get();
-				cookie->seg_type = Cookie::data;
-
-				cookie->lines = &cookie->segment->lines;
-				cookie->current_label = scratch.label;
-
-				return;
-			}
-
-
-
-
-			if (scratch.directive == END) {
-				AddLabel(cookie, scratch.label);
-				cookie->segment = nullptr;
-				cookie->seg_type = Cookie::none;
-
-				cookie->lines = nullptr;
-				return;
-			}
-
-			AddLabel(cookie, scratch.label);
-
-
-			if (cookie->lines) {
-				BasicLine *tmp = new BasicLine;
-				tmp->directive = scratch.directive;
-				tmp->branch = scratch.branch;
-				tmp->operands[0] = scratch.operands[0];
-				tmp->operands[1] = scratch.operands[1];
-
-				cookie->lines->push_back(tmp);
-
-			} else {
-				error("no active segment");
-			}
-
-			return;
+		if (segment) {
+			syntax_error = true;
+			fprintf(stdout, "Error: Segment still active.\n");
+			end_segment();
+		}
+		if (name == nullptr && type == data) {
+			segment = data_segment.get();
+		} else {
+			segments.emplace_back(std::make_unique<Segment>());
+			segment = segments.back().get();
+			segment->name = name;
 		}
 
-		// labels go on their own line (except start/data, etc)
-		AddLabel(cookie, scratch.label);
+		seg_type = type;
+		lines = &segment->lines;
+		equates.push();
 
+		current_label = name;
+	}
 
-		// 1. verify address mode.
-		if (scratch.instruction) {
-
-			Expression *e = scratch.operands[0];
-
-			// dp_register is #immediate or <zp only.
-			// immediate is explicit, though.
-
-			if (e && e->is_register() && scratch.mode != immediate) {
-				if (!is_zp(scratch.mode)) {
-					if (scratch.explicit_mode) {
-						error("Invalid address mode for dp register.");
-					} else {
-						scratch.mode = to_zp(scratch.mode);
-					}
-				}
-			}
-
-			// numeric arguments < 256 should be direct page.
-			// immediate and implied have explicit_mode set.
-			uint32_t value;
-			if (!scratch.explicit_mode && scratch.operands[0]->is_integer(value)) {
-				if (value >= 0 && value <= 256) {
-					scratch.mode = to_zp(scratch.mode);
-				}
-			}
-
-			bool ok = Instruction::coerce(scratch.instruction, 
-				scratch.mode,  scratch.explicit_mode);
-
-			if (!ok) {
-				error("Invalid address mode for this instruction.");
-				return;
-			}
-
-			if (cookie->lines) {
-				BasicLine *tmp = new BasicLine;
-				tmp->opcode = OpCode(scratch.instruction, scratch.mode);
-				tmp->operands[0] = scratch.operands[0];
-				tmp->operands[1] = scratch.operands[1];
-				cookie->lines->push_back(tmp);
-			} else {
-				error("no active segment");
-			}
+	void Cookie::end_segment() {
+		if (!segment) {
+			syntax_error = true;
+			fprintf(stdout, "Error: No active segment.\n");
+		} else {
+			segment = nullptr;
+			lines = nullptr;
+			seg_type = none;
+			equates.pop();
 		}
 
+		current_label = nullptr;
+	}
+
+
+}
+
+
+program ::= .
+program ::= line_list.
+
+line_list ::= line.
+line_list ::= line_list line.
+
+
+line ::= opt_label(label) opcode(OP) EOL. {
+	if (label) cookie->add_label(label);
+
+	if (OP && cookie->segment) {
+		// todo ... check warn if segment not active.
+		cookie->lines->emplace_back(std::move(OP));
 	}
 }
 
-
-%parse_accept {
-	//printf("parsing complete!\n");
-	// todo -- move AddLine call here.
-
-	AddLine(cookie);
-	cookie->scratch = Line();
-}
-
-line ::= label EOL. {
-}
-
-line ::= label opcode EOL. {
-}
-
-line ::= opcode EOL. {
-}
-
-line ::= EOL. /* do nothing for blank lines */
-
-line ::= IDENTIFIER(id) START EOL. {
-	cookie->scratch.directive = START;
-	cookie->scratch.label = id.string_value;
-}
-
-/* named data section */
-line ::= IDENTIFIER(id) DATA EOL. {
-	cookie->scratch.directive = DATA;
-	cookie->scratch.label = id.string_value;
-}
-
-/* anonymous data section */
-line ::=  DATA EOL. {
-	cookie->scratch.directive = DATA;
+line ::= opt_label(label) directive EOL. {
+	if (label) cookie->add_label(label);
 }
 
 
+line ::= EOL.
+
+line ::= IDENTIFIER(id) EOL. {
+	cookie->add_label(id.string_value());
+}
+
+line ::= opt_label(label) START EOL. {
+	cookie->begin_segment(label, Cookie::code);
+}
+
+/* anonymous or named data section */
+line ::=  opt_label(label) DATA EOL. {
+	cookie->begin_segment(label, Cookie::data);
+}
+
+	// opt_label?
 line ::= END EOL. {
-	cookie->scratch.directive = END;
+	cookie->end_segment();
 }
+
 
 line ::= IDENTIFIER(id) EQU expr(e) EOL. {
 	// check if expr defined...
 	// how to handle '*' ?
 
-	cookie->equates.insert(id.string_value, e->simplify());
+	cookie->equates.insert(id.string_value(), e->simplify());
 }
 
-label ::= IDENTIFIER(id). {
-	cookie->scratch.label = id.string_value;
+
+%type opt_label {identifier}
+
+opt_label(L) ::= . {
+	L = nullptr;
 }
+
+opt_label(L) ::= IDENTIFIER(ID). {
+	L = ID.string_value();
+}
+
+
+
+%type opcode {BasicLinePtr}
 
 /* mvn or mvp  -- two parameters.*/
-opcode ::= OPCODE_2 expr(a) COMMA expr(b). {
+opcode(RV) ::= OPCODE_2(INSTR) expr(a) COMMA expr(b). {
 
-	if (cookie->scratch.instruction.hasAddressMode(block)) {
-		cookie->scratch.mode = block;
-	}
+	auto instr = INSTR.instruction_value();
+	AddressMode mode;
+	if (instr.hasAddressMode(block)) mode = block;
+	if (instr.hasAddressMode(zp_relative)) mode = zp_relative;
 
-	if (cookie->scratch.instruction.hasAddressMode(zp_relative)) {
-		cookie->scratch.mode = zp_relative;
-	}
+	a = a->simplify();
+	b = b->simplify();
 
-
-	cookie->scratch.operands[0] = a;
-	cookie->scratch.operands[1] = b;
+	RV = BasicLine::Make(instr.mnemonic(), mode, std::move(a), std::move(b));
 }
 
-opcode ::= OPCODE operand(op). {
-	cookie->scratch.operands[0] = op;
+opcode(RV) ::= OPCODE(INSTR) operand(op). {
+
+	AddressMode mode;
+	bool explicit_mode;
+	ExpressionPtr e;
+
+	auto instr = INSTR.instruction_value();
+	std::tie(mode, explicit_mode, e) = op;
+
+	if (e) e = e->simplify();
+
+	OpCode opcode;
+	try { 
+		opcode = find_opcode(instr, mode, explicit_mode, e);
+	} catch(std::exception &e) {
+		error(e.what());
+	}
+	RV = BasicLine::Make(opcode, std::move(e));
 }
 
-opcode ::= SMART_BRANCH(b) operand(op). {
-	cookie->scratch.directive = SMART_BRANCH;
-	cookie->scratch.branch = b.branch_value;
-	cookie->scratch.operands[0] = op;
+opcode(RV) ::= SMART_BRANCH(b) expr(e). {
+
+	// operand vs expression... __bgt <xxx ?
+	RV = BasicLine::Make(SMART_BRANCH, std::move(e));
+	RV->branch = b.branch_value();
 }
 
 /* dc.b expression [, expression] */
 
-opcode ::= DCB expr_list(list). {
-	cookie->scratch.directive = DCB;
-	cookie->scratch.operands[0] = list;	
+opcode(RV) ::= DCB expr_list(e). {
+	RV = BasicLine::Make(DCB, std::move(e));
 }
 
-opcode ::= DCW expr_list(list). {
-	cookie->scratch.directive = DCW;
-	cookie->scratch.operands[0] = list;
+opcode(RV) ::= DCW expr_list(e). {
+	RV = BasicLine::Make(DCW, std::move(e));
 }
 
-opcode ::= DCL expr_list(list). {
-	cookie->scratch.directive = DCL;
-	cookie->scratch.operands[0] = list;
+opcode(RV) ::= DCL expr_list(e). {
+	RV = BasicLine::Make(DCL, std::move(e));
 }
 
-opcode ::= DS expr(e). {
-	cookie->scratch.directive = DS;
-	cookie->scratch.operands[0] = e;
+opcode(RV) ::= DS expr(e). {
+	RV = BasicLine::Make(DS, std::move(e));
 }
 
-opcode ::= ALIGN expr(e). {
-	cookie->scratch.directive = ALIGN;
-	cookie->scratch.operands[0] = e;
+opcode(RV) ::= ALIGN expr(e). {
+	RV = BasicLine::Make(ALIGN, std::move(e));
 }
 
-opcode ::= PRAGMA pragma_list. {
+
+directive ::= PRAGMA pragma_list. {
 	if (!cookie->segment) 
 		warn("PRAGMA outside of segment.");
 }
+
+
 
 pragma_list ::= pragma.
 pragma_list ::= pragma_list COMMA pragma.
@@ -404,19 +375,19 @@ pragma_list ::= pragma_list COMMA pragma.
  * databank
  */
 pragma ::= SEGMENT EQ STRING(a). {
-	if (cookie->segment) cookie->segment->segment = a.string_value;
+	if (cookie->segment) cookie->segment->segment = a.string_value();
 }  
 pragma ::= LOCALS EQ INTEGER(a). {
-	if (cookie->segment) cookie->segment->local_size = a.int_value;
+	if (cookie->segment) cookie->segment->local_size = a.int_value();
 }
 pragma ::= PARAMETERS EQ INTEGER(a). {
-	if (cookie->segment) cookie->segment->parm_size = a.int_value;
+	if (cookie->segment) cookie->segment->parm_size = a.int_value();
 }
 pragma ::= RETURN EQ INTEGER(a). {
-	if (cookie->segment) cookie->segment->return_size = a.int_value;
+	if (cookie->segment) cookie->segment->return_size = a.int_value();
 }
 pragma ::= KIND EQ INTEGER(a). {
-	if (cookie->segment) cookie->segment->kind = a.int_value;
+	if (cookie->segment) cookie->segment->kind = a.int_value();
 }
 pragma ::= PRIVATE. {
 	// mark omf kind.
@@ -458,80 +429,66 @@ pragma ::= DEBUG. {
 	if (cookie->segment) cookie->segment->debug = true;
 }
 
-opcode ::= EXPORT export_list.
+directive ::= EXPORT export_list.
 export_list ::= IDENTIFIER(a). {
-	cookie->export_set.insert(a.string_value);
+	cookie->export_set.insert(a.string_value());
 }
 
 export_list ::= export_list COMMA IDENTIFIER(a). {
-	cookie->export_set.insert(a.string_value);
+	cookie->export_set.insert(a.string_value());
 }
 
-opcode ::= IMPORT import_list.
+directive ::= IMPORT import_list.
 import_list ::= IDENTIFIER(a). {
-	cookie->import_set.insert(a.string_value);
+	cookie->import_set.insert(a.string_value());
 }
 
 import_list ::= import_list COMMA IDENTIFIER(a). {
-	cookie->import_set.insert(a.string_value);
+	cookie->import_set.insert(a.string_value());
 }
 
 
 
-opcode ::= FX_PROLOGUE. {
-	cookie->scratch.directive = PROLOGUE;
+opcode(RV) ::= FX_PROLOGUE. {
+	RV = BasicLine::Make(PROLOGUE);
 }
 
-opcode ::= FX_EPILOGUE. {
-	cookie->scratch.directive = EPILOGUE;
+opcode(RV) ::= FX_EPILOGUE. {
+	RV = BasicLine::Make(EPILOGUE);
 }
 
 
-%type expr_list {VectorExpression *}
+%type expr_list {VectorExpressionPtr}
 
 expr_list(rv) ::= expr(e). {
-	VectorExpression *tmp = Expression::Vector();
-	tmp->push_back(e);
-	rv = tmp;
+	rv = Expression::Vector();
+	rv->push_back(std::move(e));
 }
 
 expr_list(rv) ::= expr_list(l) COMMA expr(e). {
-	l->push_back(e);
-	rv = l;
+	rv = std::move(l);
+	rv->push_back(std::move(e));
 }
 
-%type operand {Expression *}
-
-%include {
-	
-
-}
-
+%type operand{std::tuple<AddressMode, bool, ExpressionPtr>}
 
 /* implied */
 operand(rv) ::= . {
-	cookie->scratch.mode = implied;
-	cookie->scratch.explicit_mode = true;
-	rv = nullptr;
+	rv = std::make_tuple(implied, true, ExpressionPtr());
 }
 
 /* #immediate */
 operand(rv) ::= HASH expr(e). {
-	cookie->scratch.mode = immediate;
-	cookie->scratch.explicit_mode = true;
-	rv = e;
+	rv = std::make_tuple(immediate, true, std::move(e));
 }
 
 /* relative, abs, abslong, etc */
 operand(rv) ::= modifier(m) expr(e). {
-	cookie->scratch.mode = m;
-	cookie->scratch.explicit_mode = true;
-	rv = e;
+	rv = std::make_tuple(m, true, std::move(e));
 }
 
 operand(rv) ::= expr(e). { 
-	cookie->scratch.mode = absolute;
-	rv = e;
+	rv = std::make_tuple(absolute, false, std::move(e));
 }
 
 /* dp,x abs, x abslong,x etc */
@@ -547,14 +504,11 @@ operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_X. {
 	case absolute: mode = absolute_x; break;
 	case absolute_long: mode = absolute_long_x; break;
 	}
-	cookie->scratch.explicit_mode = true;
-	cookie->scratch.mode = mode;
-	rv = e;
+	rv = std::make_tuple(mode, true, std::move(e));
 }
 
 operand(rv) ::= expr(e) COMMA REGISTER_X. {
-	cookie->scratch.mode = absolute_x;
-	rv = e;
+	rv = std::make_tuple(absolute_x, false, std::move(e));
 }
 
 /* dp,y abs,y */
@@ -573,21 +527,16 @@ operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_Y. {
 		break;
 
 	}
-
-	cookie->scratch.mode = mode;
-	cookie->scratch.explicit_mode = true;
-	rv = e;
+	rv = std::make_tuple(mode, true, std::move(e));
 }
 
 operand(rv) ::= expr(e) COMMA REGISTER_Y. {
-	cookie->scratch.mode = absolute_y;
-	rv = e;
+	rv = std::make_tuple(absolute_y, false, std::move(e));
 }
 
 /* (dp,x) (abs,x) */
 operand(rv) ::= LPAREN expr(e) COMMA REGISTER_X RPAREN. {
-	cookie->scratch.mode = absolute_indirect_x;
-	rv = e;
+	rv = std::make_tuple(absolute_indirect_x, false, std::move(e));
 }
 
 operand(rv) ::= LPAREN modifier(m) expr(e) COMMA REGISTER_X RPAREN. {
@@ -605,17 +554,14 @@ operand(rv) ::= LPAREN modifier(m) expr(e) COMMA REGISTER_X RPAREN. {
 		break;
 	}
 
-	cookie->scratch.mode = mode;
-	cookie->scratch.explicit_mode = true;
-	rv = e;
+	rv = std::make_tuple(mode, true, std::move(e));
 }
 
 
 
 /* (dp) (abs) */
 operand(rv) ::= LPAREN expr(e) RPAREN. {
-	cookie->scratch.mode = absolute_indirect;
-	rv = e;
+	rv = std::make_tuple(absolute_indirect, false, std::move(e));
 }
 
 /* (dp),y */
@@ -634,14 +580,11 @@ operand(rv) ::= LPAREN modifier(m) expr(e) RPAREN COMMA REGISTER_Y. {
 		break;
 	}
 
-	cookie->scratch.mode = zp_indirect_y;
-	cookie->scratch.explicit_mode = true;
-	rv = e;
+	rv = std::make_tuple(zp_indirect_y, true, std::move(e));
 }
 
 operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Y. {
-	cookie->scratch.mode = zp_indirect_y;
-	rv = e;
+	rv = std::make_tuple(zp_indirect_y, false, std::move(e));
 }
 
 
@@ -662,14 +605,11 @@ operand(rv) ::= LPAREN modifier(m) expr(e) RPAREN COMMA REGISTER_Z. {
 		break;
 	}
 
-	cookie->scratch.mode = zp_indirect_z;
-	cookie->scratch.explicit_mode = true;
-	rv = e;
+	rv = std::make_tuple(zp_indirect_z, true, std::move(e));
 }
 
 operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Z. {
-	cookie->scratch.mode = zp_indirect_z;
-	rv = e;
+	rv = std::make_tuple(zp_indirect_z, false, std::move(e));
 }
 
 
@@ -677,14 +617,12 @@ operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Z. {
 /* sr,s */
 /* optional < ? */
 operand(rv) ::= expr(e) COMMA REGISTER_S. {
-	cookie->scratch.mode = stack_relative;
-	rv = e;
+	rv = std::make_tuple(stack_relative, false, std::move(e));
 }
 
 /* (sr,s),y */
 operand(rv) ::= LPAREN expr(e) COMMA REGISTER_S RPAREN COMMA REGISTER_Y. {
-	cookie->scratch.mode = stack_relative_y;
-	rv = e;
+	rv = std::make_tuple(stack_relative_y, false, std::move(e));
 }
 
 /* [dp] */
@@ -703,14 +641,11 @@ operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET. {
 		break;
 	}
 
-	cookie->scratch.mode = mode;
-	cookie->scratch.explicit_mode = true;
-	rv = e;
+	rv = std::make_tuple(mode, true, std::move(e));
 }
 
 operand(rv) ::= LBRACKET expr(e) RBRACKET. {
-	cookie->scratch.mode = zp_indirect_long;
-	rv = e;
+	rv = std::make_tuple(zp_indirect_long, false, std::move(e));
 }
 
 /* [dp],y */
@@ -729,15 +664,11 @@ operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET COMMA REGISTER_Y. {
 		error("invalid address mode: [>absolute long],y");
 		break;
 	}
-
-	cookie->scratch.mode = zp_indirect_long_y;
-	cookie->scratch.explicit_mode = true;
-	rv = e;	
+	rv = std::make_tuple(zp_indirect_long_y, true, std::move(e));
 }
 
 operand(rv) ::= LBRACKET expr(e) RBRACKET COMMA REGISTER_Y. {
-	cookie->scratch.mode = zp_indirect_long_y;
-	rv = e;	
+	rv = std::make_tuple(zp_indirect_long_y, false, std::move(e));
 }
 
 
@@ -749,11 +680,11 @@ modifier(rv) ::= PIPE. { rv = absolute; }
 
 /* expressions */
 
-%type expr {Expression *}
-%type binary {Expression *}
-%type unary {Expression *}
-%type term {Expression *}
-%type dp_register {Expression *}
+%type expr {ExpressionPtr}
+%type binary {ExpressionPtr}
+%type unary {ExpressionPtr}
+%type term {ExpressionPtr}
+%type dp_register {ExpressionPtr}
 
 expr(rv) ::= dp_register(a). { rv = a; }
 expr(rv) ::= binary(a). { rv = a; }
@@ -799,30 +730,30 @@ unary(rv) ::= BANG unary(rhs). [BANG] {
 	rv = Expression::Unary('!', rhs);
 }
 
-unary(rv) ::= term(a). { rv = a; }
+unary(rv) ::= term(a). { rv = std::move(a); }
 
 term(rv) ::= IDENTIFIER(a). {
-	rv = Expression::Identifier(a.string_value);
+	rv = Expression::Identifier(a.string_value());
 }
 
 term(rv) ::= INTEGER(a). {
-	rv = Expression::Integer(a.int_value);
+	rv = Expression::Integer(a.int_value());
 }
 term(rv) ::= STAR. {
 	rv = Expression::PC();
 }
 
 term(rv) ::= EXPRESSION(a). {
-	rv = a.expr_value;
+	rv = a.expr_value();
 }
 
 dp_register(rv) ::= DP_REGISTER(a). {
-	rv = Expression::Register(a.register_value);
+	rv = Expression::Register(a.register_value());
 }
 
 dp_register(rv) ::= DP_REGISTER(a) PLUS INTEGER(n). {
-	dp_register dp = a.register_value;
-	dp.number += n.int_value;
+	dp_register dp = a.register_value();
+	dp.number += n.int_value();
 	rv = Expression::Register(dp);
 }
 

@@ -120,7 +120,7 @@ bool can_convert_to_sr(const BlockQueue &blocks) {
 	return true;
 }
 
-void make_sr(BasicLine *line, AddressMode mode) {
+void make_sr(BasicLinePtr line, AddressMode mode) {
 
 	OpCode op = line->opcode;
 	line->opcode = OpCode(m65816, op.mnemonic(), mode);
@@ -207,6 +207,10 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	// pragma parameters=...
 	// only need to worry about %t and %r.
 
+	// n.b. -- need to sanity check pragma parameters.
+
+	bool has_parameters = false;
+
 	std::unordered_set<dp_register> rset;
 
 	for (auto block : blocks) {
@@ -224,6 +228,9 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 						r += 2;
 					}
 
+				}
+				if (r.type == 'p') {
+					has_parameters = true;
 				}
 			}
 		}
@@ -289,7 +296,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 
 	if (segment->convention == Segment::naked) return;
 
-	std::vector<BasicLine *> tmp;
+	std::vector<BasicLinePtr> tmp;
 	if (segment->debug && segment->name && !segment->name->empty()) {
 		// tn 103 debug name.
 		/*
@@ -308,105 +315,115 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 		});
 
 
-		tmp.push_back(new BasicLine(BRL, relative_long, star_plus(3 + bytes.size())));
-		tmp.push_back(new BasicLine(DCB, Expression::Vector(std::move(bytes))));
+		tmp.emplace_back(BasicLine::Make(BRL, relative_long, star_plus(3 + bytes.size())));
+		tmp.emplace_back(BasicLine::Make(DCB, Expression::Vector(std::move(bytes))));
 	}
 
 
 	if (segment->databank) {
-		tmp.push_back(new BasicLine(PHB, implied));
-		tmp.push_back(new BasicLine(PEA, absolute, 
+		tmp.emplace_back(BasicLine::Make(PHB, implied));
+		tmp.emplace_back(BasicLine::Make(PEA, absolute, 
 			Expression::Binary('>>', 
 				Expression::Identifier("~globals"), Expression::Integer(8))));
-		tmp.push_back(new BasicLine(PLB, implied));
-		tmp.push_back(new BasicLine(PLB, implied));
+		tmp.emplace_back(BasicLine::Make(PLB, implied));
+		tmp.emplace_back(BasicLine::Make(PLB, implied));
 
 	}
 
+
+
 	unsigned locals = segment->temp_size + segment->local_size;
-	if (locals || segment->parm_size) {
+	if (locals || segment->parm_size || has_parameters) {
 		if (locals <= 8) {
 			for (unsigned i = 0; i < locals; i += 2)
-				tmp.push_back(new BasicLine(PHY, implied));
+				tmp.emplace_back(BasicLine::Make(PHY, implied));
 
 
 			if (save_d) {
-				tmp.push_back(new BasicLine(TSC, implied));
-				tmp.push_back(new BasicLine(PHD, implied));
-				tmp.push_back(new BasicLine(TCD, implied));
+				tmp.emplace_back(BasicLine::Make(TSC, implied));
+				tmp.emplace_back(BasicLine::Make(PHD, implied));
+				tmp.emplace_back(BasicLine::Make(TCD, implied));
 			}
 		}
 		else {
-			tmp.push_back(new BasicLine(TSC, implied));
-			tmp.push_back(new BasicLine(SEC, implied));
-			tmp.push_back(new BasicLine(SBC, immediate, Expression::Integer(locals)));
-			tmp.push_back(new BasicLine(TCS, implied));
+			tmp.emplace_back(BasicLine::Make(TSC, implied));
+			tmp.emplace_back(BasicLine::Make(SEC, implied));
+			tmp.emplace_back(BasicLine::Make(SBC, immediate, Expression::Integer(locals)));
+			tmp.emplace_back(BasicLine::Make(TCS, implied));
 
 			if (save_d) {
-				tmp.push_back(new BasicLine(PHD, implied));
-				tmp.push_back(new BasicLine(TCD, implied));
+				tmp.emplace_back(BasicLine::Make(PHD, implied));
+				tmp.emplace_back(BasicLine::Make(TCD, implied));
 			}
 		}
 	}
 	segment->prologue_code = std::move(tmp);
 	tmp.clear();
 
-	if ((segment->convention == Segment::stdcall || segment->convention == Segment::pascal) && segment->parm_size) {
+	if (segment->convention == Segment::stdcall || segment->convention == Segment::pascal) {
 
-		unsigned xfer = rtlb;
-		unsigned dest = locals + rtlb + segment->parm_size;
 
-		AddressMode mode = zp;
-		if (make_sr) mode = stack_relative;
+		if (segment->parm_size) {
 
-		// 3 bytes...
-		if (xfer & 0x01) {
+			unsigned xfer = rtlb;
+			unsigned dest = locals + rtlb + segment->parm_size;
 
-			tmp.push_back(new BasicLine(LDA, mode, Expression::Integer(1 + locals + xfer - 2)));
-			tmp.push_back(new BasicLine(STA, mode, Expression::Integer(1 + dest - 2)));
+			AddressMode mode = zp;
+			if (make_sr) mode = stack_relative;
 
-			xfer -= 1;
-			dest -= 1;
+			// 3 bytes...
+			if (xfer & 0x01) {
+
+				tmp.emplace_back(BasicLine::Make(LDA, mode, Expression::Integer(1 + locals + xfer - 2)));
+				tmp.emplace_back(BasicLine::Make(STA, mode, Expression::Integer(1 + dest - 2)));
+
+				xfer -= 1;
+				dest -= 1;
+			}
+
+			// move the return address.
+			while (xfer) {
+
+				tmp.emplace_back(BasicLine::Make(LDA, mode, Expression::Integer(1 + locals + xfer - 2)));
+				tmp.emplace_back(BasicLine::Make(STA, mode, Expression::Integer(1 + dest - 2)));
+				xfer -= 2;
+				dest -= 2;
+			}
+
+			locals += segment->parm_size;
 		}
-
-		// move the return address.
-		while (xfer) {
-
-			tmp.push_back(new BasicLine(LDA, mode, Expression::Integer(1 + locals + xfer - 2)));
-			tmp.push_back(new BasicLine(STA, mode, Expression::Integer(1 + dest - 2)));
-			xfer -= 2;
-			dest -= 2;
+		else if (has_parameters) {
+			// todo -- move this check earlier, before optimization?
+			fprintf(stderr, "Error: %s needs pragma parameters\n", segment->name ? segment->name->c_str() : "(Anonymous function)");
 		}
-
-		locals += segment->parm_size;
 	}
 
 	// prologue...
 	if (locals || segment->parm_size) {
 		if (save_d) {
-			tmp.push_back(new BasicLine(PLD, implied));
+			tmp.emplace_back(BasicLine::Make(PLD, implied));
 		}
 
 		if (locals <= 8) {
 			for (unsigned i = 0; i < locals; i += 2)
-				tmp.push_back(new BasicLine(PLY, implied));
+				tmp.emplace_back(BasicLine::Make(PLY, implied));
 		} else {
-			tmp.push_back(new BasicLine(TAY, implied));
-			tmp.push_back(new BasicLine(TSC, implied));
-			tmp.push_back(new BasicLine(CLC, implied));
-			tmp.push_back(new BasicLine(ADC, immediate, Expression::Integer(locals)));
-			tmp.push_back(new BasicLine(TCS, implied));
-			tmp.push_back(new BasicLine(TYA, implied));
+			tmp.emplace_back(BasicLine::Make(TAY, implied));
+			tmp.emplace_back(BasicLine::Make(TSC, implied));
+			tmp.emplace_back(BasicLine::Make(CLC, implied));
+			tmp.emplace_back(BasicLine::Make(ADC, immediate, Expression::Integer(locals)));
+			tmp.emplace_back(BasicLine::Make(TCS, implied));
+			tmp.emplace_back(BasicLine::Make(TYA, implied));
 		}
 	}
 
 	if (segment->databank)
-		tmp.push_back(new BasicLine(PLB, implied));
+		tmp.emplace_back(BasicLine::Make(PLB, implied));
 
 	if (segment->rts)
-		tmp.push_back(new BasicLine(RTS, implied));
+		tmp.emplace_back(BasicLine::Make(RTS, implied));
 	else
-		tmp.push_back(new BasicLine(RTL, implied));
+		tmp.emplace_back(BasicLine::Make(RTL, implied));
 
 	segment->epilogue_code = std::move(tmp);
 

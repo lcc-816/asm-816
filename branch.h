@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "Expression.h"
 
-struct BasicLine;
+#include "types.h"
+
 struct branch {
 
 	enum {
@@ -30,8 +30,8 @@ struct branch {
 		signed_lt,
 		signed_le,
 
-	} type; // = always;
-	bool far; // = false;
+	} type = always;
+	bool far = false;
 
 
 	enum {
@@ -60,7 +60,7 @@ struct branch {
 	unsigned make_far(); // sets far, returns # of additional bytes.
 
 	std::string to_string() const;
-	std::vector<BasicLine *> to_code(ExpressionPtr target) const;
+	std::vector<BasicLinePtr> to_code(ExpressionPtr target) const;
 };
 
 

@@ -9,6 +9,14 @@ namespace {
 
 }
 
+__attribute__((destructor))
+void clear_intern_table(void) {
+	// for valgrind.
+	for (auto &s : ht) delete s.second;
+	ht.clear();
+}
+
+
 const std::string *intern(const std::string &s) {
 
 	std::hash<std::string> fx;

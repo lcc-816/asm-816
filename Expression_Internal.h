@@ -263,11 +263,13 @@ private:
 
 // will change if I start using shared_ptr<>
 inline ExpressionPtr to_expression_ptr(const Expression &e) {
-	return std::addressof(const_cast<Expression &>(e));
+	//return std::addressof(const_cast<Expression &>(e));
+	return const_cast<Expression &>(e).shared_from_this();
 }
 
 inline ExpressionPtr to_expression_ptr(Expression &e) {
-	return std::addressof(e);
+	return e.shared_from_this();
+	//return std::addressof(e);
 }
 
 

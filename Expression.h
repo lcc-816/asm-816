@@ -7,6 +7,7 @@
 #include <vector>
 #include <unordered_map>
 #include <utility>
+#include <memory>
 
 #include "dp_register.h"
 #include "intern.h"
@@ -16,14 +17,14 @@
 class Expression;
 class VectorExpression;
 
-typedef Expression *ExpressionPtr;
-typedef VectorExpression *VectorExpressionPtr;
+typedef std::shared_ptr<Expression> ExpressionPtr;
+typedef std::shared_ptr<VectorExpression> VectorExpressionPtr;
 
 typedef const std::string *identifier;
 typedef std::unordered_map<identifier, uint32_t> identifier_map;
 
 
-class Expression {
+class Expression : public std::enable_shared_from_this<Expression> {
 
 public:
 
@@ -138,6 +139,14 @@ public:
 	class ConstVisitor;
 	class MapVisitor;
 
+	// semi-private constructors.
+	Expression(expression_type type) : _type(type)
+	{}
+	Expression(const Expression &) = delete;
+	Expression &operator=(const Expression &) = delete;
+
+	virtual ~Expression();
+
 protected:
 	friend class UnaryExpression;
 	friend class BinaryExpression;
@@ -150,10 +159,7 @@ protected:
 
 
 
-	Expression(expression_type type) : _type(type)
-	{}
 
-	virtual ~Expression();
 
 	// children override
 	virtual void to_string(std::string &) const = 0;
@@ -175,19 +181,24 @@ class VectorExpression : public Expression {
 
 	virtual bool is_vector(std::vector<ExpressionPtr> &) const override final;
 
+
+	// semi-private constructors.
+	VectorExpression() : Expression(type_vector)
+	{}
+
+	VectorExpression(std::vector<ExpressionPtr> &&);
+	VectorExpression(const std::vector<ExpressionPtr> &);
+	VectorExpression(const VectorExpression &) = delete;
+	VectorExpression &operator=(const VectorExpression &) = delete;
+	virtual ~VectorExpression() final;
+
+
 	protected:
 
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
 	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
-	VectorExpression() : Expression(type_vector)
-	{}
-
-	VectorExpression(std::vector<ExpressionPtr> &&);
-	VectorExpression(const std::vector<ExpressionPtr> &);
-
-	virtual ~VectorExpression() final;
 
 	virtual void to_string(std::string &) const final;
 

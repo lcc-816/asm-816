@@ -15,24 +15,20 @@ template <class T>
 class const_vector
 {
 private:
-    T *_data;
-    size_t _length;
+    T *_data = nullptr;
+    size_t _length = 0;
     
 public:
     
     typedef const T *iterator;
     
-    const_vector() : 
-        _data(NULL), _length(0)
-    {}
+    const_vector() = default;
     
     const_vector(T *data, size_t length) :
         _data(data), _length(length)
     { }
     
-    const_vector(const const_vector<T> &rhs) :
-        _data(rhs._data), _length(rhs._length)
-    { }
+    const_vector(const const_vector<T> &rhs) = default;
     
     size_t size() const 
     {

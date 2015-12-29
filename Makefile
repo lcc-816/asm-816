@@ -43,8 +43,7 @@ lexer.cpp: lexer.rl
 	ragel -G1 -L -C $^ -o $@
 
 grammar.cpp: grammar.lemon
-	lemon $^ 
-	mv grammar.c grammar.cpp
+	lemon++ $^ 
 
 $(OBJDIR)/%.o : %.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $< 

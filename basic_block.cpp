@@ -8,7 +8,9 @@
 
 #include <cassert>
 
-typedef std::unordered_map<const std::string *, BasicBlock *> BlockMap;
+#include "cxx/defer.h"
+
+typedef std::unordered_map<identifier, BasicBlockPtr> BlockMap;
 
 namespace {
 template<class T>
@@ -118,7 +120,7 @@ static bool is_conditional_branch(Mnemonic m) {
 	}
 }
 
-bool analyze_block_2(BasicBlock *block);
+bool analyze_block_2(BasicBlockPtr block);
 
 
 
@@ -133,14 +135,14 @@ bool remove_branches(BlockQueue &bq) {
 		auto nextIter = iter + 1;
 		if (nextIter == bq.end()) continue;
 
-		BasicBlock *block = *iter;
-		BasicBlock *next = *nextIter;
+		BasicBlockPtr block = *iter;
+		BasicBlockPtr next = *nextIter;
 
 
 		if (block->dead) continue;
 		if (block->lines.empty()) continue;
 
-		BasicLine *line = block->lines.back();
+		BasicLinePtr line = block->lines.back();
 		if (!is_branch(line->opcode.mnemonic(), false)) continue;
 		// jmp (|abs,x) cannot be optimized out.
 
@@ -154,7 +156,6 @@ bool remove_branches(BlockQueue &bq) {
 		//if (next->prev_set.front() != block) continue;
 
 		block->lines.pop_back();
-		delete line;
 		delta = true;
 	}
 
@@ -169,12 +170,12 @@ bool merge_blocks(BlockQueue &bq) {
 
 	// returns true if any changes made.
 
-	for (BasicBlock * block : bq) {
+	for (BasicBlockPtr  block : bq) {
 
 		if (block->dead) continue;
 		if (block->next_set.size() != 1) continue;
 
-		BasicBlock *next = block->next_set.front();
+		BasicBlockPtr next = block->next_set.front();
 		if (next->prev_set.size() != 1) continue;
 
 		assert(next->prev_set.front() == block);
@@ -186,15 +187,13 @@ bool merge_blocks(BlockQueue &bq) {
 
 		// remove branch...
 		if (lines.size()) {
-			BasicLine *line = lines.back();
+			BasicLinePtr line = lines.back();
 			if (is_branch(line->opcode.mnemonic())) {
 				lines.pop_back();
-				delete line;
 			}
 
 			if (line->directive == SMART_BRANCH) {
 				lines.pop_back();
-				delete line;
 			}
 		}
 
@@ -207,7 +206,7 @@ bool merge_blocks(BlockQueue &bq) {
 
 		block->next_set = std::move(next->next_set);
 
-		for (BasicBlock *newnext : block->next_set) {
+		for (BasicBlockPtr newnext : block->next_set) {
 			replace(newnext->prev_set, next, block);
 		}
 
@@ -245,16 +244,16 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 
 	BlockQueue out;
 
-	BasicBlock *current = nullptr;
+	BasicBlockPtr current = nullptr;
 
-	for (BasicLine *line : lines) {
+	for (BasicLinePtr &line : lines) {
 
 
 		Mnemonic m = line->opcode.mnemonic();
 
 		if (line->label) {
 
-			current = new BasicBlock;
+			current = BasicBlock::Make();
 			current->label = line->label;
 			out.push_back(current);
 
@@ -262,7 +261,7 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 		}
 
 		if (!current) {
-			current = new BasicBlock;
+			current = BasicBlock::Make();
 			out.push_back(current);
 		}
 
@@ -290,7 +289,7 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 		if (block->lines.empty()) {
 			fallthrough = true;
 		} else { 
-			BasicLine *line = block->lines.back();
+			BasicLinePtr& line = block->lines.back();
 			Mnemonic m = line->opcode.mnemonic();
 			if (is_conditional_branch(m))
 				fallthrough = true;
@@ -314,7 +313,7 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 
 
 
-void analyze_block(BasicBlock *block, const BlockMap &bm) {
+void analyze_block(BasicBlockPtr &block, const BlockMap &bm) {
 
 	register_set reg_live;
 	register_set reg_dead;
@@ -323,10 +322,10 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 
 	LineQueue lines = std::move(block->lines);
 
-	std::vector<BasicBlock *> next;
+	std::vector<BasicBlockPtr> next;
 
 	// scan forward to calculate lifetimes.
-	for (BasicLine *line : lines) {
+	for (BasicLinePtr &line : lines) {
 
 		line->reg_live = reg_live;
 
@@ -360,11 +359,11 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 	auto next_set = std::move(block->next_set);
 
 	// generate a list of next-blocks
-	for (BasicLine *line : lines) {
+	for (BasicLinePtr line : lines) {
 
-		std::vector<const std::string *> ll;
+		std::vector<identifier> ll;
 
-		Expression *e = line->operands[0];
+		ExpressionPtr e = line->operands[0];
 
 		if (is_branch(line->opcode.mnemonic())) {
 
@@ -387,7 +386,7 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 				break;
 		}
 
-		for (const std::string *label : ll) {
+		for (identifier label : ll) {
 			auto iter = bm.find(label);
 			if (iter != bm.end()) next_set.push_back(iter->second);
 		}
@@ -403,7 +402,7 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 
 	// imports are live in all lines.
 	if (reg_import) {
-		for (BasicLine *line : block->lines) {
+		for (BasicLinePtr line : block->lines) {
 			line->reg_live += reg_import;
 		}
 	}
@@ -420,7 +419,7 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 	LineQueue newLines;
 	while(!lines.empty()) {
 
-		BasicLine *line = lines.back();
+		BasicLinePtr line = lines.back();
 		lines.pop_back();
 
 		bool dead = false;
@@ -455,7 +454,6 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 
 		if (dead) {
 			//printf("deleting %s\n", line->opcode.toString());
-			delete line;
 		}
 		else newLines.push_front(line);
 	}
@@ -465,7 +463,7 @@ void analyze_block(BasicBlock *block, const BlockMap &bm) {
 	block->reg_export = reg_export;
 }
 
-bool analyze_block_2(BasicBlock *block) {
+bool analyze_block_2(BasicBlockPtr block) {
 
 	// second round of analysis.  import set has been calculated at this point.
 
@@ -477,14 +475,14 @@ bool analyze_block_2(BasicBlock *block) {
 	bool delta = false;
 
 	// only need to export registers imported by next blocks.
-	for (BasicBlock *block : block->next_set) {
+	for (BasicBlockPtr block : block->next_set) {
 		reg_live += block->reg_import;
 	}
 
 
 	while(!lines.empty()) {
 
-		BasicLine *line = lines.back();
+		BasicLinePtr line = lines.back();
 		lines.pop_back();
 
 		bool dead = false;
@@ -526,7 +524,6 @@ bool analyze_block_2(BasicBlock *block) {
 
 		if (dead) {
 			//printf("deleting %s\n", line->opcode.toString());
-			delete line;
 			delta = true;
 		}
 		//if (dead) { delete line; delta = true; }
@@ -547,62 +544,37 @@ void dead_code_eliminate(BlockQueue &bq) {
 	bool delta = false;
 	do {
 		delta = false;
-		for (BasicBlock *block : bq) {
+		for (BasicBlockPtr block : bq) {
 			if (block->dead) continue;
 			if (block->entry_node) continue;
 			if (block->exit_node) continue; //
 
 			if (block->prev_set.empty()) {
+
+				// remove self from the next set.
+				for (BasicBlockPtr next : block->next_set) {
+					remove(next->prev_set, block);
+				}
+
 				delta = true;
 				block->dead = true;
 
-				for (BasicLine *line : block->lines) delete line;
+				block->prev_set.clear();
+				block->next_set.clear();
 				block->lines.clear();
 
-				// remove self from the next set.
-				for (BasicBlock *next : block->next_set) {
-					remove(next->prev_set, block);
-				}
 				continue;
 			}
-
-			// if there are no lines, it can be eliminated.
-			// block->entry checked above.
-			if (0 && block->lines.size() == 1) { // line 0 is the label...
-				assert(block->next_set.size() <= 1);
-
-				if (block->next_set.size() == 1) {
-
-
-					BasicBlock *next = block->next_set.front();
-
-					remove(next->prev_set, block);
-
-					// update prev nodes to point to next.
-					for (BasicBlock *pb : block->prev_set) {
-						replace(pb->next_set, block, next);
-						next->prev_set.push_back(pb);
-
-						// update all refs to label...
-					}
-
-					// also need to update references, eg bra label1 -> bra label2
-				}
-
-
-				block->dead = true;
-			}
-
 		}
 
 	} while (delta);
 
-	remove_if(bq, [](BasicBlock *block) {
+	remove_if(bq, [](BasicBlockPtr block) {
 		return block->dead;
 	});
 }
 
-static void build_imports(BasicBlock *block, register_set imports) {
+static void build_imports(BasicBlockPtr block, register_set imports) {
 
 	imports -= block->reg_export;
 	if (block->processed && block->reg_import.contains(imports)) return;
@@ -610,7 +582,7 @@ static void build_imports(BasicBlock *block, register_set imports) {
 	block->processed = true;
 	block->reg_import += imports;
 
-	for (BasicBlock *prev : block->prev_set) {
+	for (BasicBlockPtr prev : block->prev_set) {
 		build_imports(prev, block->reg_import);
 	}
 
@@ -620,8 +592,8 @@ static void build_imports(BlockQueue &bq) {
 
 	// do it backwards since that should save time...
 	for(auto iter = bq.rbegin(); iter != bq.rend(); ++iter) {
-		BasicBlock *block = *iter;
-		for (BasicBlock *prev : block->prev_set) {
+		BasicBlockPtr block = *iter;
+		for (BasicBlockPtr prev : block->prev_set) {
 			build_imports(prev, block->reg_import);
 		}
 
@@ -629,7 +601,7 @@ static void build_imports(BlockQueue &bq) {
 
 }
 
-void print_block_set(const std::vector<BasicBlock *> &set) {
+void print_block_set(const std::vector<BasicBlockPtr> &set) {
 	for (auto x : set) { if (x->label) printf("%s ", x->label->c_str()); }
 	printf("\n");
 }
@@ -641,14 +613,21 @@ void basic_block(Segment *segment) {
 	BlockQueue bq = make_basic_blocks(std::move(segment->lines));
 
 
+	auto kill_bq = make_defer([bq]{ 
+		for (auto &b : bq) {
+			b->prev_set.clear();
+			b->next_set.clear();
+		}
+	});
+
 	// create the map
-	for (BasicBlock *block : bq) {
+	for (BasicBlockPtr &block : bq) {
 		if (!block->label) continue;
 		bm.emplace(block->label, block);
 	}
 
 
-	for (BasicBlock *block : bq) {
+	for (BasicBlockPtr &block : bq) {
 
 		analyze_block(block, bm);
 	}
@@ -656,20 +635,24 @@ void basic_block(Segment *segment) {
 	// if the block falls through, add the next block 
 
 	// generate prev-blocks
-	for (BasicBlock *block : bq) {
-		for (BasicBlock *next : block->next_set) {
+	for (BasicBlockPtr &block : bq) {
+		for (BasicBlockPtr next : block->next_set) {
 
 			next->prev_set.push_back(block);
 		}
 	}
+
 	// and unique them.
-	for (BasicBlock *block : bq)
+	for (BasicBlockPtr &block : bq)
 		remove_duplicates(block->prev_set);
+
 
 	dead_code_eliminate(bq);
 
+
 	// propogate register imports.
 	build_imports(bq);
+
 
 	// now do a second lifetime scan to remove dead writes
 	// across blocks.
@@ -680,7 +663,7 @@ void basic_block(Segment *segment) {
 	for(;;) {
 		bool any_delta = false;
 
-		for (BasicBlock * block : bq) {
+		for (BasicBlockPtr  &block : bq) {
 			// these probably don't need multiple passes...
 			if (propagate_const(block->lines)) any_delta = true;
 			if (reg_const(block->lines)) any_delta = true;
@@ -705,7 +688,7 @@ void basic_block(Segment *segment) {
 			if (merge_blocks(bq)) delta = true;
 
 			if (delta) {
-				remove_if(bq, [](BasicBlock *block) {
+				remove_if(bq, [](BasicBlockPtr block) {
 					return block->dead;
 				});
 			}
@@ -738,7 +721,7 @@ void basic_block(Segment *segment) {
 
 	//out.insert(out.end(), segment->prologue_code.begin(), segment->prologue_code.end());
 
-	for (BasicBlock *block : bq) {
+	for (BasicBlockPtr &block : bq) {
 
 		if (block->dead) continue;
 
@@ -753,10 +736,7 @@ void basic_block(Segment *segment) {
 		}
 
 		if (block->label) {
-			BasicLine *tmp = new BasicLine;
-			tmp->label = block->label;
-			//out.push_back(tmp);
-			lines.push_front(tmp);
+			lines.emplace_front(BasicLine::Make(block->label));
 		}
 
 		// if this branches to an exit node and the exit code is small, just do it here.
@@ -815,8 +795,8 @@ void basic_block(Segment *segment) {
 	// now handled by peephole.
 #if 0
 	if (out.size() && segment->epilogue_code.size() == 1) {
-		BasicLine *back = out.back();
-		BasicLine *tmp = segment->epilogue_code.back();
+		BasicLinePtr back = out.back();
+		BasicLinePtr tmp = segment->epilogue_code.back();
 
 		if (back->opcode.mnemonic() == JSL && back->opcode.addressMode() == absolute_long) {
 			if (tmp->opcode.mnemonic() == RTL) {
@@ -837,6 +817,13 @@ void basic_block(Segment *segment) {
 
 	//out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
 
+	// need to clear the next/previous sets to break the memory retain cycles.
+	#if 0
+	for (auto &block : bq) {
+		block->next_set.clear();
+		block->prev_set.clear();
+	}
+	#endif
 	segment->lines = std::move(out);
 }
 

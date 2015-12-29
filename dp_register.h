@@ -1,7 +1,8 @@
 #ifndef __dp_register_h__
 #define __dp_register_h__
 
-#include <functional> // std::hash
+// std::hash
+#include <functional> 
 
 
 /*
@@ -9,12 +10,15 @@
  */
 
 struct dp_register {
-	unsigned type;
-	unsigned number;
+	unsigned type = 0;
+	unsigned number = 0;
 
-	static dp_register make(unsigned type = 0, unsigned number = 0) {
-		return dp_register({type, number});
-	}
+	dp_register() = default;
+	dp_register(unsigned t, unsigned n) : type(t), number(n)
+	{}
+
+	dp_register(const dp_register &) = default;
+
 
 	bool is_temporary() const { return type == 'r' || type == 't'; }
 	operator bool() const { return (bool)type; }

@@ -8,12 +8,6 @@
 #include "Expression_Internal.h"
 
 
-namespace {
-
-	std::deque<Expression *> Pool;
-
-}
-
 namespace Expression_Internal {
 
 	uint32_t unary_op(unsigned op, uint32_t value) {
@@ -74,18 +68,6 @@ using namespace Expression_Internal;
 
 
 
-
-
-void Expression::ErasePool(void) {
-
-	for(ExpressionPtr e : Pool) {
-		delete e;
-	}
-
-	Pool.clear();
-}
-
-
 #pragma mark - destructors
 
 Expression::~Expression() {
@@ -98,79 +80,59 @@ VectorExpression::~VectorExpression() {
 
 
 #pragma mark - constructors
-Expression *Expression::PC() {
-	static ExpressionPtr pc = new PCExpression();
-
-	//ExpressionPtr e = new PCExpression();
-	//Pool.push_back(e);
-	//return e;
-
+ExpressionPtr Expression::PC() {
+	static ExpressionPtr pc = std::make_shared<PCExpression>();
 	return pc;
 }
 
-Expression *Expression::Rel(uint32_t offset) {
-	ExpressionPtr e = new RelExpression(offset);
-	Pool.push_back(e);
+ExpressionPtr Expression::Rel(uint32_t offset) {
+	ExpressionPtr e = std::make_shared<RelExpression>(offset);
 	return e;
 }
 
-Expression *Expression::Integer(uint32_t value) {
-	ExpressionPtr e = new IntegerExpression(value);
-	Pool.push_back(e);
+ExpressionPtr Expression::Integer(uint32_t value) {
+	ExpressionPtr e = std::make_shared<IntegerExpression>(value);
 	return e;
 }
 
-Expression *Expression::Register(dp_register value) {
-	ExpressionPtr e = new RegisterExpression(value);
-	Pool.push_back(e);
+ExpressionPtr Expression::Register(dp_register value) {
+	ExpressionPtr e = std::make_shared<RegisterExpression>(value);
 	return e;
 }
 
-Expression *Expression::Identifier(const std::string *value) {
-	ExpressionPtr e = new IdentifierExpression(value);
-	Pool.push_back(e);
+ExpressionPtr Expression::Identifier(const std::string *value) {
+	ExpressionPtr e = std::make_shared<IdentifierExpression>(value);
 	return e;
 }
 
-Expression *Expression::String(const std::string *value) {
-	ExpressionPtr e = new StringExpression(value);
-	Pool.push_back(e);
+ExpressionPtr Expression::String(const std::string *value) {
+	ExpressionPtr e = std::make_shared<StringExpression>(value);
 	return e;
 }
 
 
-Expression *Expression::Unary(unsigned op, ExpressionPtr child) {
-	ExpressionPtr e = new UnaryExpression(op, child);
-
-	Pool.push_back(e);
+ExpressionPtr Expression::Unary(unsigned op, ExpressionPtr child) {
+	ExpressionPtr e = std::make_shared<UnaryExpression>(op, child);
 	return e;
 }
 
 ExpressionPtr Expression::Binary(unsigned op, ExpressionPtr a, ExpressionPtr b) {
-	ExpressionPtr e = new BinaryExpression(op, a, b);
-
-	Pool.push_back(e);
+	ExpressionPtr e = std::make_shared<BinaryExpression>(op, a, b);
 	return e;
 }
 
 VectorExpressionPtr Expression::Vector() {
-	VectorExpressionPtr e = new VectorExpression();
-
-	Pool.push_back(e);
+	VectorExpressionPtr e = std::make_shared<VectorExpression>();
 	return e;
 }
 
 VectorExpressionPtr Expression::Vector(const std::vector<ExpressionPtr> &children) {
-	VectorExpressionPtr e = new VectorExpression(children);
-
-	Pool.push_back(e);
+	VectorExpressionPtr e = std::make_shared<VectorExpression>(children);
 	return e;
 }
 
 VectorExpressionPtr Expression::Vector(std::vector<ExpressionPtr> &&children) {
-	VectorExpressionPtr e = new VectorExpression(std::move(children));
-
-	Pool.push_back(e);
+	VectorExpressionPtr e =  std::make_shared<VectorExpression>(std::move(children));
 	return e;
 }
 
