@@ -135,6 +135,11 @@ public:
 	virtual int32_t evaluate_relative(uint32_t pc) const /* throw(std::runtime_exception) */;
 
 
+	virtual bool operator==(const Expression &) const;
+	bool operator!=(const Expression &rhs) const {
+		return !(*this == rhs); 
+	}
+
 	class Visitor;
 	class ConstVisitor;
 	class MapVisitor;
@@ -180,6 +185,8 @@ class VectorExpression : public Expression {
 	void push_back(ExpressionPtr e) { _children.push_back(e); }
 
 	virtual bool is_vector(std::vector<ExpressionPtr> &) const override final;
+	virtual bool operator==(const Expression &) const override final;
+	bool operator==(const VectorExpression &) const;
 
 
 	// semi-private constructors.

@@ -455,6 +455,107 @@ void IdentifierExpression::to_omf(std::vector<uint8_t> &rv) const {
 }
 
 
+#pragma mark - operator ==
+
+bool Expression::operator==(const Expression &) const {
+	return false;
+}
+
+bool IntegerExpression::operator==(const Expression &rhs) const {
+	if (&rhs == this) return true;
+	if (rhs.is_integer()) return *this == static_cast<const IntegerExpression &>(rhs);
+	return false;
+}
+
+bool IntegerExpression::operator==(const IntegerExpression &rhs) const {
+	return _value == rhs._value;
+}
+
+
+bool RegisterExpression::operator==(const Expression &rhs) const {
+	if (&rhs == this) return true;
+
+	if (rhs.is_register()) return *this == static_cast<const RegisterExpression &>(rhs);
+	return false;
+}
+
+bool RegisterExpression::operator==(const RegisterExpression &rhs) const {
+	return _value == rhs._value;
+}
+
+bool IdentifierExpression::operator==(const Expression &rhs) const {
+	if (&rhs == this) return true;
+
+	if (rhs.is_identifier()) return *this == static_cast<const IdentifierExpression &>(rhs);
+	return false;
+}
+
+bool IdentifierExpression::operator==(const IdentifierExpression &rhs) const {
+	return _value == rhs._value;
+}
+
+bool StringExpression::operator==(const Expression &rhs) const {
+	if (&rhs == this) return true;
+
+	if (rhs.is_string()) return *this == static_cast<const StringExpression &>(rhs);
+	return false;
+}
+
+bool StringExpression::operator==(const StringExpression &rhs) const {
+	return _value == rhs._value;
+}
+
+#if 0
+bool RelExpression::operator==(const Expression &rhs) const {
+	if (rhs.is_integer()) return *this == static_cast<const RelExpression &>(rhs);
+	return false;
+}
+
+bool RelExpression::operator==(const RelExpression &rhs) const {
+	return _offset == rhs._offset;
+}
+#endif
+
+bool UnaryExpression::operator==(const Expression &rhs) const {
+	if (&rhs == this) return true;
+
+	if (rhs.is_unary()) return *this == static_cast<const UnaryExpression &>(rhs);
+	return false;
+}
+
+bool UnaryExpression::operator==(const UnaryExpression &rhs) const {
+	if (&rhs == this) return true;
+
+	return _op == rhs._op && *rhs._children[0] == *rhs._children[0];
+}
+
+
+bool BinaryExpression::operator==(const Expression &rhs) const {
+	if (&rhs == this) return true;
+
+	if (rhs.is_binary()) return *this == static_cast<const BinaryExpression &>(rhs);
+	return false;
+}
+
+bool BinaryExpression::operator==(const BinaryExpression &rhs) const {
+	if (&rhs == this) return true;
+	return _op == rhs._op && *_children[0] == *rhs._children[0] && *_children[1] == *rhs._children[1];
+}
+
+
+bool VectorExpression::operator==(const VectorExpression &rhs) const {
+	if (&rhs == this) return true;
+
+	return std::equal(_children.begin(), _children.end(), 
+		rhs._children.begin(), rhs._children.end(),
+		[](ExpressionPtr a, ExpressionPtr b) { return *a == *b; });
+}
+
+bool VectorExpression::operator==(const Expression &rhs) const {
+	if (rhs.is_vector()) return *this == static_cast<const VectorExpression &>(rhs);
+	return false;
+}
+
 namespace {
 
 

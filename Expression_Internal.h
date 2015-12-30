@@ -116,6 +116,10 @@ public:
 	virtual void accept(ConstVisitor &) const override final;
 	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
+	// rel and pc are never ==.
+	//virtual bool operator==(const Expression &) const override final;
+	//bool operator==(const RelExpression &) const;
+
 private:
 		uint32_t _offset = 0;
 };
@@ -139,6 +143,9 @@ public:
 	virtual void accept(ConstVisitor &) const override final;
 	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
+	virtual bool operator==(const Expression &) const override final;
+	bool operator==(const IntegerExpression &) const;
+
 private:
 	uint32_t _value;
 };
@@ -157,6 +164,9 @@ public:
 	virtual void accept(Visitor &) final;
 	virtual void accept(ConstVisitor &) const override final;
 	virtual ExpressionPtr accept(MapVisitor &) const override final;
+
+	virtual bool operator==(const Expression &) const override final;
+	bool operator==(const RegisterExpression &) const;
 
 private:
 	dp_register _value;
@@ -181,6 +191,10 @@ public:
 	virtual void accept(ConstVisitor &) const override final;
 	virtual ExpressionPtr accept(MapVisitor &) const override final;
 
+
+	virtual bool operator==(const Expression &) const override final;
+	bool operator==(const IdentifierExpression &) const;
+
 private:
 	identifier _value;
 };
@@ -196,6 +210,10 @@ public:
 	virtual void accept(Visitor &) override final;
 	virtual void accept(ConstVisitor &) const override final;
 	virtual ExpressionPtr accept(MapVisitor &) const override final;
+
+
+	virtual bool operator==(const Expression &) const override final;
+	bool operator==(const StringExpression &) const;
 
 private:
 	identifier _value;
@@ -215,6 +233,8 @@ public:
 
 	virtual uint32_t evaluate(uint32_t pc, const identifier_map &env) const override final;
 
+	virtual bool operator==(const Expression &) const override final;
+	bool operator==(const UnaryExpression &) const;
 
 	virtual void to_omf(std::vector<uint8_t> &) const override final;
 
@@ -245,6 +265,8 @@ public:
 
 	virtual uint32_t evaluate(uint32_t pc, const identifier_map &env) const final;
 
+	virtual bool operator==(const Expression &) const override final;
+	bool operator==(const BinaryExpression &) const;
 
 	virtual void to_omf(std::vector<uint8_t> &) const override final;
 
