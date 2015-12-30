@@ -5,8 +5,9 @@
  */
 
 #include "branch.h"
-#include "common.h"
+#include "types.h"
 #include "Expression.h"
+#include "common.h"
 
 bool branch::is_signed() const {
 
@@ -486,3 +487,50 @@ unsigned branch::flags() const {
 			return n | v | z;
 	}
 }
+
+branch::branch_type branch::invert(branch_type type) {
+	switch(type) {
+		default:
+		case always:
+			// oops
+			return type;
+		case eq:
+			return ne;
+		case ne:
+			return eq;
+		case cc:
+			return cs;
+		case cs:
+			return cc;
+		case vs:
+			return vc;
+		case vc:
+			return vs;
+		case mi:
+			return pl;
+		case pl:
+			return mi;
+		case unsigned_gt:
+			return unsigned_le;
+		case unsigned_ge:
+			return unsigned_lt;
+		case unsigned_lt:
+			return unsigned_ge;
+		case unsigned_le:
+			return unsigned_gt;
+
+		case signed_gt:
+			return signed_le;
+		case signed_ge:
+			return signed_lt;
+		case signed_lt:
+			return signed_ge;
+		case signed_le:		
+			return signed_gt;
+	}
+}
+
+branch branch::operator!() const {
+	return branch{ invert(type), far };
+}
+

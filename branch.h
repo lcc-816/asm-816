@@ -9,7 +9,7 @@
 
 struct branch {
 
-	enum {
+	enum branch_type {
 		//never,
 		always,
 		eq,
@@ -55,9 +55,19 @@ struct branch {
 	unsigned flags() const;
 
 
+	bool operator==(const branch &rhs) const {
+		return type == rhs.type && far == rhs.far;
+	}
+	bool operator!=(const branch &rhs) const {
+		return type != rhs.type || far != rhs.far;
+	}
+
 	bool in_range(uint32_t pc, uint32_t target) const;
 
 	unsigned make_far(); // sets far, returns # of additional bytes.
+
+	static branch_type invert(branch_type type);
+	branch operator!() const;
 
 	std::string to_string() const;
 	std::vector<BasicLinePtr> to_code(ExpressionPtr target) const;
