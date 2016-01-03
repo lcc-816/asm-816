@@ -487,6 +487,8 @@ bool peephole(BasicBlockPtr block) {
 				return false;
 			})) continue;
 
+#if 0
+	// now handled in register passes.
 			/* LDA xxx, PLA -> PLA */
 			if (match(list, LDA, PLA, [&](BasicLinePtr a, BasicLinePtr b){
 				// if a is immediate or zp ?
@@ -503,7 +505,7 @@ bool peephole(BasicBlockPtr block) {
 			})) continue;
 
 
-
+#endif
 			/* LDA #const, AND #const -> LDA #const */
 			if (match(list, LDA/immediate, AND/immediate, [&](BasicLinePtr a, BasicLinePtr b){
 
