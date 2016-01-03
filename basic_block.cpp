@@ -9,7 +9,8 @@
 #include <cassert>
 
 #include "cxx/defer.h"
-
+#include "cxx/tsv2_vector.h"
+#include "cxx/tsv2_deque.h"
 
 bool common_line_consolidation(BasicBlockPtr block);
 bool register_lifetime(BasicBlockPtr block);
@@ -19,32 +20,21 @@ namespace {
 	std::unordered_map<identifier, BasicBlockPtr> BlockMap;
 
 
-template<class T>
-void remove_duplicates(std::vector<T> &t){
+template<class T, class A>
+void remove_duplicates(std::vector<T, A> &t){
 	std::sort(t.begin(), t.end());
 	auto iter = std::unique(t.begin(), t.end());
 	t.erase(iter, t.end());
 }
 
 
-
-template<class T>
-void remove(std::vector<T> &v, T t){
-	v.erase(std::remove(v.begin(), v.end(), t), v.end());
+template <class T, class A>
+void replace(std::vector<T, A> &v, const T &old_value, const T &new_value){
+	std::replace(v.begin(), v.end(), old_value, new_value);
 }
 
-template<class T, class FX>
-void remove_if(std::vector<T> &v, FX fx){
-	v.erase(std::remove_if(v.begin(), v.end(), fx), v.end());
-}
-
-template<class T, class FX>
-void remove_if(std::deque<T> &v, FX fx){
-	v.erase(std::remove_if(v.begin(), v.end(), fx), v.end());
-}
-
-template<class T>
-void replace(std::vector<T> &v, const T &old_value, const T &new_value){
+template <class T, class A>
+void replace(std::deque<T, A> &v, const T &old_value, const T &new_value){
 	std::replace(v.begin(), v.end(), old_value, new_value);
 }
 
@@ -154,12 +144,12 @@ void BasicBlock::make_dead() {
 
 void BasicBlock::remove_prev(BasicBlockPtr target) {
 	if (!target) return;
-	remove(prev_set, target);
+	erase(prev_set, target);
 }
 
 void BasicBlock::remove_next(BasicBlockPtr target) {
 	if (!target) return;
-	remove(next_set, target);
+	erase(next_set, target);
 }
 
 void BasicBlock::replace_prev(BasicBlockPtr oldBlock, BasicBlockPtr newBlock) {
@@ -842,7 +832,7 @@ void basic_block(Segment *segment) {
 			if (merge_blocks(bq)) delta = true;
 
 			if (delta) {
-				remove_if(bq, [](BasicBlockPtr block) {
+				erase_if(bq, [](BasicBlockPtr block) {
 					return block->dead;
 				});
 			}
