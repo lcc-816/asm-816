@@ -36,10 +36,10 @@ struct branch {
 
 
 	enum {
-		c = 1,
-		n = 2,
-		z = 4,
-		v = 8
+		c = 1 << 0,
+		z = 1 << 1,
+		v = 1 << 6,
+		n = 1 << 7,
 	};
 
 	unsigned size() const;
@@ -59,6 +59,7 @@ struct branch {
 	bool operator==(const branch &rhs) const {
 		return type == rhs.type && far == rhs.far;
 	}
+
 	bool operator!=(const branch &rhs) const {
 		return type != rhs.type || far != rhs.far;
 	}
@@ -72,6 +73,9 @@ struct branch {
 
 	std::string to_string() const;
 	std::vector<BasicLinePtr> to_code(ExpressionPtr target) const;
+
+	register_bits read_bits() const;
+	register_bits write_bits() const;
 };
 
 
