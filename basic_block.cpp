@@ -15,6 +15,9 @@
 bool common_line_consolidation(BasicBlockPtr block);
 bool register_lifetime(BasicBlockPtr block);
 
+bool dead_block_elimination(BlockQueue &bq);
+
+
 namespace {
 
 	std::unordered_map<identifier, BasicBlockPtr> BlockMap;
@@ -627,38 +630,6 @@ bool analyze_block_2(BasicBlockPtr block) {
 
 }
 
-bool dead_code_eliminate(BlockQueue &bq) {
-
-	// need to scan multiple times
-	// since removing one block can propogate
-	// to others.
-
-	unsigned size = bq.size();
-	bool delta = false;
-	for(;;) {
-
-		unsigned size = bq.size();
-		erase_if(bq, [](BasicBlockPtr block) {
-			if (block->dead) return true;
-			if (block->entry_node) return false;
-			if (block->exit_node) return false;
-
-			if (block->prev_set.empty()) {
-				block->make_dead();
-				return true;
-			}
-			return false;
-		});
-
-		if (size == bq.size()) break;
-	}
-
-
-	if (size != bq.size()) {
-		return true;
-	}
-	return false;
-}
 
 static void build_imports(BasicBlockPtr block, register_set imports) {
 
@@ -741,7 +712,7 @@ void basic_block(Segment *segment) {
 	for (BasicBlockPtr & block : bq)
 		common_line_consolidation(block);
 
-	dead_code_eliminate(bq);
+	dead_block_elimination(bq);
 
 
 	// propogate register imports.
