@@ -449,9 +449,29 @@ bool reg_const(LineQueue &list) {
 							break;
 
 						case LDA:
-							if (reg_a == dp_reg) kill = true;
-							// also... replace lda <zp with lda #imm if known.
+							if (reg_a == dp_reg) {
+								kill = true;
+								break;
+							}
+
 							reg_a = dp_reg;
+
+							if (reg_x == reg_a) {
+								BasicLinePtr tmp = BasicLine::Make(TXA, implied);
+								tmp->calc_registers();
+								out.emplace_back(std::move(tmp));
+								continue;
+							}
+
+							if (reg_y == reg_a) {
+								BasicLinePtr tmp = BasicLine::Make(TYA, implied);
+								tmp->calc_registers();
+								out.emplace_back(std::move(tmp));
+								continue;
+							}
+
+							// also... replace lda <zp with lda #imm if known.
+
 							break;
 						case LDX:
 							if (reg_x == dp_reg) kill = true;
