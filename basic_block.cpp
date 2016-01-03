@@ -11,6 +11,9 @@
 #include "cxx/defer.h"
 
 
+bool common_line_consolidation(BasicBlockPtr block);
+bool register_lifetime(BasicBlockPtr block);
+
 namespace {
 
 	std::unordered_map<identifier, BasicBlockPtr> BlockMap;
@@ -794,6 +797,9 @@ void basic_block(Segment *segment) {
 		remove_duplicates(block->prev_set);
 
 
+	for (BasicBlockPtr & block : bq)
+		common_line_consolidation(block);
+
 	dead_code_eliminate(bq);
 
 
@@ -814,6 +820,7 @@ void basic_block(Segment *segment) {
 			// these probably don't need multiple passes...
 			if (propagate_const(block->lines)) any_delta = true;
 			if (reg_const(block->lines)) any_delta = true;
+			if (register_lifetime(block)) any_delta = true;
 
 			for(;; any_delta = true) {
 				bool delta = false;

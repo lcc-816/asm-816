@@ -21,7 +21,8 @@ SRC = grammar.cpp main.cpp lexer.cpp Instruction.cpp Machine.cpp OpCode.cpp \
 	register_set.cpp classify.cpp peephole.cpp classify.cpp basic_block.cpp \
 	intern.cpp symbol_table.cpp data.cpp omf.cpp assign_pc.cpp assign_reg.cpp \
 	line.cpp branch.cpp propagate_const.cpp reg_const.cpp \
-	cxx/filesystem.cpp cxx/path.cpp cxx/directory_iterator.cpp
+	cxx/filesystem.cpp cxx/path.cpp cxx/directory_iterator.cpp \
+	common_line_consolidation.cpp register_lifetime.cpp register_bits.cpp
 
 OBJS = $(addprefix $(OBJDIR)/, $(SRC:.cpp=.o))
 DEP = $(addprefix $(OBJDIR)/,$(SRC:.cpp=.d))

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "types.h"
+#include "register_bits.h"
 
 struct branch {
 
