@@ -40,6 +40,9 @@ public:
 	register_set &operator -= (dp_register r);
 	register_set &operator -= (const register_set &);
 
+	register_set &operator &= (dp_register r);
+	register_set &operator &= (const register_set &);
+
 	friend bool operator == (const register_set &, const register_set &);
 	friend bool operator != (const register_set &, const register_set &);
 	friend bool operator < (const register_set &, const register_set &);
@@ -58,7 +61,7 @@ private:
 
 	#ifdef RS_BITSET
 	// lcc is currently limited to 32 registers, so this is good enough for now.
-	// hmm .. no longer true :(
+	// hmm .. no longer true :( -- use optional<vector<dp_register>> for overflow!
 	std::array< std::bitset<32>, 4> _data;
 	#else
 	std::array< std::vector<bool>, 4> _data;

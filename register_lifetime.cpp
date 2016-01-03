@@ -11,6 +11,17 @@
  *
  */
 
+
+/*
+
+lda, etc -- add a as a dependency when short m?
+
+lda #0
+sep #$30
+lda %p0
+rep #$30
+*/
+
 register_bits read_registers(BasicLinePtr line) {
 	if (line->opcode) return read_table[line->opcode.opcode()];
 	// smart branches?
