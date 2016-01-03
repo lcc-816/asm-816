@@ -116,7 +116,6 @@ struct BasicLine {
 
 	bool longM = true;
 	bool longX = true;
-	//bool long_branch = false;
 	branch branch;
 
 
@@ -137,22 +136,38 @@ struct BasicLine {
 
 typedef std::deque<BasicLinePtr> LineQueue;
 
+typedef std::deque<BasicBlockPtr> BlockQueue;
 
-struct BasicBlock {
+class BasicBlock : public std::enable_shared_from_this<BasicBlock> {
 
-	unsigned size = 0;
-	unsigned pc = 0;
-	unsigned id = 0;
+public:
 
-	identifier label = nullptr;
+	static BlockQueue MakeBlockQueue(LineQueue &&);
 
 	template<class...Args>
 	static BasicBlockPtr Make(Args&&... args) {
 		return std::make_shared<BasicBlock>(std::forward<Args>(args)...);
 	}
 
+	void recalc_next_set();
+	void make_dead();
+
+	void remove_prev(BasicBlockPtr);
+	void remove_next(BasicBlockPtr);
+	void replace_prev(BasicBlockPtr oldBlock, BasicBlockPtr newBlock);
+	void replace_next(BasicBlockPtr oldBlock, BasicBlockPtr newBlock);
+
+
+	unsigned pc = 0;
+	//unsigned size = 0;
+	//unsigned id = 0;
+
+	identifier label = nullptr;
 
 	LineQueue lines;
+	BasicLinePtr exit_branch; // if ends w/ a branch.
+	BasicBlockPtr next_block; // if fallthrough.
+
 
 
 	register_set reg_import;
@@ -168,7 +183,6 @@ struct BasicBlock {
 
 };
 
-typedef std::deque<BasicBlockPtr> BlockQueue;
 
 
 struct Segment {
@@ -217,7 +231,9 @@ struct Unit {
 	std::vector<identifier> exports;
 };
 
-bool peephole(LineQueue &);
+bool peephole(BasicBlockPtr);
+bool final_peephole(BasicBlockPtr);
+
 void print(const LineQueue &lines);
 void simplify(LineQueue &lines);
 bool parse_file(const std::string &filename, SegmentQueue &segments);

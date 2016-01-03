@@ -20,6 +20,9 @@ inline OpCode operator/(Mnemonic m, AddressMode mode) {
 namespace {
 	struct match_any_t {};
 	static const match_any_t _{};
+
+	struct match_eof_t {};
+	static const match_eof_t eof{};
 }
 
 typedef std::pair<Mnemonic, AddressMode> ma_pair;
@@ -91,6 +94,42 @@ bool matches(const std::array<BasicLinePtr, N> &lines, T &&t, Rest&& ...args) {
 }
 
 
+template<unsigned N, class FX>
+bool expand_fx(std::array<BasicLinePtr, N> &lines, FX);
+
+
+template<class FX>
+bool expand_fx(std::array<BasicLinePtr, 1> &lines, FX fx)
+{
+	return fx(lines[0]);
+}
+
+
+template<class FX>
+bool expand_fx(std::array<BasicLinePtr, 2> &lines, FX fx)
+{
+	return fx(lines[0], lines[1]);
+}
+
+template<class FX>
+bool expand_fx(std::array<BasicLinePtr, 3> &lines, FX fx)
+{
+	return fx(lines[0], lines[1], lines[2]);
+}
+
+template<class FX>
+bool expand_fx(std::array<BasicLinePtr, 4> &lines, FX fx)
+{
+	return fx(lines[0], lines[1], lines[2], lines[3]);
+}
+
+template<class FX>
+bool expand_fx(std::array<BasicLinePtr, 5> &lines, FX fx)
+{
+	return fx(lines[0], lines[1], lines[2], lines[3], lines[4]);
+}
+
+
 //#if 0
 template<class ...Args, class FX>
 bool match(LineQueue &list, Args && ...args, FX fx) {
@@ -103,7 +142,7 @@ bool match(LineQueue &list, Args && ...args, FX fx) {
 
 	//if (!matches(lines, m1, m2)) return false;
 	if (!matches(lines, std::forward<Args>(args)...)) return false;
-	return fx(lines);
+	return expand_fx(lines, fx);
 }
 //#endif
 
@@ -122,6 +161,20 @@ bool match(LineQueue &list, A m1, FX fx) {
 }
 
 
+template<class A, class FX>
+bool match(LineQueue &list, A m1, match_eof_t, FX fx) {
+	const unsigned Size = 1;
+	std::array<BasicLinePtr, Size> lines;
+
+	if (list.size() != Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1)) return false;
+
+	return fx(lines[0]);
+}
+
 template<class A, class B, class FX>
 bool match(LineQueue &list, A m1, B m2, FX fx) {
 	const unsigned Size = 2;
@@ -136,9 +189,27 @@ bool match(LineQueue &list, A m1, B m2, FX fx) {
 	return fx(lines[0], lines[1]);
 }
 
+template<class A, class B, class FX>
+bool match(LineQueue &list, A m1, B m2, match_eof_t, FX fx) {
+
+	const unsigned Size = 2;
+
+	std::array<BasicLinePtr, Size> lines;
+
+	if (list.size() != Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1, m2)) return false;
+
+	return fx(lines[0], lines[1]);
+}
+
 template<class A, class B, class C, class FX>
 bool match(LineQueue &list, A m1, B m2, C m3, FX fx) {
+
 	const unsigned Size = 3;
+
 	std::array<BasicLinePtr, Size> lines;
 
 	if (list.size() < Size) return false;
@@ -149,6 +220,23 @@ bool match(LineQueue &list, A m1, B m2, C m3, FX fx) {
 
 	return fx(lines[0], lines[1], lines[2]);
 }
+
+
+
+template<class A, class B, class C, class FX>
+bool match(LineQueue &list, A m1, B m2, C m3, match_eof_t, FX fx) {
+	const unsigned Size = 3;
+	std::array<BasicLinePtr, Size> lines;
+
+	if (list.size() != Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1, m2, m3)) return false;
+
+	return fx(lines[0], lines[1], lines[2]);
+}
+
 
 template<class A, class B, class C, class D, class FX>
 bool match(LineQueue &list, A m1, B m2, C m3, D m4, FX fx) {
@@ -164,6 +252,22 @@ bool match(LineQueue &list, A m1, B m2, C m3, D m4, FX fx) {
 	return fx(lines[0], lines[1], lines[2], lines[3]);
 }
 
+
+template<class A, class B, class C, class D, class FX>
+bool match(LineQueue &list, A m1, B m2, C m3, D m4, match_eof_t, FX fx) {
+	const unsigned Size = 4;
+	std::array<BasicLinePtr, Size> lines;
+
+	if (list.size() != Size) return false;
+
+	std::copy_n(list.begin(), Size, lines.begin());
+
+	if (!matches(lines, m1, m2, m3, m4)) return false;
+
+	return fx(lines[0], lines[1], lines[2], lines[3]);
+}
+
+
 template<class A, class B, class C, class D, class E, class FX>
 bool match(LineQueue &list, A m1, B m2, C m3, D m4, E m5, FX fx) {
 	const unsigned Size = 5;
@@ -178,191 +282,13 @@ bool match(LineQueue &list, A m1, B m2, C m3, D m4, E m5, FX fx) {
 	return fx(lines[0], lines[1], lines[2], lines[3], lines[4]);
 }
 
-#if 0
-template<class A, class B, class C, class FX>
-bool match(LineQueue &list, A m1, B m2, C m3, FX fx) {
-	const unsigned Size = 3;
-	if (list.size() < Size) return false;
-
-	BasicLinePtr lines[Size] = {0};
-	auto iter = list.begin();
-	unsigned i = 0;
-
-	if (!matches(**iter, m1)) return false;
-	lines[i++] = *iter++;
-
-	if (!matches(**iter, m2)) return false;
-	lines[i++] = *iter++;
-
-	if (!matches(**iter, m3)) return false;
-	lines[i++] = *iter++;
-
-	return fx(lines[0], lines[1], lines[2]);
-}
 
 
-template<class FX>
-bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, FX fx) {
-	const unsigned Size = 2;
-	Mnemonic mm[Size] = { m1, m2};
-	BasicLinePtr lines[Size] = {0};
+bool peephole(BasicBlockPtr block) {
 
-	if (list.size() < Size) return false;
-
-	auto iter = list.begin();
-	for (unsigned i = 0; i < Size; ++i, ++iter) {
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != mm[i]) return false;
-		lines[i] = tmp;
-	}
-
-	return fx(lines[0], lines[1]);
-}
-
-template<class FX>
-bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, FX fx) {
-	const unsigned Size = 3;
-	Mnemonic mm[Size] = { m1, m2, m3};
-	BasicLinePtr lines[Size] = {0};
-
-	if (list.size() < Size) return false;
-
-	auto iter = list.begin();
-	for (unsigned i = 0; i < Size; ++i, ++iter) {
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != mm[i]) return false;
-		lines[i] = tmp;
-	}
-
-	return fx(lines[0], lines[1], lines[2]);
-}
-
-
-template<class FX>
-bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Mnemonic m4, FX fx) {
-	const unsigned Size = 4;
-	Mnemonic mm[Size] = { m1, m2, m3, m4};
-	BasicLinePtr lines[Size] = {0};
-
-	if (list.size() < Size) return false;
-
-	auto iter = list.begin();
-	for (unsigned i = 0; i < Size; ++i, ++iter) {
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != mm[i]) return false;
-		lines[i] = tmp;
-	}
-
-	return fx(lines[0], lines[1], lines[2], lines[3]);
-}
-
-
-template<class FX>
-bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Mnemonic m4, Mnemonic m5, FX fx) {
-	const unsigned Size = 5;
-	Mnemonic mm[Size] = { m1, m2, m3, m4, m5};
-	BasicLinePtr lines[Size] = {0};
-
-	if (list.size() < Size) return false;
-
-	auto iter = list.begin();
-	for (unsigned i = 0; i < Size; ++i, ++iter) {
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != mm[i]) return false;
-		lines[i] = tmp;
-	}
-
-	return fx(lines[0], lines[1], lines[2], lines[3], lines[4]);
-}
-
-// lda xxx, cmp #0, branch 
-template<class FX>
-bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Directive d3, FX fx) {
-	const unsigned Size = 3;
-	// Mnemonic mm[Size] = { m1, m2, m3};
-
-	BasicLinePtr lines[Size] = {0};
-
-	if (list.size() < Size) return false;
-
-	// could have a template recursively match?
-
-	auto iter = list.begin();
-	{
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != m1) return false;
-		lines[0] = tmp;
-		++iter;
-	}
-
-	{
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != m2) return false;
-		lines[1] = tmp;
-		++iter;
-	}
-
-	{
-		BasicLinePtr tmp = *iter;
-		if (tmp->directive != d3) return false;
-		lines[2] = tmp;
-		++iter;
-	}
-
-
-	return fx(lines[0], lines[1], lines[2]);
-}
-
-
-template<class FX>
-bool match(LineQueue &list, Mnemonic m1, Mnemonic m2, Mnemonic m3, Directive d4, FX fx) {
-	const unsigned Size = 4;
-	// Mnemonic mm[Size] = { m1, m2, m3};
-
-	BasicLinePtr lines[Size] = {0};
-
-	if (list.size() < Size) return false;
-
-	// could have a template recursively match?
-
-	auto iter = list.begin();
-	{
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != m1) return false;
-		lines[0] = tmp;
-		++iter;
-	}
-
-	{
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != m2) return false;
-		lines[1] = tmp;
-		++iter;
-	}
-
-
-	{
-		BasicLinePtr tmp = *iter;
-		if (tmp->opcode.mnemonic() != m3) return false;
-		lines[2] = tmp;
-		++iter;
-	}
-
-	{
-		BasicLinePtr tmp = *iter;
-		if (tmp->directive != d4) return false;
-		lines[3] = tmp;
-		++iter;
-	}
-
-
-	return fx(lines[0], lines[1], lines[2], lines[3]);
-}
-
-#endif
-
-bool peephole(LineQueue &list) {
-
+	bool recalc = false;
+	LineQueue list = std::move(block->lines);
+	BasicLinePtr exit_branch = block->exit_branch;
 
 	/*
 	 * n.b. - one pass can't catch everthing. consider:
@@ -450,7 +376,7 @@ bool peephole(LineQueue &list) {
 
 
 		case AND:
-			/* AND #const1, AND #const2 -> AND #(const1 | const 2) */
+			/* AND #const1, AND #const2 -> AND #(const1 & const 2) */
 			if (match(list, AND, AND, [&](BasicLinePtr a, BasicLinePtr b){
 				if (a->opcode.addressMode() != immediate) return false;
 				if (b->opcode.addressMode() != immediate) return false;
@@ -474,9 +400,9 @@ bool peephole(LineQueue &list) {
 			})) continue;
 
 			/* AND #const, cmp #0, bmi  --> and #const */
-			if (match(list, AND, CMP, SMART_BRANCH, [&](BasicLinePtr a, BasicLinePtr b, BasicLinePtr c){
+			if (match(list, AND, CMP, eof, [&](BasicLinePtr a, BasicLinePtr b){
 				uint32_t value_a, value_b;
-				if (c->branch.type == branch::mi
+				if (exit_branch && exit_branch->branch.type == branch::mi
 					&& a->operands[0]->is_integer(value_a) 
 					&& b->operands[0]->is_integer(value_b))
 				{
@@ -487,8 +413,10 @@ bool peephole(LineQueue &list) {
 					if (x & 0x8000) return false;
 					list.pop_front();
 					list.pop_front();
-					list.pop_front();
 					list.push_front(a);
+					block->exit_branch = nullptr;
+					// also need to update the next set...
+					recalc = true;
 					return true;
 				}
 				return false;
@@ -1331,6 +1259,7 @@ bool peephole(LineQueue &list) {
 				return false;
 			})) continue;
 
+			break;
 
 		case TAX:
 			/* TAX, PLX -> PLX */
@@ -1340,12 +1269,52 @@ bool peephole(LineQueue &list) {
 
 				return true;
 			})) continue;	
+			break;
+
+		case TXA:
+			/* TXA, LDA -> LDA */
+			// todo -- long/short bits.
+			if (match(list, TXA, LDA|PLA, [&](BasicLinePtr a, BasicLinePtr b){
+
+				list.pop_front(); // a
+
+				return true;
+			})) continue;	
+
+			/* TXA, STA -> STX ..., TXA */
+			// todo -- long/short bits.
+			if (match(list, TXA, STA/zp, [&](BasicLinePtr a, BasicLinePtr b){
+
+				list.pop_front(); // a
+				list.pop_front();
+				BasicLinePtr tmp = BasicLine::Make(STX, b->opcode.addressMode(), b->operands[0]);
+				tmp->calc_registers();
+				list.insert(list.begin(), {tmp, a});
+
+				return true;
+			})) continue;
+
+
+			break;
+
+
+		case TYA:
+			/* TYA, LDA -> LDA */
+			// todo -- long/short bits.
+			if (match(list, TYA, LDA|PLA, [&](BasicLinePtr a, BasicLinePtr b){
+
+				list.pop_front(); // a
+
+				return true;
+			})) continue;	
+			break;
+
 
 #if 0
 		case BRA:
 			/* bra label, label: -> label */
 			if (match(list, BRA, kUndefinedMnemonic, [&](BasicLinePtr a, BasicLinePtr b){
-				const std::string *label;
+				identifier label;
 				if (b->label && a->operands[0]->is_identifier(label)) {
 					if (label == b->label) {
 						list.pop_front();
@@ -1360,7 +1329,7 @@ bool peephole(LineQueue &list) {
 		case BRL:
 			/* brl label, label: -> label */
 			if (match(list, BRL, kUndefinedMnemonic, [&](BasicLinePtr a, BasicLinePtr b){
-				const std::string *label;
+				identifier label;
 				if (b->label && a->operands[0]->is_identifier(label)) {
 					if (label == b->label) {
 						list.pop_front();
@@ -1375,7 +1344,7 @@ bool peephole(LineQueue &list) {
 		case JMP:
 			/* brl label, label: -> label */
 			if (match(list, JMP, kUndefinedMnemonic, [&](BasicLinePtr a, BasicLinePtr b){
-				const std::string *label;
+				identifier label;
 				if (b->opcode.addressMode() == absolute 
 					&& b->label 
 					&& a->operands[0]->is_identifier(label)) {
@@ -1397,17 +1366,25 @@ bool peephole(LineQueue &list) {
 	}
 
 
-	list = std::move(optimized);
-	return (list.size() != starting_size);
+	bool delta = (optimized.size() != starting_size);
+
+	block->lines = std::move(optimized);
+	if (recalc) block->recalc_next_set();
+
+	return (delta|| recalc);
 }
 
 
 
-bool final_peephole(LineQueue &list) {
+bool final_peephole(BasicBlockPtr block) {
 	/*
 	 * last-chance optimizations
 	 *
 	 */
+
+	bool recalc = false;
+	LineQueue list = std::move(block->lines);
+	BasicLinePtr exit_branch = block->exit_branch;
 
 	static identifier ToolError = nullptr;
 	if (!ToolError) ToolError = intern("_toolErr");
@@ -1420,6 +1397,7 @@ bool final_peephole(LineQueue &list) {
 	LineQueue optimized;
 
 	uint32_t starting_size = list.size();
+
 
 	while(!list.empty()) {
 
@@ -1445,10 +1423,12 @@ bool final_peephole(LineQueue &list) {
 
 			/* jsl $e10000, sta >_toolErr, cmp #0, beq/bne -> */
 			/* jsl $e10000, sta >_toolErr, bcc / bcs */
-			if (match(list, JSL/absolute_long, STA/absolute_long, CMP/immediate, SMART_BRANCH, [&](BasicLinePtr a, BasicLinePtr b, BasicLinePtr c, BasicLinePtr d) {
+			if (match(list, JSL/absolute_long, STA/absolute_long, CMP/immediate, eof, [&](BasicLinePtr a, BasicLinePtr b, BasicLinePtr c) {
 				uint32_t vector;
 				identifier te;
 				uint32_t zero;
+
+				if (!exit_branch) return false;
 
 				if (
 					a->operands[0]->is_integer(vector) &&
@@ -1463,12 +1443,12 @@ bool final_peephole(LineQueue &list) {
 						&& zero == 0
 					) {
 
-						switch(d->branch.type) {
+						switch(exit_branch->branch.type) {
 							case branch::eq:
-								d->branch.type = branch::cc;
+								exit_branch->branch.type = branch::cc;
 								break;
 							case branch::ne:
-								d->branch.type = branch::cs;
+								exit_branch->branch.type = branch::cs;
 								break;
 
 							default: 
@@ -1478,11 +1458,8 @@ bool final_peephole(LineQueue &list) {
 						list.pop_front();
 						list.pop_front();
 						list.pop_front();
-						list.pop_front();
 
-						list.insert(list.begin(), {
-							a, b, d
-						});
+						list.insert(list.begin(), { a, b });
 
 						return true;
 					}
@@ -1543,10 +1520,12 @@ bool final_peephole(LineQueue &list) {
 		case SBC:
 			// INC / DEC / ASL / LSR / ROL / ROR as well, but that shouldn't happen?
 			/* LDA xxx, CMP #0, branch -> LDA xxx, branch */
-			if (match(list, opcode.mnemonic(), CMP/immediate, SMART_BRANCH, [&](BasicLinePtr a, BasicLinePtr b, BasicLinePtr c){
+			if (match(list, opcode.mnemonic(), CMP/immediate, eof, [&](BasicLinePtr a, BasicLinePtr b){
 				uint32_t value;
+				if (!exit_branch) return false;
+
 				if (b->operands[0]->is_integer(value)) {
-					if (value == 0 && !c->branch.reads_c() && !c->branch.reads_v()) {
+					if (value == 0 && !exit_branch->branch.reads_c() && !exit_branch->branch.reads_v()) {
 						// drop the cmp
 						list.pop_front();
 						list.pop_front();
@@ -1611,8 +1590,10 @@ bool final_peephole(LineQueue &list) {
 		optimized.emplace_back(std::move(line));
 	}
 
+	bool delta = (optimized.size() != starting_size);
 
-	list = std::move(optimized);
-	return (list.size() != starting_size);
+	block->lines = std::move(optimized);
+	if (recalc) block->recalc_next_set();
 
+	return (delta|| recalc);
 }

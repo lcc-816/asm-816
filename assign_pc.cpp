@@ -61,6 +61,8 @@ namespace {
 
 void assign_pc(BasicLinePtr line, uint32_t &pc, identifier_map *map = nullptr) {
 
+	if (!line) return;
+
 	line->pc = pc;
 
 	if (line->label) {
@@ -173,7 +175,9 @@ void assign_pc(BlockQueue &blocks) {
 		for (auto line : block->lines) {
 			assign_pc(line, pc);
 		}
+		assign_pc(block->exit_branch, pc);
 	}
+
 }
 
 // does it also need to set the segment name to 0 in the map?
@@ -209,6 +213,7 @@ void fix_branches(BlockQueue &blocks) {
 			for (auto line : block->lines) {
 				assign_pc(line, pc, &map);
 			}
+			assign_pc(block->exit_branch, pc, &map);
 		}
 
 		// 2. if a relative branch is out of range, make it long.
@@ -216,37 +221,17 @@ void fix_branches(BlockQueue &blocks) {
 		uint32_t pc_fudge = 0;
 		for (auto block : blocks) {
 
-			// only need to check last
-			for (auto line : block->lines) {
-				#if 0
-				OpCode op = line->opcode;
-				if (!op) continue;
-				if (op.addressMode() != relative) continue;
+			auto line = block->exit_branch;
+			if (line && line->directive == SMART_BRANCH) {
 
-				// check if in range....
-				uint32_t pc = line->pc + pc_fudge;
-				if (in_range(line->operands[0], pc, map)) continue;
-
-				//
-				delta = true;
-
-				uint32_t fudge;
-				if (op.mnemonic() == BRA) {
-					fudge += 1;
-					line->opcode = i(BRL, relative_long);
-				} else {
-					fudge += 3;
-					line->long_branch = true;
-				}
-				#endif
 				uint32_t fudge = 0;
-				if (line->directive == SMART_BRANCH) {
-					uint32_t pc = line->pc + pc_fudge;
-					if (in_range(line->operands[0], pc, map, line->branch)) continue;
-					delta = true;
-					line->branch.far = true;
-					fudge = line->branch.make_far();
-				}
+				uint32_t pc = line->pc + pc_fudge;
+				if (in_range(line->operands[0], pc, map, line->branch)) continue;
+				// if it's already a far branch... oops!
+				
+				delta = true;
+				line->branch.far = true;
+				fudge = line->branch.make_far();
 
 				// adjust all future labels.
 				for (auto &kv : map) { if (kv.second >= pc) kv.second += fudge; }
@@ -257,8 +242,7 @@ void fix_branches(BlockQueue &blocks) {
 
 	} while (delta);
 
-	// also do a pass to convert smart branch to code, verify not-so-smart branches 
-	// are in range?
+	// check if regular branches are in-range, too?
 
 #if 0
 	// do a pass to convert smart branches to real branches.

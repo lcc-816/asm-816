@@ -10,9 +10,12 @@
 
 #include "cxx/defer.h"
 
-typedef std::unordered_map<identifier, BasicBlockPtr> BlockMap;
 
 namespace {
+
+	std::unordered_map<identifier, BasicBlockPtr> BlockMap;
+
+
 template<class T>
 void remove_duplicates(std::vector<T> &t){
 	std::sort(t.begin(), t.end());
@@ -43,8 +46,8 @@ void replace(std::vector<T> &v, const T &old_value, const T &new_value){
 }
 
 
-
 } // namespace
+
 
 
 static bool is_branch(Mnemonic m, bool include_jmp = true)
@@ -120,10 +123,119 @@ static bool is_conditional_branch(Mnemonic m) {
 	}
 }
 
+
+
+
+
+
+void BasicBlock::make_dead() {
+	dead = true;
+
+	auto self = shared_from_this();
+	for (auto b : prev_set) {
+		b->remove_next(self);
+	}
+
+	for (auto b : next_set) {
+		b->remove_prev(self);
+	}
+
+	lines.clear();
+	next_set.clear();
+	prev_set.clear();
+	next_block = nullptr;
+	exit_branch = nullptr;
+	label = nullptr;
+}
+
+
+void BasicBlock::remove_prev(BasicBlockPtr target) {
+	if (!target) return;
+	remove(prev_set, target);
+}
+
+void BasicBlock::remove_next(BasicBlockPtr target) {
+	if (!target) return;
+	remove(next_set, target);
+}
+
+void BasicBlock::replace_prev(BasicBlockPtr oldBlock, BasicBlockPtr newBlock) {
+	replace(prev_set, oldBlock, newBlock);
+}
+
+void BasicBlock::replace_next(BasicBlockPtr oldBlock, BasicBlockPtr newBlock) {
+	replace(next_set, oldBlock, newBlock);
+}
+
+void BasicBlock::recalc_next_set() {
+	std::vector<identifier> labels;
+
+	std::vector<BasicBlockPtr> new_next_set;
+	if (next_block) new_next_set.push_back(next_block);
+
+
+
+	const BasicLinePtr& line = exit_branch;
+	if (line) {
+		ExpressionPtr e = line->operands[0];
+		labels = e->identifiers();
+	}
+
+	// generate a list of next-blocks
+	for (BasicLinePtr &line : lines) {
+
+		// dc.l label is a reference.
+		switch(line->directive)
+		{
+			case DCB:
+			case DCL:
+			case DCW:
+			{
+				ExpressionPtr e = line->operands[0];
+				auto tmp = e->identifiers();
+				labels.insert(labels.end(), tmp.begin(), tmp.end());
+				break;
+			}
+			default:
+				break;
+		}
+	}
+	// and remove duplicates.
+	remove_duplicates(labels);
+
+	for (identifier label : labels) {
+		auto iter = BlockMap.find(label);
+		if (iter != BlockMap.end()) new_next_set.push_back(iter->second);
+	}
+
+	remove_duplicates(new_next_set);
+
+	// if any entries in current next set not in the new next set,
+	// remove their back-link to this block.
+
+	std::vector<BasicBlockPtr> diff;
+	std::set_difference(
+		next_set.begin(), next_set.end(), 
+		new_next_set.begin(), new_next_set.end(),
+		std::back_inserter(diff));
+
+
+	auto self = shared_from_this();
+	for (auto block : diff) {
+		block->remove_prev(self);
+	}
+
+	next_set = std::move(new_next_set);
+}
+
+
+
+
+
 bool analyze_block_2(BasicBlockPtr block);
 
 
-
+// not sure if this is still useful...
 bool remove_branches(BlockQueue &bq) {
 	// returns true if any changes made
 	// returns false if no optimizations done.
@@ -140,9 +252,10 @@ bool remove_branches(BlockQueue &bq) {
 
 
 		if (block->dead) continue;
-		if (block->lines.empty()) continue;
 
-		BasicLinePtr line = block->lines.back();
+		BasicLinePtr line = block->exit_branch;
+		if (!line) continue;
+
 		if (!is_branch(line->opcode.mnemonic(), false)) continue;
 		// jmp (|abs,x) cannot be optimized out.
 
@@ -155,12 +268,13 @@ bool remove_branches(BlockQueue &bq) {
 		if (block->next_set.front() != next) continue;
 		//if (next->prev_set.front() != block) continue;
 
-		block->lines.pop_back();
+		block->exit_branch = nullptr;
 		delta = true;
 	}
 
 	return delta;
 }
+
 
 
 bool merge_blocks(BlockQueue &bq) {
@@ -181,26 +295,18 @@ bool merge_blocks(BlockQueue &bq) {
 		assert(next->prev_set.front() == block);
 
 		if (next->entry_node) continue; // can't merge.
-		if (next->exit_node) block->exit_node = true;
+
+
+		delta = true;
 
 		LineQueue &lines = block->lines;
 
-		// remove branch...
-		if (lines.size()) {
-			BasicLinePtr line = lines.back();
-			if (is_branch(line->opcode.mnemonic())) {
-				lines.pop_back();
-			}
-
-			if (line->directive == SMART_BRANCH) {
-				lines.pop_back();
-			}
-		}
-
-		delta = true;
+		if (next->exit_node) block->exit_node = true;
 		if (lines.empty()) lines = std::move(next->lines);
 		else lines.insert(lines.end(), next->lines.begin(), next->lines.end());
 
+		block->exit_branch = std::move(next->exit_branch);
+		block->next_block = std::move(next->next_block);
 
 		// shouldn't need to rename anything since branch was removed.
 
@@ -210,11 +316,7 @@ bool merge_blocks(BlockQueue &bq) {
 			replace(newnext->prev_set, next, block);
 		}
 
-		next->dead = true;
-		next->lines.clear();
-		next->next_set.clear();
-		next->prev_set.clear();
-
+		next->make_dead();
 
 		// reconcile the import/export sets.
 		// if next imports %t0 and block exports %t0,
@@ -228,7 +330,7 @@ bool merge_blocks(BlockQueue &bq) {
 		// and optimize them.
 		for(;;) {
 			bool delta = false;
-			if (peephole(lines)) delta = true;
+			if (peephole(block)) delta = true;
 			if (analyze_block_2(block)) delta = true;
 
 			if (!delta) break;
@@ -245,6 +347,8 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 	BlockQueue out;
 
 	BasicBlockPtr current = nullptr;
+	BasicBlockPtr prev = nullptr;
+	bool fallthrough = false;
 
 	for (BasicLinePtr &line : lines) {
 
@@ -253,9 +357,22 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 
 		if (line->label) {
 
+			// if there is currently a block, fallthrough to the new one.
+			if (current) {
+				prev = current;
+				fallthrough = true;
+			}
+
 			current = BasicBlock::Make();
 			current->label = line->label;
 			out.push_back(current);
+
+			if (fallthrough && prev) {
+				prev->next_set.push_back(current);
+				prev->next_block = current;
+			}
+			fallthrough = false;
+			prev = nullptr;
 
 			continue;
 		}
@@ -263,21 +380,44 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 		if (!current) {
 			current = BasicBlock::Make();
 			out.push_back(current);
+
+			if (fallthrough && prev) {
+				prev->next_set.push_back(current);
+				prev->next_block = current;
+			}
+
+			fallthrough = false;
+			prev = nullptr;
+		}
+
+		if (is_branch(m)) {
+			current->exit_branch = line;
+			prev = current;
+			current = nullptr;
+
+			fallthrough = is_conditional_branch(m);
+			continue;
+		}
+
+		if (line->directive == SMART_BRANCH) {
+			current->exit_branch = line;
+			prev = current;
+			current = nullptr;
+
+			fallthrough = line->branch.is_conditional();
+			continue;
 		}
 
 		current->lines.push_back(line);
-		if (is_branch(m)) {
-			current = nullptr;
-		}
-		if (line->directive == SMART_BRANCH) {
-			current = nullptr;
-		}
 	}
 	lines.clear();
 
-	if (!out.empty()) out.front()->entry_node = true;
-	if (!out.empty()) out.back()->exit_node = true;
+	if (!out.empty()) {
+		out.front()->entry_node = true;
+		out.back()->exit_node = true;
+	}
 
+#if 0
 	// check for drop-through
 	for (auto iter = out.begin(); iter != out.end(); ++iter) {
 		auto &block = *iter;
@@ -286,34 +426,35 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 
 		if (next == out.end()) continue;
 		
-		if (block->lines.empty()) {
-			fallthrough = true;
-		} else { 
-			BasicLinePtr& line = block->lines.back();
+
+		BasicLinePtr &line = block->exit_branch;
+		if (line) {
+
 			Mnemonic m = line->opcode.mnemonic();
 			if (is_conditional_branch(m))
-				fallthrough = true;
-			if (!is_branch(m))
 				fallthrough = true;
 
 			if (line->directive == SMART_BRANCH) {
 				fallthrough = line->branch.is_conditional();
-			}
 
-		} 
+
+		} else {
+			fallthrough = true;
+		}
+
 
 		if (fallthrough)
 			block->next_set.push_back(*next);
 
 	}
-
+#endif
 
 	return out;
 }
 
 
 
-void analyze_block(BasicBlockPtr &block, const BlockMap &bm) {
+void analyze_block(BasicBlockPtr &block) {
 
 	register_set reg_live;
 	register_set reg_dead;
@@ -356,48 +497,49 @@ void analyze_block(BasicBlockPtr &block, const BlockMap &bm) {
 		reg_live.insert(reg, line->reg_count);
 	}
 
-	auto next_set = std::move(block->next_set);
+
+	std::vector<identifier> labels;
+
+#if 0
+	BasicLinePtr line = block->exit_branch;
+	if (line) {
+		ExpressionPtr e = line->operands[0];
+		labels = e->identifiers();
+		//labels.insert(labels.end(), tmp.begin(), tmp.end());
+	}
 
 	// generate a list of next-blocks
-	for (BasicLinePtr line : lines) {
-
-		std::vector<identifier> ll;
-
-		ExpressionPtr e = line->operands[0];
-
-		if (is_branch(line->opcode.mnemonic())) {
-
-			ll = e->identifiers();
-		}
+	for (BasicLinePtr &line : lines) {
 
 		// dc.l label is a reference.
 		switch(line->directive)
 		{
-			case SMART_BRANCH:
-				ll = e->identifiers();
-				break;
-
 			case DCB:
 			case DCL:
 			case DCW:
-				ll = e->identifiers();
+			{
+				ExpressionPtr e = line->operands[0];
+				auto tmp = e->identifiers();
+				labels.insert(labels.end(), tmp.begin(), tmp.end());
 				break;
+			}
 			default:
 				break;
 		}
-
-		for (identifier label : ll) {
-			auto iter = bm.find(label);
-			if (iter != bm.end()) next_set.push_back(iter->second);
-		}
-
 	}
 	// and remove duplicates.
+	remove_duplicates(labels);
+
+	auto next_set = std::move(block->next_set);
+
+	for (identifier label : labels) {
+		auto iter = bm.find(label);
+		if (iter != bm.end()) next_set.push_back(iter->second);
+	}
 
 	remove_duplicates(next_set);
 	block->next_set = std::move(next_set);
-
-
+#endif
 
 
 	// imports are live in all lines.
@@ -608,28 +750,33 @@ void print_block_set(const std::vector<BasicBlockPtr> &set) {
 
 void basic_block(Segment *segment) {
 
-	BlockMap bm;
-
 	BlockQueue bq = make_basic_blocks(std::move(segment->lines));
 
+	auto kill_bm = make_defer([]{
+		BlockMap.clear();
+	});
 
 	auto kill_bq = make_defer([bq]{ 
 		for (auto &b : bq) {
 			b->prev_set.clear();
 			b->next_set.clear();
+			b->next_block = nullptr;
 		}
 	});
 
 	// create the map
+	BlockMap.clear();
+	BlockMap.reserve(bq.size());
+
 	for (BasicBlockPtr &block : bq) {
 		if (!block->label) continue;
-		bm.emplace(block->label, block);
+		BlockMap.emplace(block->label, block);
 	}
-
 
 	for (BasicBlockPtr &block : bq) {
 
-		analyze_block(block, bm);
+		block->recalc_next_set();
+		analyze_block(block);
 	}
 
 	// if the block falls through, add the next block 
@@ -671,7 +818,7 @@ void basic_block(Segment *segment) {
 			for(;; any_delta = true) {
 				bool delta = false;
 
-				if (peephole(block->lines)) delta = true;
+				if (peephole(block)) delta = true;
 				if (analyze_block_2(block)) delta = true;
 				//if (propagate_const(block->lines)) delta = true; // multipass?
 				if (!delta) break;
@@ -709,7 +856,6 @@ void basic_block(Segment *segment) {
 
 	void fix_branches(BlockQueue &blocks);
 	void assign_registers(Segment *segment, BlockQueue &);
-	bool final_peephole(LineQueue &list);
 
 
 	assign_registers(segment, bq); // creates epilogue/prologue.
@@ -742,17 +888,18 @@ void basic_block(Segment *segment) {
 		// if this branches to an exit node and the exit code is small, just do it here.
 		// can't be too big or it could screw up branching.
 
-		if (
-			!lines.empty()
-			&& lines.back()->directive == SMART_BRANCH
-			&& lines.back()->branch.type == branch::always
+		auto exit_branch = block->exit_branch;
+		if (exit_branch
+			&& exit_branch->directive == SMART_BRANCH
+			&& exit_branch->branch.type == branch::always
 			&& block->next_set.size() == 1 
 			&& block->next_set.front()->exit_node
 			&& block->next_set.front()->lines.empty()
 			&& segment->epilogue_code.size() < 3) {
 
-			lines.pop_back();
+			block->exit_branch = nullptr;
 			block->exit_node = true;
+			exit_branch = nullptr;
 		}
 
 		if (block->exit_node) {
@@ -764,26 +911,19 @@ void basic_block(Segment *segment) {
 
 
 
-		final_peephole(lines); // remove extraneous cmp #0, etc.
+		final_peephole(block); // remove extraneous cmp #0, etc.
+		exit_branch = block->exit_branch;
 
-		for (auto &line : lines) {
-			switch(line->directive) {
-				case SMART_BRANCH:
-					{
-						auto tmp = line->branch.to_code(line->operands[0]);
-						out.insert(out.end(), tmp.begin(), tmp.end());
-					}
-					break;
-				case PROLOGUE:
-					//out.insert(out.end(), segment->prologue_code.begin(), segment->prologue_code.end());
-					break;
-				case EPILOGUE:
-					//out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
-					break;
+		//std::copy(lines.begin(), lines.end(), std::back_inserter(out));
+		//out.insert(out.end(), lines.begin(), lines.end());
+		for (auto &line : lines) out.emplace_back(std::move(line));
 
-				default:
-					out.push_back(line);
-					break;
+		if (exit_branch) {
+			if (exit_branch->directive == SMART_BRANCH) {
+				auto tmp = exit_branch->branch.to_code(exit_branch->operands[0]);
+				out.insert(out.end(), tmp.begin(), tmp.end());
+			} else {
+				out.push_back(exit_branch);
 			}
 		}
 
@@ -791,29 +931,7 @@ void basic_block(Segment *segment) {
 		block->lines.clear();
 	}
 	
-	// optimize JSL address / RTL to JML address.
-	// now handled by peephole.
-#if 0
-	if (out.size() && segment->epilogue_code.size() == 1) {
-		BasicLinePtr back = out.back();
-		BasicLinePtr tmp = segment->epilogue_code.back();
 
-		if (back->opcode.mnemonic() == JSL && back->opcode.addressMode() == absolute_long) {
-			if (tmp->opcode.mnemonic() == RTL) {
-				back->opcode = OpCode(m65816, JML, absolute_long);
-				segment->epilogue_code.clear();
-			}
-		}
-
-		if (back->opcode.mnemonic() == JSR && back->opcode.addressMode() == absolute) {
-			if (tmp->opcode.mnemonic() == RTS) {
-				back->opcode = OpCode(m65816, JMP, absolute);
-				segment->epilogue_code.clear();
-			}
-		}
-
-	}
-#endif
 
 	//out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
 
