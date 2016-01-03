@@ -491,50 +491,6 @@ void analyze_block(BasicBlockPtr &block) {
 	}
 
 
-	std::vector<identifier> labels;
-
-#if 0
-	BasicLinePtr line = block->exit_branch;
-	if (line) {
-		ExpressionPtr e = line->operands[0];
-		labels = e->identifiers();
-		//labels.insert(labels.end(), tmp.begin(), tmp.end());
-	}
-
-	// generate a list of next-blocks
-	for (BasicLinePtr &line : lines) {
-
-		// dc.l label is a reference.
-		switch(line->directive)
-		{
-			case DCB:
-			case DCL:
-			case DCW:
-			{
-				ExpressionPtr e = line->operands[0];
-				auto tmp = e->identifiers();
-				labels.insert(labels.end(), tmp.begin(), tmp.end());
-				break;
-			}
-			default:
-				break;
-		}
-	}
-	// and remove duplicates.
-	remove_duplicates(labels);
-
-	auto next_set = std::move(block->next_set);
-
-	for (identifier label : labels) {
-		auto iter = bm.find(label);
-		if (iter != bm.end()) next_set.push_back(iter->second);
-	}
-
-	remove_duplicates(next_set);
-	block->next_set = std::move(next_set);
-#endif
-
-
 	// imports are live in all lines.
 	if (reg_import) {
 		for (BasicLinePtr line : block->lines) {
@@ -671,42 +627,37 @@ bool analyze_block_2(BasicBlockPtr block) {
 
 }
 
-void dead_code_eliminate(BlockQueue &bq) {
+bool dead_code_eliminate(BlockQueue &bq) {
 
 	// need to scan multiple times
 	// since removing one block can propogate
 	// to others.
+
+	unsigned size = bq.size();
 	bool delta = false;
-	do {
-		delta = false;
-		for (BasicBlockPtr block : bq) {
-			if (block->dead) continue;
-			if (block->entry_node) continue;
-			if (block->exit_node) continue; //
+	for(;;) {
+
+		unsigned size = bq.size();
+		erase_if(bq, [](BasicBlockPtr block) {
+			if (block->dead) return true;
+			if (block->entry_node) return false;
+			if (block->exit_node) return false;
 
 			if (block->prev_set.empty()) {
-
-				// remove self from the next set.
-				for (BasicBlockPtr next : block->next_set) {
-					remove(next->prev_set, block);
-				}
-
-				delta = true;
-				block->dead = true;
-
-				block->prev_set.clear();
-				block->next_set.clear();
-				block->lines.clear();
-
-				continue;
+				block->make_dead();
+				return true;
 			}
-		}
+			return false;
+		});
 
-	} while (delta);
+		if (size == bq.size()) break;
+	}
 
-	remove_if(bq, [](BasicBlockPtr block) {
-		return block->dead;
-	});
+
+	if (size != bq.size()) {
+		return true;
+	}
+	return false;
 }
 
 static void build_imports(BasicBlockPtr block, register_set imports) {
