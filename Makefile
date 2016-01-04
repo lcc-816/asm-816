@@ -23,7 +23,7 @@ SRC = grammar.cpp main.cpp lexer.cpp Instruction.cpp Machine.cpp OpCode.cpp \
 	line.cpp branch.cpp propagate_const.cpp reg_const.cpp \
 	cxx/filesystem.cpp cxx/path.cpp cxx/directory_iterator.cpp \
 	common_line_consolidation.cpp register_lifetime.cpp register_bits.cpp \
-	opt_dead_block_elimination.cpp
+	opt_dead_block_elimination.cpp opt_data_flow_analysis.cpp
 
 OBJS = $(addprefix $(OBJDIR)/, $(SRC:.cpp=.o))
 DEP = $(addprefix $(OBJDIR)/,$(SRC:.cpp=.d))

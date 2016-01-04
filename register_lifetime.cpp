@@ -3,7 +3,6 @@
 #include "register_bits.h"
 #include "Expression.h"
 
-#include "attr-table.h"
 
 /*
  * checks for dead-writes to wdc registers (a, x, y, etc.)
@@ -22,18 +21,6 @@ lda %p0
 rep #$30
 */
 
-register_bits read_registers(BasicLinePtr line) {
-	if (line->opcode) return read_table[line->opcode.opcode()];
-	// smart branches?
-	return register_bits();
-}
-
-register_bits write_registers(BasicLinePtr line) {
-	if (line->opcode) return write_table[line->opcode.opcode()];
-	// smart branches?
-	return register_bits();
-}
-
 
 bool register_lifetime(BasicBlockPtr block) {
 
@@ -48,8 +35,8 @@ bool register_lifetime(BasicBlockPtr block) {
 		OpCode opcode = line->opcode;
 		if (!opcode) return true;
 
-		register_bits rs = read_registers(line);
-		register_bits ws = write_registers(line);
+		register_bits rs = line->read_registers();
+		register_bits ws = line->write_registers();
 
 		register_bits olive = live;
 
@@ -72,6 +59,7 @@ bool register_lifetime(BasicBlockPtr block) {
 					if (line->operands[0] && line->operands[0]->is_integer(p)) {
 						ws = register_bits(p << 8);
 					}
+					// todo -- if going to short m, add a as a dependency?
 				}
 				break;
 			default:

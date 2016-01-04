@@ -16,6 +16,8 @@ bool common_line_consolidation(BasicBlockPtr block);
 bool register_lifetime(BasicBlockPtr block);
 
 bool dead_block_elimination(BlockQueue &bq);
+bool dataflow_analysis(BlockQueue &);
+bool dataflow_analysis(BasicBlockPtr);
 
 
 namespace {
@@ -325,10 +327,10 @@ bool merge_blocks(BlockQueue &bq) {
 
 		// and optimize them.
 		for(;;) {
-			bool delta = false;
-			if (peephole(block)) delta = true;
-			if (analyze_block_2(block)) delta = true;
-
+			int delta = 0;
+			delta += peephole(block);
+			delta += dataflow_analysis(block);
+			//if (analyze_block_2(block)) delta = true;
 			if (!delta) break;
 		}
 
@@ -449,7 +451,7 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 }
 
 
-
+#if 0
 void analyze_block(BasicBlockPtr &block) {
 
 	register_set reg_live;
@@ -657,6 +659,7 @@ static void build_imports(BlockQueue &bq) {
 	}
 
 }
+#endif
 
 void print_block_set(const std::vector<BasicBlockPtr> &set) {
 	for (auto x : set) { if (x->label) printf("%s ", x->label->c_str()); }
@@ -691,7 +694,7 @@ void basic_block(Segment *segment) {
 	for (BasicBlockPtr &block : bq) {
 
 		block->recalc_next_set();
-		analyze_block(block);
+		//analyze_block(block);
 	}
 
 	// if the block falls through, add the next block 
@@ -709,6 +712,9 @@ void basic_block(Segment *segment) {
 		remove_duplicates(block->prev_set);
 
 
+
+	dataflow_analysis(bq);
+
 	for (BasicBlockPtr & block : bq)
 		common_line_consolidation(block);
 
@@ -716,7 +722,7 @@ void basic_block(Segment *segment) {
 
 
 	// propogate register imports.
-	build_imports(bq);
+	//build_imports(bq);
 
 
 	// now do a second lifetime scan to remove dead writes
@@ -726,7 +732,7 @@ void basic_block(Segment *segment) {
 	bool reg_const(LineQueue &list);
 
 	for(;;) {
-		bool any_delta = false;
+		int any_delta = 0;
 
 		for (BasicBlockPtr  &block : bq) {
 			// these probably don't need multiple passes...
@@ -735,14 +741,13 @@ void basic_block(Segment *segment) {
 			if (register_lifetime(block)) any_delta = true;
 
 			for(;; any_delta = true) {
-				bool delta = false;
+				int delta = 0;
 
-				if (peephole(block)) delta = true;
-				if (analyze_block_2(block)) delta = true;
+				delta += (peephole(block));
+				//if (analyze_block_2(block)) delta = true;
 				//if (propagate_const(block->lines)) delta = true; // multipass?
 				if (!delta) break;
 				any_delta = true;
-
 			}
 		}
 
@@ -760,6 +765,9 @@ void basic_block(Segment *segment) {
 			}
 			if (!delta) break;
 		}
+
+		// re-calc imports/exports if anything else changed.
+		if (any_delta) dataflow_analysis(bq);
 
 		// remove any redundant branches.
 		remove_branches(bq);

@@ -122,7 +122,7 @@ struct BasicLine {
 	uint32_t pc = 0;
 	// live registers, etc.
 
-	register_set reg_live;
+	//register_set reg_live;
 	dp_register reg; // from operands.
 	unsigned reg_count = 0; 
 	unsigned reg_status = reg_none;
