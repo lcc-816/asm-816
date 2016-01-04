@@ -59,6 +59,8 @@ public:
 
 private:
 
+	void reset();
+	
 	#ifdef RS_BITSET
 	// lcc is currently limited to 32 registers, so this is good enough for now.
 	// hmm .. no longer true :( -- use optional<vector<dp_register>> for overflow!

@@ -24,6 +24,12 @@ namespace {
 	}
 }
 
+template<class T, class BinaryFunction>
+void with(T &lhs, const T &rhs, BinaryFunction b) {
+	static_assert(lhs.size() == rhs.size(), "oops");
+	for (unsigned i = 0; i < lhs.size(); ++i)
+		b(lhs[i], rhs[i]);
+}
 
 #ifdef RS_BITSET
 
@@ -128,6 +134,31 @@ register_set &register_set::operator -= (const register_set &r) {
 
 	return *this;
 }
+
+register_set &register_set::operator &= (dp_register r) {
+	bool ok = contains(r);
+	reset();
+	if (ok) *this += r;
+	return *this;
+}
+
+register_set &register_set::operator &= (const register_set &r) {
+
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
+
+		_data[ix] &= r._data[ix];
+	}
+
+	return *this;
+}
+
+void register_set::reset(void) {
+
+	for (auto &bits : _data) bits.reset();
+
+}
+
+
 
 register_set::operator bool() const {
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
