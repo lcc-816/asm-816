@@ -50,6 +50,8 @@ const char *AddressModeToString(AddressMode mode)
             return "(Zero Page,X)";
         case zp_indirect_y:
             return "(Zero Page),Y";
+        case zp_indirect_z:
+            return "(Zero Page),Z";
         case zp_relative:
             return "Zero Page,Relative";
         case zp_indirect_long:
