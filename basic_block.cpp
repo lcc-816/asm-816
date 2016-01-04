@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
+#include <numeric>
 
 #include <cassert>
 
@@ -18,6 +19,8 @@ bool register_lifetime(BasicBlockPtr block);
 bool dead_block_elimination(BlockQueue &bq);
 bool dataflow_analysis(BlockQueue &);
 bool dataflow_analysis(BasicBlockPtr);
+bool remove_branches(BlockQueue &bq);
+bool merge_blocks(BlockQueue &bq);
 
 
 namespace {
@@ -91,11 +94,14 @@ static bool is_branch(Mnemonic m, bool include_jmp = true)
 	}
 }
 
-static bool is_unconditional_branch(Mnemonic m)
+static bool is_unconditional_branch(Mnemonic m, bool include_jmp = true)
 {
 	switch(m) {
 
 		case JMP: // JMP (address,x) used for switch statement.
+			if (include_jmp) return true;
+			return false;
+
 		case JML:
 		case BRA:
 		case BRL:
@@ -137,6 +143,8 @@ void BasicBlock::make_dead() {
 	for (auto b : next_set) {
 		b->remove_prev(self);
 	}
+
+	if (label) BlockMap.erase(label);
 
 	lines.clear();
 	next_set.clear();
@@ -229,116 +237,6 @@ void BasicBlock::recalc_next_set() {
 
 
 
-
-bool analyze_block_2(BasicBlockPtr block);
-
-
-// not sure if this is still useful...
-bool remove_branches(BlockQueue &bq) {
-	// returns true if any changes made
-	// returns false if no optimizations done.
-
-	bool delta = false;
-	for (auto iter = bq.begin(); iter != bq.end(); ++iter) {
-
-
-		auto nextIter = iter + 1;
-		if (nextIter == bq.end()) continue;
-
-		BasicBlockPtr block = *iter;
-		BasicBlockPtr next = *nextIter;
-
-
-		if (block->dead) continue;
-
-		BasicLinePtr line = block->exit_branch;
-		if (!line) continue;
-
-		if (!is_branch(line->opcode.mnemonic(), false)) continue;
-		// jmp (|abs,x) cannot be optimized out.
-
-
-		if (block->next_set.size() != 1) continue;
-		//if (next->prev_set.size() != 1) continue;
-
-		// currently, must be the next in the queue... no re-ordering.
-
-		if (block->next_set.front() != next) continue;
-		//if (next->prev_set.front() != block) continue;
-
-		block->exit_branch = nullptr;
-		delta = true;
-	}
-
-	return delta;
-}
-
-
-
-bool merge_blocks(BlockQueue &bq) {
-
-	bool delta = false;
-
-
-	// returns true if any changes made.
-
-	for (BasicBlockPtr  block : bq) {
-
-		if (block->dead) continue;
-		if (block->next_set.size() != 1) continue;
-
-		BasicBlockPtr next = block->next_set.front();
-		if (next->prev_set.size() != 1) continue;
-
-		assert(next->prev_set.front() == block);
-
-		if (next->entry_node) continue; // can't merge.
-
-
-		delta = true;
-
-		LineQueue &lines = block->lines;
-
-		if (next->exit_node) block->exit_node = true;
-		if (lines.empty()) lines = std::move(next->lines);
-		else lines.insert(lines.end(), next->lines.begin(), next->lines.end());
-
-		block->exit_branch = std::move(next->exit_branch);
-		block->next_block = std::move(next->next_block);
-
-		// shouldn't need to rename anything since branch was removed.
-
-		block->next_set = std::move(next->next_set);
-
-		for (BasicBlockPtr newnext : block->next_set) {
-			replace(newnext->prev_set, next, block);
-		}
-
-		next->make_dead();
-
-		// reconcile the import/export sets.
-		// if next imports %t0 and block exports %t0,
-		// next no longer needs to import it.
-		register_set tmp = next->reg_import;
-		tmp -= block->reg_export;
-		block->reg_import += tmp;
-
-		block->reg_export += next->reg_export;
-
-		// and optimize them.
-		for(;;) {
-			int delta = 0;
-			delta += peephole(block);
-			delta += dataflow_analysis(block);
-			//if (analyze_block_2(block)) delta = true;
-			if (!delta) break;
-		}
-
-	}
-
-
-	return delta;
-}
 
 BlockQueue make_basic_blocks(LineQueue &&lines) {
 
