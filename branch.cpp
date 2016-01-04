@@ -535,7 +535,7 @@ branch branch::operator!() const {
 }
 
 
-register_bits branch::read_bits() const {
+register_bits branch::read_registers() const {
 	switch(type) {
 		case always:
 			return register_bits(0);
@@ -567,7 +567,7 @@ register_bits branch::read_bits() const {
 	}
 }
 
-register_bits branch::write_bits() const {
+register_bits branch::write_registers() const {
 	switch(type) {
 		case always:
 		case eq:

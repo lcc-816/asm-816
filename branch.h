@@ -74,8 +74,8 @@ struct branch {
 	std::string to_string() const;
 	std::vector<BasicLinePtr> to_code(ExpressionPtr target) const;
 
-	register_bits read_bits() const;
-	register_bits write_bits() const;
+	register_bits read_registers() const;
+	register_bits write_registers() const;
 };
 
 
