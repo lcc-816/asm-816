@@ -5,6 +5,10 @@
 #include "Expression.h"
 
 namespace {
+#include "gen-attr-table.h"
+}
+
+namespace {
 
 	unsigned classify(OpCode op, bool longM, bool longX, unsigned &bytes) {
 
@@ -78,6 +82,20 @@ namespace {
 				return reg_none;
 		}
 	}
+}
+
+register_bits BasicLine::read_registers() const {
+
+	if (opcode) return read_table[opcode.opcode()];
+	if (directive == SMART_BRANCH) return branch.read_registers();
+	return register_bits();
+}
+
+register_bits BasicLine::write_registers() const {
+
+	if (opcode) return write_table[opcode.opcode()];
+	if (directive == SMART_BRANCH) return branch.write_registers();
+	return register_bits();
 }
 
 

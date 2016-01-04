@@ -138,7 +138,7 @@ private:
 		zp_mask = 1 << 26,
 
 		rmask = 0x0001ffff,
-		mmask = 0x03000000,
+		mmask = 0x05000000,
 		mask = rmask+mmask,
 	};
 
