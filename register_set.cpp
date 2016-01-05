@@ -22,6 +22,16 @@ namespace {
 	inline int reg_to_index(dp_register r) {
 		return reg_to_index(r.type);
 	}
+
+	inline char index_to_reg(int ix) {
+		switch(ix) {
+			case 0: return 't';
+			case 1: return 'r';
+			case 2: return 'v';
+			case 3: return 'p';
+			default: return 0;
+		}
+	}
 }
 
 template<class T, class BinaryFunction>
@@ -167,12 +177,14 @@ register_set::operator bool() const {
 	return false;
 }
 
+#if 0
 std::bitset<32> register_set::bits(char type) const {
 	int index = reg_to_index(type);
 	if (index == -1) throw std::out_of_range("register_set::bits");
 
 	return _data[index];
 }
+#endif
 
 std::vector<dp_register> register_set::registers(char type) const {
 
@@ -180,6 +192,8 @@ std::vector<dp_register> register_set::registers(char type) const {
 	if (ix == -1) throw std::out_of_range("register_set::registers");
 
 	std::vector<dp_register> rv;
+	if (_data[ix].none()) return rv;
+
 	rv.reserve(_data[ix].count());
 
 	for (unsigned i = 0; i < _data[ix].size(); ++i) {
@@ -187,10 +201,28 @@ std::vector<dp_register> register_set::registers(char type) const {
 			rv.push_back(dp_register{(unsigned)type, i});
 		}
 	}
-	
 	return rv;
 }
 
+std::vector<dp_register> register_set::registers() const {
+
+	std::vector<dp_register> rv;
+
+	for (unsigned ix = 0; ix < IndexCount; ++ix) {
+
+		const auto &data = _data[ix];
+		if (data.none()) continue;
+		char type = index_to_reg(ix);
+
+		for(unsigned i = 0; i < data.size(); ++i) {
+			if (data.test(i)) {
+				rv.push_back(dp_register{(unsigned)type, i});
+			}
+		}
+	}
+	
+	return rv;
+}
 
 
 #else

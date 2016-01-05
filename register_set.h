@@ -11,6 +11,11 @@
 
 #define RS_BITSET
 
+class dp_register_pair {
+	struct dp_register r;
+	unsigned size = 0;
+};
+
 
 class register_set
 {
@@ -49,11 +54,14 @@ public:
 
 	explicit operator bool() const;
 
+	#if 0
 	#ifdef RS_BITSET
 	std::bitset<32> bits(char type) const;
 	#endif
+	#endif
 
 	std::vector<dp_register> registers(char type) const;
+	std::vector<dp_register> registers() const;
 
 	void dump() const;
 
