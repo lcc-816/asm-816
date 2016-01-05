@@ -149,8 +149,6 @@ bool dataflow_analysis(BasicBlockPtr block) {
 	LineQueue tmp;
 	register_set live = block->reg_export;
 
-
-
 	std::copy_if(block->lines.rbegin(), block->lines.rend(), std::front_inserter(tmp), [&live, block](BasicLinePtr line){
 
 		OpCode opcode = line->opcode;
