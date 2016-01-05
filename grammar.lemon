@@ -564,6 +564,29 @@ operand(rv) ::= LPAREN expr(e) RPAREN. {
 	rv = std::make_tuple(absolute_indirect, false, std::move(e));
 }
 
+
+operand(rv) ::= LPAREN modifier(m) expr(e) RPAREN. {
+
+	AddressMode mode = m;
+	switch(mode)
+	{
+	default: mode = absolute_indirect; break;
+
+	case zp: mode = zp_indirect; break;
+	case absolute: mode = absolute_indirect; break;
+	case absolute_long: 
+		mode = zp_indirect; 
+		error("invalid address mode: (>absolute long)");
+		break;
+	}
+
+
+	rv = std::make_tuple(mode, true, std::move(e));
+}
+
+
+
+
 /* (dp),y */
 operand(rv) ::= LPAREN modifier(m) expr(e) RPAREN COMMA REGISTER_Y. {
 
