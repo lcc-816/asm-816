@@ -656,11 +656,6 @@ void basic_block(Segment *segment) {
 			bool delta = false;
 			if (merge_blocks(bq)) delta = true;
 
-			if (delta) {
-				erase_if(bq, [](BasicBlockPtr block) {
-					return block->dead;
-				});
-			}
 			if (!delta) break;
 		}
 
@@ -720,7 +715,8 @@ void basic_block(Segment *segment) {
 			&& block->next_set.size() == 1 
 			&& block->next_set.front()->exit_node
 			&& block->next_set.front()->lines.empty()
-			&& segment->epilogue_code.size() < 3) {
+			&& segment->epilogue_code.size() < 3
+			&& segment->convention != Segment::naked) {
 
 			block->exit_branch = nullptr;
 			block->exit_node = true;
@@ -757,16 +753,6 @@ void basic_block(Segment *segment) {
 	}
 	
 
-
-	//out.insert(out.end(), segment->epilogue_code.begin(), segment->epilogue_code.end());
-
-	// need to clear the next/previous sets to break the memory retain cycles.
-	#if 0
-	for (auto &block : bq) {
-		block->next_set.clear();
-		block->prev_set.clear();
-	}
-	#endif
 	segment->lines = std::move(out);
 }
 
