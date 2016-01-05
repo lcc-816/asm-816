@@ -315,7 +315,11 @@ const_vector<Instruction> Instruction::Instructions(Machine machine)
         case m65816_e:
             xxx(m65816_instructions);
             break;
-            
+
+        case m65ce02:
+            xxx(m65ce02_instructions);
+            break;
+
     }
 
 #undef xxx

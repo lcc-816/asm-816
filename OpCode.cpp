@@ -163,6 +163,9 @@ OpCode::OpCode(Machine machine, uint8_t opcode) : OpCode()
         case m65816_e:
             *this = m65816_opcodes[opcode];
             break;
+        case m65ce02:
+            *this = m65ce02_opcodes[opcode];
+            break;
     }
 }
 

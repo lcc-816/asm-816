@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 
-#include "const_vector.h"
+#include "cxx/const_vector.h"
 
 class OpCode : public Instruction
 {
