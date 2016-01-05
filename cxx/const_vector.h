@@ -22,45 +22,45 @@ public:
     
     typedef const T *iterator;
     
-    const_vector() = default;
+    constexpr const_vector() noexcept = default;
     
-    const_vector(T *data, size_t length) :
+    constexpr const_vector(T *data, size_t length) noexcept :
         _data(data), _length(length)
     { }
     
-    const_vector(const const_vector<T> &rhs) = default;
+    constexpr const_vector(const const_vector<T> &rhs) noexcept = default;
     
-    size_t size() const 
+    constexpr size_t size() const noexcept 
     {
         return _length;
     }
     
-    T operator[](size_t index) const
+    constexpr T operator[](size_t index) const noexcept
     {
         return _data[index];
     }
     
-    T at(size_t index) const
+    constexpr T at(size_t index) const
     {
         if (index >= _length) throw std::out_of_range("const_vector");
         return _data[index];
     }
     
-    iterator begin() const
+    constexpr iterator begin() const noexcept 
     {
         return _data;
     }
-    iterator end() const
+    constexpr iterator end() const noexcept 
     {
         return _data + _length;
     }
     
 
-    T *front() const {
+    constexpr T *front() const noexcept {
         return _data[0];
     }
 
-    T *back() const {
+    constexpr T *back() const noexcept {
         return _data[_length - 1];
     }
 };
