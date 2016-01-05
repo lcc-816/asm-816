@@ -80,6 +80,7 @@ bool remove_branches(BlockQueue &bq) {
 		block->next_block = next_block;
 
 		delta++;
+		block->dirty = true;
 
 		if (merge_blocks(block, next_block)) return block;
 
@@ -101,6 +102,7 @@ bool merge_blocks(BlockQueue &bq) {
 			auto next = block->next_set.front();
 			if (merge_blocks(block, next)) {
 				delta = true;
+				block->dirty = true;
 				continue; // retry with next block!
 			}
 		}

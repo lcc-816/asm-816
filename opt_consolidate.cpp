@@ -99,6 +99,7 @@ bool common_line_consolidation(BasicBlockPtr block) {
 		block->lines.emplace_front(std::move(target));
 
 		delta = true;
+		block->dirty = true;
 	}
 
 	return delta;

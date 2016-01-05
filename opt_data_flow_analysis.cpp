@@ -195,6 +195,7 @@ bool dataflow_analysis(BasicBlockPtr block) {
 
 	if (tmp.size() == size) return false;
 	block->lines = std::move(tmp);
+	block->dirty = true;
 	return true;
 }
 

@@ -171,6 +171,7 @@ public:
 	BasicBlockPtr next_block; // if fallthrough.
 
 
+	bool dirty = false; // if optimization has modified it!
 
 	register_set reg_import;
 	register_set reg_export;

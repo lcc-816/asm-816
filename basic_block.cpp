@@ -592,7 +592,6 @@ void basic_block(Segment *segment) {
 	for (BasicBlockPtr &block : bq) {
 
 		block->recalc_next_set();
-		//analyze_block(block);
 	}
 
 	// if the block falls through, add the next block 
