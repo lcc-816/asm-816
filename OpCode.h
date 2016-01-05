@@ -184,5 +184,12 @@ inline int OpCode::opcode(Instruction instruction, AddressMode addressMode)
     return opcode(instruction.machine(), instruction.mnemonic(), addressMode);
 }
 
+inline bool operator==(const OpCode &a, const OpCode &b) {
+    return a.machine() == b.machine() && a.mnemonic() == b.mnemonic() && a.addressMode() == b.addressMode();
+}
+
+inline bool operator!=(const OpCode &a, const OpCode &b) {
+    return a.machine() != b.machine() || a.mnemonic() != b.mnemonic() || a.addressMode() != b.addressMode();
+}
 
 #endif
