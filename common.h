@@ -65,27 +65,27 @@ struct BasicLine {
 	template<class E>
 	BasicLine(Mnemonic m, AddressMode mode, E && a) {
 		opcode = OpCode(m65816, m, mode);
-		operands[0] = std::move(a);
+		operands[0] = std::forward<E>(a);
 	}
 
 	template<class E>
 	BasicLine(Mnemonic m, AddressMode mode, E && a, E && b) {
 		opcode = OpCode(m65816, m, mode);
-		operands[0] = std::move(a);
-		operands[1] = std::move(b);
+		operands[0] = std::forward<E>(a);
+		operands[1] = std::forward<E>(b);
 	}
 
 	template<class E>
 	BasicLine(const OpCode &op, E &&a) {
 		opcode = op;
-		operands[0] = std::move(a);
+		operands[0] = std::forward<E>(a);
 	}
 
 	template<class E>
 	BasicLine(const OpCode &op, E && a, E && b) {
 		opcode = op;
-		operands[0] = std::move(a);
-		operands[1] = std::move(b);
+		operands[0] = std::forward<E>(a);
+		operands[1] = std::forward<E>(b);
 	}
 
 	BasicLine(Directive d) {
@@ -95,7 +95,7 @@ struct BasicLine {
 	template<class E>
 	BasicLine(Directive d, E &&e) {
 		directive = d;
-		operands[0] = std::move(e);
+		operands[0] = std::forward<E>(e);
 	}
 
 
