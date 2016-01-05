@@ -75,7 +75,7 @@ bool common_line_consolidation(BasicBlockPtr block) {
 	BasicBlockPtr first = prev_set.front();
 
 	bool delta = false;
-	for(;;) {
+	while(!first->lines.empty()) {
 		bool ok;
 		BasicLinePtr target = first->lines.back();
 
