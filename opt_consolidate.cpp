@@ -58,6 +58,7 @@ bool operator==(BasicLine & a, BasicLine &b)
 // common line consolidation.
 bool common_line_consolidation(BasicBlockPtr block) {
 	
+
 	// if all previous entries flow into this one (and only) this one,
 	// move any common trailing lines.
 
