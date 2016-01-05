@@ -94,7 +94,6 @@ bool merge_blocks(BlockQueue &bq) {
 
 	bool delta = false;
 
-
 	// returns true if any changes made.
 	for (auto iter = bq.begin(); iter != bq.end(); ) {
 		auto block = *iter;
