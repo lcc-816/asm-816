@@ -1,6 +1,6 @@
 
 
-#include "register_set.h"
+#include "dp_register_set.h"
 
 #include <stdexcept>
 
@@ -43,13 +43,13 @@ void with(T &lhs, const T &rhs, BinaryFunction b) {
 
 #ifdef RS_BITSET
 
-bool register_set::contains(dp_register r) {
+bool dp_register_set::contains(dp_register r) {
 	int ix = reg_to_index(r);
 	if (ix < 0) return false;
 	return _data[ix].size() > r.number && _data[ix][r.number]; 
 }
 
-bool register_set::contains(dp_register r, unsigned count) {
+bool dp_register_set::contains(dp_register r, unsigned count) {
 	int ix = reg_to_index(r);
 	if (ix < 0) return false;
 	for (unsigned i = 0; i < count; ++i) {
@@ -60,7 +60,7 @@ bool register_set::contains(dp_register r, unsigned count) {
 	return true;
 }
 
-bool register_set::contains_any(dp_register r, unsigned count) {
+bool dp_register_set::contains_any(dp_register r, unsigned count) {
 	int ix = reg_to_index(r);
 	if (ix < 0) return false;
 	for (unsigned i = 0; i < count; ++i) {
@@ -70,7 +70,7 @@ bool register_set::contains_any(dp_register r, unsigned count) {
 }
 
 
-bool register_set::contains(const register_set &rhs) {
+bool dp_register_set::contains(const dp_register_set &rhs) {
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		auto tmp = _data[ix];
 		tmp.flip();
@@ -80,7 +80,7 @@ bool register_set::contains(const register_set &rhs) {
 	return true;
 }
 
-register_set &register_set::operator += (dp_register r) {
+dp_register_set &dp_register_set::operator += (dp_register r) {
 	int ix = reg_to_index(r);
 	if (ix < 0) return *this;
 
@@ -94,7 +94,7 @@ register_set &register_set::operator += (dp_register r) {
 }
 
 
-void register_set::insert(dp_register r, unsigned count) {
+void dp_register_set::insert(dp_register r, unsigned count) {
 	unsigned i;
 	for (i = 0; i < count; ++i) {
 		*this += r;
@@ -102,7 +102,7 @@ void register_set::insert(dp_register r, unsigned count) {
 	}
 }
 
-void register_set::remove(dp_register r, unsigned count) {
+void dp_register_set::remove(dp_register r, unsigned count) {
 	unsigned i;
 	for (i = 0; i < count; ++i) {
 		*this -= r;
@@ -112,7 +112,7 @@ void register_set::remove(dp_register r, unsigned count) {
 
 
 
-register_set &register_set::operator += (const register_set &r) {
+dp_register_set &dp_register_set::operator += (const dp_register_set &r) {
 
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 
@@ -122,7 +122,7 @@ register_set &register_set::operator += (const register_set &r) {
 	return *this;
 }
 
-register_set &register_set::operator -= (dp_register r) {
+dp_register_set &dp_register_set::operator -= (dp_register r) {
 
 	int ix = reg_to_index(r);
 	if (ix < 0) return *this;
@@ -134,7 +134,7 @@ register_set &register_set::operator -= (dp_register r) {
 }
 
 
-register_set &register_set::operator -= (const register_set &r) {
+dp_register_set &dp_register_set::operator -= (const dp_register_set &r) {
 
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		auto tmp = r._data[ix];
@@ -145,14 +145,14 @@ register_set &register_set::operator -= (const register_set &r) {
 	return *this;
 }
 
-register_set &register_set::operator &= (dp_register r) {
+dp_register_set &dp_register_set::operator &= (dp_register r) {
 	bool ok = contains(r);
 	reset();
 	if (ok) *this += r;
 	return *this;
 }
 
-register_set &register_set::operator &= (const register_set &r) {
+dp_register_set &dp_register_set::operator &= (const dp_register_set &r) {
 
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 
@@ -162,7 +162,7 @@ register_set &register_set::operator &= (const register_set &r) {
 	return *this;
 }
 
-void register_set::reset(void) {
+void dp_register_set::reset(void) {
 
 	for (auto &bits : _data) bits.reset();
 
@@ -170,7 +170,7 @@ void register_set::reset(void) {
 
 
 
-register_set::operator bool() const {
+dp_register_set::operator bool() const {
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		if (_data[ix].any()) return true;
 	}
@@ -178,18 +178,18 @@ register_set::operator bool() const {
 }
 
 #if 0
-std::bitset<32> register_set::bits(char type) const {
+std::bitset<32> dp_register_set::bits(char type) const {
 	int index = reg_to_index(type);
-	if (index == -1) throw std::out_of_range("register_set::bits");
+	if (index == -1) throw std::out_of_range("dp_register_set::bits");
 
 	return _data[index];
 }
 #endif
 
-std::vector<dp_register> register_set::registers(char type) const {
+std::vector<dp_register> dp_register_set::registers(char type) const {
 
 	int ix = reg_to_index(type);
-	if (ix == -1) throw std::out_of_range("register_set::registers");
+	if (ix == -1) throw std::out_of_range("dp_register_set::registers");
 
 	std::vector<dp_register> rv;
 	if (_data[ix].none()) return rv;
@@ -204,7 +204,7 @@ std::vector<dp_register> register_set::registers(char type) const {
 	return rv;
 }
 
-std::vector<dp_register> register_set::registers() const {
+std::vector<dp_register> dp_register_set::registers() const {
 
 	std::vector<dp_register> rv;
 
@@ -228,14 +228,14 @@ std::vector<dp_register> register_set::registers() const {
 #else
 
 
-bool register_set::contains(dp_register r) {
+bool dp_register_set::contains(dp_register r) {
 	int ix = reg_to_index(r);
 	if (ix < 0) return false;
 	return _data[ix].size() > r.number && _data[ix][r.number]; 
 }
 
 
-bool register_set::contains(const dp_register &rhs) {
+bool dp_register_set::contains(const dp_register &rhs) {
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		int s1 = _data[ix].size();
 		int s2 = r._data[ix].size();
@@ -254,7 +254,7 @@ bool register_set::contains(const dp_register &rhs) {
 }
 
 
-register_set &register_set::operator += (dp_register r) {
+dp_register_set &dp_register_set::operator += (dp_register r) {
 	int ix = reg_to_index(r);
 	if (ix < 0) return *this;
 
@@ -265,7 +265,7 @@ register_set &register_set::operator += (dp_register r) {
 	return *this;
 }
 
-register_set &register_set::operator += (const register_set &r) {
+dp_register_set &dp_register_set::operator += (const dp_register_set &r) {
 
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		int size = r._data[ix].size();
@@ -278,7 +278,7 @@ register_set &register_set::operator += (const register_set &r) {
 	return this;
 }
 
-register_set &register_set::operator -= (dp_register r) {
+dp_register_set &dp_register_set::operator -= (dp_register r) {
 
 	int ix = reg_to_index(r);
 	if (ix < 0) return *this;
@@ -289,7 +289,7 @@ register_set &register_set::operator -= (dp_register r) {
 	return *this;	
 }
 
-register_set &register_set::operator -= (const register_set &r) {
+dp_register_set &dp_register_set::operator -= (const dp_register_set &r) {
 
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		int s1 = _data[ix].size();
@@ -314,7 +314,7 @@ namespace {
 		printf("\n");
 	}
 }
-void register_set::dump() const {
+void dp_register_set::dump() const {
 	dump_one('t', _data[0]);
 	dump_one('r', _data[1]);
 	dump_one('v', _data[2]);

@@ -352,10 +352,10 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 #if 0
 void analyze_block(BasicBlockPtr &block) {
 
-	register_set reg_live;
-	register_set reg_dead;
-	register_set reg_import;
-	register_set reg_export;
+	dp_register_set reg_live;
+	dp_register_set reg_dead;
+	dp_register_set reg_import;
+	dp_register_set reg_export;
 
 	LineQueue lines = std::move(block->lines);
 
@@ -463,7 +463,7 @@ bool analyze_block_2(BasicBlockPtr block) {
 
 	LineQueue newLines;
 	LineQueue lines = std::move(block->lines);
-	register_set reg_live; // = block->reg_import;
+	dp_register_set reg_live; // = block->reg_import;
 	//reg_live += block->reg_export;
 
 	bool delta = false;
@@ -531,7 +531,7 @@ bool analyze_block_2(BasicBlockPtr block) {
 }
 
 
-static void build_imports(BasicBlockPtr block, register_set imports) {
+static void build_imports(BasicBlockPtr block, dp_register_set imports) {
 
 	imports -= block->reg_export;
 	if (block->processed && block->reg_import.contains(imports)) return;

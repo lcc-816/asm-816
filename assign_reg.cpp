@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "Expression.h"
-#include "register_set.h"
+#include "dp_register_set.h"
 
 #include "common.h"
 #include "Machine.h"

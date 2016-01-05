@@ -1,5 +1,5 @@
-#ifndef __register_set_h__
-#define __register_set_h__
+#ifndef __dp_register_set_h__
+#define __dp_register_set_h__
 
 #include <array>
 #include <bitset>
@@ -17,40 +17,40 @@ class dp_register_pair {
 };
 
 
-class register_set
+class dp_register_set
 {
 public:
 
 
-	register_set() = default;
-	register_set(register_set &&) = default;
-	register_set(const register_set &) = default;
-	~register_set() = default;
+	dp_register_set() = default;
+	dp_register_set(dp_register_set &&) = default;
+	dp_register_set(const dp_register_set &) = default;
+	~dp_register_set() = default;
 
-	register_set &operator=(const register_set &) = default;
-	register_set &operator=(register_set &&) = default;
+	dp_register_set &operator=(const dp_register_set &) = default;
+	dp_register_set &operator=(dp_register_set &&) = default;
 
 	bool contains(dp_register r);
 	bool contains(dp_register r, unsigned count);
-	bool contains(const register_set &);
+	bool contains(const dp_register_set &);
 
 	bool contains_any(dp_register r, unsigned count = 1);
 
 	void insert(dp_register r, unsigned count = 1);
 	void remove(dp_register r, unsigned count = 1);
 
-	register_set &operator += (dp_register r);
-	register_set &operator += (const register_set &);
+	dp_register_set &operator += (dp_register r);
+	dp_register_set &operator += (const dp_register_set &);
 
-	register_set &operator -= (dp_register r);
-	register_set &operator -= (const register_set &);
+	dp_register_set &operator -= (dp_register r);
+	dp_register_set &operator -= (const dp_register_set &);
 
-	register_set &operator &= (dp_register r);
-	register_set &operator &= (const register_set &);
+	dp_register_set &operator &= (dp_register r);
+	dp_register_set &operator &= (const dp_register_set &);
 
-	friend bool operator == (const register_set &, const register_set &);
-	friend bool operator != (const register_set &, const register_set &);
-	friend bool operator < (const register_set &, const register_set &);
+	friend bool operator == (const dp_register_set &, const dp_register_set &);
+	friend bool operator != (const dp_register_set &, const dp_register_set &);
+	friend bool operator < (const dp_register_set &, const dp_register_set &);
 
 	explicit operator bool() const;
 

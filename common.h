@@ -11,7 +11,7 @@
 #include "Machine.h"
 #include "Instruction.h"
 #include "OpCode.h"
-#include "register_set.h"
+#include "dp_register_set.h"
 #include "register_bits.h"
 #include "branch.h"
 
@@ -122,7 +122,7 @@ struct BasicLine {
 	uint32_t pc = 0;
 	// live registers, etc.
 
-	//register_set reg_live;
+	//dp_register_set reg_live;
 	dp_register reg; // from operands.
 	unsigned reg_count = 0; 
 	unsigned reg_status = reg_none;
@@ -173,8 +173,8 @@ public:
 
 	bool dirty = false; // if optimization has modified it!
 
-	register_set reg_import;
-	register_set reg_export;
+	dp_register_set reg_import;
+	dp_register_set reg_export;
 
 	bool processed = false;
 	bool dead = false; // mark for dead-code elimination.

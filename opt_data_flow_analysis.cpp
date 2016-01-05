@@ -48,7 +48,7 @@ bool any_of(dp_register r, unsigned reg_count, UnaryPredicate fx) {
 }
 
 
-void add_imports(BasicBlockPtr block, register_set imports) {
+void add_imports(BasicBlockPtr block, dp_register_set imports) {
 	imports -= block->reg_export;
 	if (!imports) return;
 
@@ -62,8 +62,8 @@ void add_imports(BasicBlockPtr block, register_set imports) {
 
 void import_export(BasicBlockPtr block) {
 	
-	register_set reg_import;
-	register_set reg_export;
+	dp_register_set reg_import;
+	dp_register_set reg_export;
 
 	// if (block->label && *block->label == ".404") {
 	// 	printf("here\n");
@@ -131,7 +131,7 @@ void build_import_export_set(BlockQueue &bq) {
 
 	// now remove unnecessary exports!
 	for (auto block : bq) {
-		register_set exports;
+		dp_register_set exports;
 		for (auto next : block->next_set) {
 			exports += next->reg_import;
 		}
@@ -147,7 +147,7 @@ bool dataflow_analysis(BasicBlockPtr block) {
 
 	auto size = block->lines.size();
 	LineQueue tmp;
-	register_set live = block->reg_export;
+	dp_register_set live = block->reg_export;
 
 	std::copy_if(block->lines.rbegin(), block->lines.rend(), std::front_inserter(tmp), [&live, block](BasicLinePtr line){
 
