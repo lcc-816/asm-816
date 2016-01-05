@@ -47,7 +47,7 @@ public:
 	friend bool operator != (const register_set &, const register_set &);
 	friend bool operator < (const register_set &, const register_set &);
 
-	operator bool() const;
+	explicit operator bool() const;
 
 	#ifdef RS_BITSET
 	std::bitset<32> bits(char type) const;

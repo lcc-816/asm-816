@@ -48,7 +48,7 @@ public:
     bool isRelative() const;
     
     
-    operator bool() const;
+    explicit operator bool() const;
     
     const char *toString() const;
     unsigned bytes(AddressMode addressMode, bool longM = false, bool longXY = false) const;

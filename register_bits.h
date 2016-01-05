@@ -29,7 +29,7 @@ public:
 	constexpr bool operator!=(uint32_t data) const noexcept { return (data & mask) != bits; }
 
 
-	constexpr operator bool() const noexcept {
+	constexpr explicit operator bool() const noexcept {
 		return bits;
 	}
 
