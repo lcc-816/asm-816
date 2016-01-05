@@ -12,7 +12,7 @@
 #include "Instruction.h"
 #include "OpCode.h"
 #include "dp_register_set.h"
-#include "register_bits.h"
+#include "register_set.h"
 #include "branch.h"
 
 #include "types.h"
@@ -131,8 +131,8 @@ struct BasicLine {
 	// update reg, reg_count, reg_status.
 	// depends on opcode, operands, longM, longX
 	void calc_registers();
-	register_bits read_registers() const;
-	register_bits write_registers() const;
+	register_set read_registers() const;
+	register_set write_registers() const;
 };
 
 

@@ -1,7 +1,7 @@
-#include "register_bits.h"
+#include "register_set.h"
 #include <cstdio>
 
-void register_bits::dump() const {
+void register_set::dump() const {
 
 	printf("%c %c %c %c %c %c %c %c",
 		bits & a_mask ? 'a' : '-',

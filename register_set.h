@@ -1,5 +1,5 @@
-#ifndef __register_bits_h__
-#define __register_bits_h__
+#ifndef __register_set_h__
+#define __register_set_h__
 
 #include <stdint.h>
 
@@ -8,24 +8,24 @@
  * (1 set for reading, one set for writing)
  *
  */
-struct register_bits {
+struct register_set {
 
 public:
 
-	constexpr register_bits(uint32_t data = 0) noexcept : bits(data & mask) {}
-	constexpr register_bits(const register_bits &) noexcept = default;
+	constexpr register_set(uint32_t data = 0) noexcept : bits(data & mask) {}
+	constexpr register_set(const register_set &) noexcept = default;
 
-	constexpr register_bits& operator=(const register_bits &) noexcept = default;
-	constexpr register_bits& operator=(uint32_t data) noexcept
+	constexpr register_set& operator=(const register_set &) noexcept = default;
+	constexpr register_set& operator=(uint32_t data) noexcept
 	{
 		bits = data & mask;
 		return *this;
 	}
 
-	constexpr bool operator==(const register_bits &rhs) const noexcept { return rhs.bits == bits; }
+	constexpr bool operator==(const register_set &rhs) const noexcept { return rhs.bits == bits; }
 	constexpr bool operator==(uint32_t data) const noexcept { return (data & mask) == bits; }
 
-	constexpr bool operator!=(const register_bits &rhs) const noexcept { return rhs.bits != bits; }
+	constexpr bool operator!=(const register_set &rhs) const noexcept { return rhs.bits != bits; }
 	constexpr bool operator!=(uint32_t data) const noexcept { return (data & mask) != bits; }
 
 
@@ -38,54 +38,54 @@ public:
 	}
 
 
-	constexpr register_bits& operator|=(const register_bits &rhs) noexcept {
+	constexpr register_set& operator|=(const register_set &rhs) noexcept {
 		bits |= rhs.bits;
 		return *this;
 	}
 
-	constexpr register_bits& operator&=(const register_bits &rhs) noexcept {
+	constexpr register_set& operator&=(const register_set &rhs) noexcept {
 		bits &= rhs.bits;
 		return *this;
 	}
 
-	constexpr register_bits& operator^=(const register_bits &rhs) noexcept {
+	constexpr register_set& operator^=(const register_set &rhs) noexcept {
 		bits ^= rhs.bits;
 		return *this;
 	}
 
 
-	constexpr register_bits& operator+=(const register_bits &rhs) noexcept {
+	constexpr register_set& operator+=(const register_set &rhs) noexcept {
 		bits |= rhs.bits;
 		return *this;
 	}
 
-	constexpr register_bits& operator-=(const register_bits &rhs) noexcept {
+	constexpr register_set& operator-=(const register_set &rhs) noexcept {
 		bits &= (~rhs.bits) & mask;
 		return *this;
 	}
 
-	constexpr register_bits operator~(void) const noexcept {
-		return register_bits(~bits);
+	constexpr register_set operator~(void) const noexcept {
+		return register_set(~bits);
 	}
 
-	constexpr register_bits operator|(const register_bits &rhs) const noexcept {
-		return register_bits(bits | rhs.bits);
+	constexpr register_set operator|(const register_set &rhs) const noexcept {
+		return register_set(bits | rhs.bits);
 	}
 
-	constexpr register_bits operator&(const register_bits &rhs) const noexcept {
-		return register_bits(bits & rhs.bits);
+	constexpr register_set operator&(const register_set &rhs) const noexcept {
+		return register_set(bits & rhs.bits);
 	}
 
-	constexpr register_bits operator^(const register_bits &rhs) const noexcept {
-		return register_bits(bits ^ rhs.bits);
+	constexpr register_set operator^(const register_set &rhs) const noexcept {
+		return register_set(bits ^ rhs.bits);
 	}
 
-	constexpr register_bits operator+(const register_bits &rhs) const noexcept {
-		return register_bits(bits | rhs.bits);
+	constexpr register_set operator+(const register_set &rhs) const noexcept {
+		return register_set(bits | rhs.bits);
 	}
 
-	constexpr register_bits operator-(const register_bits &rhs) const noexcept {
-		return register_bits(bits & ~rhs.bits);
+	constexpr register_set operator-(const register_set &rhs) const noexcept {
+		return register_set(bits & ~rhs.bits);
 	}
 
 
@@ -106,12 +106,12 @@ public:
 
 
 
-	constexpr static register_bits register_mask() {
-		return register_bits(rmask);
+	constexpr static register_set register_mask() {
+		return register_set(rmask);
 	}
 
-	constexpr static register_bits memory_mask() {
-		return register_bits(mmask);
+	constexpr static register_set memory_mask() {
+		return register_set(mmask);
 	}
 
 	void dump() const;

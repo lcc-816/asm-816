@@ -22,7 +22,7 @@ SRC = grammar.cpp main.cpp lexer.cpp Instruction.cpp Machine.cpp OpCode.cpp \
 	intern.cpp symbol_table.cpp data.cpp omf.cpp assign_pc.cpp assign_reg.cpp \
 	line.cpp branch.cpp propagate_const.cpp reg_const.cpp \
 	cxx/filesystem.cpp cxx/path.cpp cxx/directory_iterator.cpp \
-	register_lifetime.cpp register_bits.cpp \
+	register_lifetime.cpp register_set.cpp \
 	opt_consolidate.cpp opt_dead_block_elimination.cpp opt_data_flow_analysis.cpp \
 	opt_merge_blocks.cpp
 

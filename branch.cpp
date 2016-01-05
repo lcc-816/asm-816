@@ -535,39 +535,39 @@ branch branch::operator!() const {
 }
 
 
-register_bits branch::read_registers() const {
+register_set branch::read_registers() const {
 	switch(type) {
 		case always:
-			return register_bits(0);
+			return register_set(0);
 		case eq:
 		case ne:
-			return register_bits(z << 8);
+			return register_set(z << 8);
 		case cc:
 		case cs:
 		case unsigned_ge:
 		case unsigned_lt:
-			return register_bits(c << 8);
+			return register_set(c << 8);
 		case vc:
 		case vs:
-			return register_bits(v << 8);
+			return register_set(v << 8);
 		case mi:
 		case pl:
-			return register_bits(n << 8);
+			return register_set(n << 8);
 
 		case unsigned_gt:
 		case unsigned_le:
-			return register_bits((z | c) << 8);
+			return register_set((z | c) << 8);
 
 		case signed_ge:
 		case signed_lt:
-			return register_bits((v << 8) + 1);
+			return register_set((v << 8) + 1);
 		case signed_le:
 		case signed_gt:
-			return register_bits(((z|v) << 8) + 1);
+			return register_set(((z|v) << 8) + 1);
 	}
 }
 
-register_bits branch::write_registers() const {
+register_set branch::write_registers() const {
 	switch(type) {
 		case always:
 		case eq:
@@ -582,12 +582,12 @@ register_bits branch::write_registers() const {
 		case unsigned_ge:
 		case unsigned_lt:
 		case unsigned_le:
-			return register_bits(0x80);
+			return register_set(0x80);
 		case signed_gt:
 		case signed_ge:
 		case signed_lt:
 		case signed_le:
 			// eor may set the n/z bits, but eor might not be executed.
-			return register_bits(((n|z) << 8) + 0x80);
+			return register_set(((n|z) << 8) + 0x80);
 	}
 }

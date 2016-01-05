@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "types.h"
-#include "register_bits.h"
+#include "register_set.h"
 
 struct branch {
 
@@ -74,8 +74,8 @@ struct branch {
 	std::string to_string() const;
 	std::vector<BasicLinePtr> to_code(ExpressionPtr target) const;
 
-	register_bits read_registers() const;
-	register_bits write_registers() const;
+	register_set read_registers() const;
+	register_set write_registers() const;
 };
 
 

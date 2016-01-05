@@ -84,18 +84,18 @@ namespace {
 	}
 }
 
-register_bits BasicLine::read_registers() const {
+register_set BasicLine::read_registers() const {
 
 	if (opcode) return read_table[opcode.opcode()];
 	if (directive == SMART_BRANCH) return branch.read_registers();
-	return register_bits();
+	return register_set();
 }
 
-register_bits BasicLine::write_registers() const {
+register_set BasicLine::write_registers() const {
 
 	if (opcode) return write_table[opcode.opcode()];
 	if (directive == SMART_BRANCH) return branch.write_registers();
-	return register_bits();
+	return register_set();
 }
 
 

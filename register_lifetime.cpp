@@ -1,6 +1,6 @@
 #include "types.h"
 #include "common.h"
-#include "register_bits.h"
+#include "register_set.h"
 #include "Expression.h"
 
 
@@ -26,7 +26,7 @@ bool register_lifetime(BasicBlockPtr block) {
 
 	// 	eliminate dead writes for real registers.
 
-	register_bits live = register_bits::register_mask(); // assume all registers needed for the next block.
+	register_set live = register_set::register_mask(); // assume all registers needed for the next block.
 
 	LineQueue out;
 
@@ -35,10 +35,10 @@ bool register_lifetime(BasicBlockPtr block) {
 		OpCode opcode = line->opcode;
 		if (!opcode) return true;
 
-		register_bits rs = line->read_registers();
-		register_bits ws = line->write_registers();
+		register_set rs = line->read_registers();
+		register_set ws = line->write_registers();
 
-		register_bits olive = live;
+		register_set olive = live;
 
 		switch(opcode.mnemonic()) {
 			case JML:
@@ -49,7 +49,7 @@ bool register_lifetime(BasicBlockPtr block) {
 			case RTL:
 			case RTS:
 				// a, x, y could be passed as parameters.
-				rs += register_bits(0x03); // magic!
+				rs += register_set(0x03); // magic!
 				break;
 			case REP:
 			case SEP:
@@ -57,7 +57,7 @@ bool register_lifetime(BasicBlockPtr block) {
 				{
 					uint32_t p;
 					if (line->operands[0] && line->operands[0]->is_integer(p)) {
-						ws = register_bits(p << 8);
+						ws = register_set(p << 8);
 					}
 					// todo -- if going to short m, add a as a dependency?
 				}
@@ -69,7 +69,7 @@ bool register_lifetime(BasicBlockPtr block) {
 
 		live -= ws;
 		live += rs;
-		live &= register_bits::register_mask();
+		live &= register_set::register_mask();
 
 		// protected instructions. 
 		// branches not included since they end they basic block and are stored elsewhere.
@@ -102,14 +102,14 @@ bool register_lifetime(BasicBlockPtr block) {
 		// if it writes memory or the stack don't kill it.
 		if (ws.memory() || ws.zp() || ws.stack() || ws.s()) return true;
 
-		//register_bits wx = ws - rs;  // registers written but not read.
+		//register_set wx = ws - rs;  // registers written but not read.
 		/*
 		 r:  a - - a 
 		 w:  - a - a
 		 wx: - a - -
 
 		 */
-		//wx &= register_bits::register_mask();
+		//wx &= register_set::register_mask();
 
 		// if it doesn't write to any live registers, kill it!
 		if (!(ws & olive)) {
