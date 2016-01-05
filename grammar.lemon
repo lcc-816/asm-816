@@ -639,46 +639,102 @@ operand(rv) ::= LPAREN expr(e) RPAREN COMMA REGISTER_Z. {
 
 /* sr,s */
 /* optional < ? */
-operand(rv) ::= expr(e) COMMA REGISTER_S. {
-	rv = std::make_tuple(stack_relative, false, std::move(e));
+operand(rv) ::= modifier(m) expr(e) COMMA REGISTER_S. {
+
+	bool explicit_mode = true;
+	AddressMode mode = stack_relative;
+
+	switch (m) {
+	case kUndefinedAddressMode:
+	default:
+		explicit_mode = false;
+		break;
+
+	case zp:
+		break;
+
+	case absolute:
+		error("invalid address mode: |absolute,s");
+		break;
+	case absolute_long:
+		error("invalid address mode: >absolute long,s");
+		break;
+
+	}
+	rv = std::make_tuple(mode, explicit_mode, std::move(e));
 }
+
+operand(rv) ::= expr(e) COMMA REGISTER_S. {
+
+	bool explicit_mode = false;
+	AddressMode mode = stack_relative;
+
+
+	rv = std::make_tuple(mode, explicit_mode, std::move(e));
+}
+
 
 /* (sr,s),y */
 operand(rv) ::= LPAREN expr(e) COMMA REGISTER_S RPAREN COMMA REGISTER_Y. {
+
+	bool explicit_mode = false;
+	AddressMode mode = stack_relative_y;
+
 	rv = std::make_tuple(stack_relative_y, false, std::move(e));
 }
 
 /* [dp] */
-operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET. {
+operand(rv) ::= LBRACKET opt_modifier(m) expr(e) RBRACKET. {
 
-	AddressMode mode = m;
-	switch(mode)
+	AddressMode mode = zp_indirect_long;
+	bool explicit_mode = false;
+
+	switch(m)
 	{
-	default: mode = zp_indirect_long; break;
+	case kUndefinedAddressMode:
+	default:
+		break;
 
-	case zp: mode = zp_indirect_long; break;
-	case absolute: mode = absolute_indirect_long; break;
+	case zp:
+		explicit_mode = true;
+		break;
+
+	case absolute:
+		mode = absolute_indirect_long;
+		explicit_mode = true;
+		break;
+
 	case absolute_long: 
 		mode = absolute_indirect_long; 
 		error("invalid address mode: [>absolute long]");
 		break;
 	}
 
-	rv = std::make_tuple(mode, true, std::move(e));
+	rv = std::make_tuple(mode, explicit_mode, std::move(e));
 }
 
+/*
 operand(rv) ::= LBRACKET expr(e) RBRACKET. {
 	rv = std::make_tuple(zp_indirect_long, false, std::move(e));
 }
+*/
 
 /* [dp],y */
-operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET COMMA REGISTER_Y. {
-	
+operand(rv) ::= LBRACKET opt_modifier(m) expr(e) RBRACKET COMMA REGISTER_Y. {
+
+	AddressMode mode = zp_indirect_long_y;
+	bool explicit_mode = false;
+
 	switch(m)
 	{
-	default: break;
+	case kUndefinedAddressMode:
+	default:
+		break;
 
-	case zp: break;
+	case zp:
+		explicit_mode = true;
+		break;
+
 	case absolute: 
 		error("invalid address mode: [|absolute],y");
 		break;
@@ -687,19 +743,26 @@ operand(rv) ::= LBRACKET modifier(m) expr(e) RBRACKET COMMA REGISTER_Y. {
 		error("invalid address mode: [>absolute long],y");
 		break;
 	}
-	rv = std::make_tuple(zp_indirect_long_y, true, std::move(e));
+	rv = std::make_tuple(mode, explicit_mode, std::move(e));
 }
 
+/*
 operand(rv) ::= LBRACKET expr(e) RBRACKET COMMA REGISTER_Y. {
 	rv = std::make_tuple(zp_indirect_long_y, false, std::move(e));
 }
-
+*/
 
 /* modifier -  <, >, | */
 %type modifier {AddressMode}
 modifier(rv) ::= LT. { rv = zp; }
 modifier(rv) ::= GT. { rv = absolute_long; }
 modifier(rv) ::= PIPE. { rv = absolute; }
+
+
+%type opt_modifier {AddressMode}
+opt_modifier(rv) ::= . { rv = kUndefinedAddressMode; }
+opt_modifier(rv) ::= modifier(m). { rv = m; }
+
 
 /* expressions */
 
