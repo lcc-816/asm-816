@@ -112,6 +112,8 @@ void print(FILE *file, const LineQueue &lines) {
 			continue;
 		}
 
+		OpCode opcode = line->opcode;
+
 		if (line->opcode) {
 			std::string op;
 			AddressMode mode = line->opcode.addressMode();
