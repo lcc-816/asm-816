@@ -267,9 +267,8 @@ void process_segments(SegmentQueue &segments, fs::path &outfile) {
 	FILE *f = nullptr;
 	int fd = -1;
 
-
 	if (flags.S) {
-		if (outfile.empty()) f = stdout;
+		if (outfile.empty() || outfile == "-") f = stdout;
 		else {
 			f = fopen(outfile.c_str(), "w");
 			if (!f) {
@@ -341,7 +340,7 @@ int main(int argc, char **argv) {
 		switch(c) {
 
 			case 'S': // output source code
-				flags.S = 1;
+				flags.S = true;
 				break;
 
 			case 'o':
@@ -379,6 +378,11 @@ int main(int argc, char **argv) {
 	}
 	argv += optind;
 	argc -= optind;
+
+	if (flags.o == "-") {
+		flags.S = true;
+		flags.o.clear();
+	}
 
 	//atexit(clear_intern_table);
 
