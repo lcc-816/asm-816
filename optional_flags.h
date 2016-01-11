@@ -31,10 +31,21 @@ public:
 		engaged &= ~mask;
 	}
 
+	void rep(uint16_t mask) {
+		engaged |= mask;
+		flags &= ~mask;
+	}
+
+	void sep(uint16_t mask) {
+		engaged |= mask;
+		flags |= mask;
+	}
+
+
 	struct proxy {
 
 		proxy &operator=(bool tf) {
-			if (tf) parent.flags | mask;
+			if (tf) parent.flags |= mask;
 			else parent.flags &= ~mask;
 			parent.engaged |= mask;
 			return *this;
@@ -90,6 +101,7 @@ public:
 	proxy n() { return proxy(*this, 1 << 7); }
 	proxy e() { return proxy(*this, 1 << 8); }
 
+#if 0
 	const proxy c() const { return proxy(*this, 1 << 0); }
 	const proxy z() const { return proxy(*this, 1 << 1); }
 	const proxy i() const { return proxy(*this, 1 << 2); }
@@ -99,7 +111,7 @@ public:
 	const proxy v() const { return proxy(*this, 1 << 6); }
 	const proxy n() const { return proxy(*this, 1 << 7); }
 	const proxy e() const { return proxy(*this, 1 << 8); }
-
+#endif
 
 private:
 	friend struct proxy;

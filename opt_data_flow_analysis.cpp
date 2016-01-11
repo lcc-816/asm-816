@@ -49,10 +49,22 @@ bool any_of(dp_register r, unsigned reg_count, UnaryPredicate fx) {
 
 
 void add_imports(BasicBlockPtr block, dp_register_set imports) {
+	imports -= block->dp_reg_export;
+	if (!imports) return;
+
+	if (block->dp_reg_import.contains(imports)) return;
+
+	block->dp_reg_import += imports;
+	for (auto prev : block->prev_set) 
+		add_imports(prev, block->dp_reg_import);
+}
+
+
+void add_imports(BasicBlockPtr block, register_set imports) {
 	imports -= block->reg_export;
 	if (!imports) return;
 
-	if (block->reg_import.contains(imports)) return;
+	if (block->reg_import.includes(imports)) return;
 
 	block->reg_import += imports;
 	for (auto prev : block->prev_set) 
@@ -62,12 +74,24 @@ void add_imports(BasicBlockPtr block, dp_register_set imports) {
 
 void import_export(BasicBlockPtr block) {
 	
-	dp_register_set reg_import;
-	dp_register_set reg_export;
+	dp_register_set dp_reg_import;
+	dp_register_set dp_reg_export;
+
+	register_set reg_import;
+	register_set reg_export;
+
 
 	// if (block->label && *block->label == ".404") {
 	// 	printf("here\n");
 	// }
+
+	// exit nodes also need to export a/x (if cdecl and not void...)
+	#if 0
+	if (block->exit_node) {
+		reg_export += register_set(0x07); // magic!
+		reg_import += register_set(0x07); // magic!
+	}
+	#endif
 
 	for (BasicLinePtr line : block->lines) {
 
@@ -76,6 +100,12 @@ void import_export(BasicBlockPtr block) {
 
 		auto rs = line->read_registers();
 		auto ws = line->write_registers();
+
+		reg_import += (rs - reg_export);
+		reg_export += ws;
+
+
+
 		if (!rs.zp() && !ws.zp()) continue;
 
 		dp_register reg = line->reg;
@@ -84,46 +114,77 @@ void import_export(BasicBlockPtr block) {
 		// unless it was previously written by this block. 
 		// (in which case it will be in the export set.
 		if (rs.zp()) {
-			for_each(line->reg, line->reg_count, [&reg_import, &reg_export](dp_register r){
-				if (!reg_export.contains(r)) reg_import += r;
+			for_each(line->reg, line->reg_count, [&dp_reg_import, &dp_reg_export](dp_register r){
+				if (!dp_reg_export.contains(r)) dp_reg_import += r;
 			});
-			//reg_import += (registers - reg_export)
+			//dp_reg_import += (registers - dp_reg_export)
 		}
 
 		// if it writes to a dp register, mark it as exported.
 		if (ws.zp()) {
-			for_each(line->reg, line->reg_count, [&reg_export](dp_register r) { reg_export += r; });
-			//reg_export += registers;
+			for_each(line->reg, line->reg_count, [&dp_reg_export](dp_register r) { dp_reg_export += r; });
+			//dp_reg_export += registers;
 		}
 
 	}
+
+	// also need to add in the branch block.
+	BasicLinePtr &line = block->exit_branch;
+	if (line) {
+
+		OpCode opcode = line->opcode;
+		line->calc_registers();
+
+		auto rs = line->read_registers();
+		auto ws = line->write_registers();
+
+		reg_import += (rs - reg_export);
+		reg_export += ws;
+
+		// currently, branches don't read dp_registers.
+	}
+
+
+	block->dp_reg_import = dp_reg_import;
+	block->dp_reg_export = dp_reg_export;
 
 	block->reg_import = reg_import;
 	block->reg_export = reg_export;
 
 
+
 	// if (block->label && *block->label == ".404") {
 	// 	printf("imports: ");
-	// 	block->reg_import.dump();
+	// 	block->dp_reg_import.dump();
 	// 	printf("exports: ");
-	// 	block->reg_import.dump();
+	// 	block->dp_reg_import.dump();
 	// }
 
 }
+
 
 
 void build_import_export_set(BlockQueue &bq) {
 
 	for (auto block : bq) {
 		import_export(block);
+
+		if (block->exit_node) {
+			block->reg_import += register_set(0x07); // export a, x, y
+			block->reg_export += register_set(0x07); // export a, x, y
+		}
+
 	}
 
 	// now propogate the imports.
 	for (auto block : bq) {
-		const auto &imports = block->reg_import;
-		if (!imports) continue;
+		const auto &dp_imports = block->dp_reg_import;
+		auto imports = block->reg_import;
+
+		if (!dp_imports && !imports) continue;
 
 		for (auto prev : block->prev_set) {
+			add_imports(prev, dp_imports);
 			add_imports(prev, imports);
 		} 
 
@@ -131,12 +192,21 @@ void build_import_export_set(BlockQueue &bq) {
 
 	// now remove unnecessary exports!
 	for (auto block : bq) {
-		dp_register_set exports;
+		dp_register_set dp_exports;
+		register_set exports;
+
 		for (auto next : block->next_set) {
+			dp_exports += next->dp_reg_import;
 			exports += next->reg_import;
 		}
 
+		if (block->exit_node) {
+			exports += register_set(0x07);
+		}
+
+		block->dp_reg_export &= dp_exports;
 		block->reg_export &= exports;
+
 	}
 }
 
@@ -147,9 +217,9 @@ bool dataflow_analysis(BasicBlockPtr block) {
 
 	auto size = block->lines.size();
 	LineQueue tmp;
-	dp_register_set live = block->reg_export;
+	dp_register_set dp_live = block->dp_reg_export;
 
-	std::copy_if(block->lines.rbegin(), block->lines.rend(), std::front_inserter(tmp), [&live, block](BasicLinePtr line){
+	std::copy_if(block->lines.rbegin(), block->lines.rend(), std::front_inserter(tmp), [&dp_live, block](BasicLinePtr line){
 
 		OpCode opcode = line->opcode;
 		if (!opcode) return true;
@@ -167,24 +237,24 @@ bool dataflow_analysis(BasicBlockPtr block) {
 
 			if (ws.p() == 0 && reg.is_temporary()) {
 
-				if (none_of(line->reg, line->reg_count, [&live](dp_register r){
-					return live.contains(r);
+				if (none_of(line->reg, line->reg_count, [&dp_live](dp_register r){
+					return dp_live.contains(r);
 				})) return false;
-				//if (!live.contains(rp)) return false;
+				//if (!dp_live.contains(rp)) return false;
 			}
 
-			for_each(line->reg, line->reg_count, [&live](dp_register r){
-				live -= r;
+			for_each(line->reg, line->reg_count, [&dp_live](dp_register r){
+				dp_live -= r;
 			});
 
-			//live -= rp;
+			//dp_live -= rp;
 		}
 		if (rs.zp()) {
 			// reading from a zp -- mark as live.
-			for_each(line->reg, line->reg_count, [&live](dp_register r){
-				live += r;
+			for_each(line->reg, line->reg_count, [&dp_live](dp_register r){
+				dp_live += r;
 			});
-			//live += rp;
+			//dp_live += rp;
 		}
 
 		return true;

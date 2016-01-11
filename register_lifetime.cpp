@@ -26,7 +26,20 @@ bool register_lifetime(BasicBlockPtr block) {
 
 	// 	eliminate dead writes for real registers.
 
-	register_set live = register_set::register_mask(); // assume all registers needed for the next block.
+	//register_set live =  register_set::register_mask(); // assume all registers needed for the next block.
+	register_set live =  block->reg_export;
+
+	// add in any branch dependencies.
+	if (block->exit_branch) {
+		live += block->exit_branch->read_registers();
+	}
+
+	#if 0
+	if (block->exit_node) {
+		// cdecl -- return value in a/x
+		live += register_set(0x07);
+	}
+	#endif
 
 	LineQueue out;
 
@@ -49,7 +62,7 @@ bool register_lifetime(BasicBlockPtr block) {
 			case RTL:
 			case RTS:
 				// a, x, y could be passed as parameters.
-				rs += register_set(0x03); // magic!
+				rs += register_set(0x07); // magic!
 				break;
 			case REP:
 			case SEP:

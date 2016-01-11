@@ -89,6 +89,13 @@ public:
 	}
 
 
+	/*
+	 * returns true if this is a superset of rhs.
+	 */ 
+	constexpr bool includes(const register_set &rhs) const noexcept {
+		return (bits | rhs.bits) == bits;
+	}
+
 	constexpr bool a(void) const noexcept { return bits & a_mask; }
 	constexpr bool x(void) const noexcept { return bits & x_mask; }
 	constexpr bool y(void) const noexcept { return bits & y_mask; }

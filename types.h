@@ -13,7 +13,7 @@ typedef const std::string *identifier;
 typedef std::shared_ptr<class Expression> ExpressionPtr;
 typedef std::shared_ptr<class VectorExpression> VectorExpressionPtr;
 typedef std::shared_ptr<struct BasicLine> BasicLinePtr;
-typedef std::shared_ptr<struct BasicBlock> BasicBlockPtr;
+typedef std::shared_ptr<class BasicBlock> BasicBlockPtr;
 
 typedef std::unique_ptr<class Segment> SegmentPtr;
 

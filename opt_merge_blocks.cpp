@@ -9,6 +9,19 @@
 
 bool dead_block_elimination(BlockQueue &bq);
 
+BasicBlockPtr next_valid_block(BasicBlockPtr block) {
+
+	while (block) {
+		if (block->entry_node) break;
+		if (block->exit_node) break;
+		if (block->dead) return BasicBlockPtr();
+
+		if (block->lines.size() || block->exit_branch) break;
+
+		block = block->next_block;
+	}
+	return block;
+}
 
 bool merge_blocks(BasicBlockPtr &block, BasicBlockPtr &next) {
 	if (!block || !next) return false;
@@ -30,7 +43,7 @@ bool merge_blocks(BasicBlockPtr &block, BasicBlockPtr &next) {
 
 	block->exit_branch = std::move(next->exit_branch);
 	block->next_block = std::move(next->next_block);
-	block->reg_export = std::move(next->reg_export);
+	block->dp_reg_export = std::move(next->dp_reg_export);
 	block->next_set = std::move(next->next_set);
 
 	for (BasicBlockPtr newnext : block->next_set) {
@@ -63,13 +76,27 @@ bool remove_branches(BlockQueue &bq) {
 
 	unsigned delta = 0;
 
+	// update the next_block to skip past any empty next blocks.
+	for (auto block : bq) {
+		auto next_block = block->next_block;
+		if (!next_block) continue;
+		auto new_next_block = next_valid_block(next_block);
+
+		if (new_next_block != next_block) {
+			block->replace_next(next_block, new_next_block);
+			next_block->remove_prev(block);
+			delta = true;
+		}
+	}
+
+
 	// unconditional branches don't have the fall-through next_block.
 	// this will remove the exit branch and add the next_block.
 	std::accumulate(bq.begin(), bq.end(), BasicBlockPtr(), [&delta](BasicBlockPtr block, BasicBlockPtr next_block){
 		if (!block || block->dead) return next_block;
 		if (!next_block || next_block->dead) return next_block; // ?
 
-		if (block->next_set.size() || block->next_set.front() != next_block) return next_block;
+		if (block->next_set.size() != 1 || block->next_set.front() != next_block) return next_block;
 
 		auto &exit_branch = block->exit_branch;
 		if (!exit_branch || exit_branch->opcode.mnemonic() == JMP) return next_block;

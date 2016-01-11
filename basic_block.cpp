@@ -130,7 +130,15 @@ static bool is_conditional_branch(Mnemonic m) {
 
 
 
-
+void BasicBlock::dump() const {
+	printf ("BasicBlock %p\n", this);
+	if (label) printf("label: %s\n", label->c_str());
+	if (dead) printf("*dead*\n");
+	printf("lines: %d\n", (int)lines.size());
+	printf("next_set: %d\n", (int)next_set.size());
+	printf("prev_set: %d\n", (int)prev_set.size());
+	printf("\n");
+}
 
 void BasicBlock::make_dead() {
 	dead = true;
@@ -162,15 +170,20 @@ void BasicBlock::remove_prev(BasicBlockPtr target) {
 
 void BasicBlock::remove_next(BasicBlockPtr target) {
 	if (!target) return;
+	if (next_block == target) next_block = nullptr;
 	erase(next_set, target);
 }
 
 void BasicBlock::replace_prev(BasicBlockPtr oldBlock, BasicBlockPtr newBlock) {
 	replace(prev_set, oldBlock, newBlock);
+	remove_duplicates(prev_set);
 }
 
 void BasicBlock::replace_next(BasicBlockPtr oldBlock, BasicBlockPtr newBlock) {
+	if (next_block == oldBlock) next_block = newBlock;
+	// also fix branches?
 	replace(next_set, oldBlock, newBlock);
+	remove_duplicates(next_set);
 }
 
 void BasicBlock::recalc_next_set() {
@@ -313,251 +326,10 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 		out.back()->exit_node = true;
 	}
 
-#if 0
-	// check for drop-through
-	for (auto iter = out.begin(); iter != out.end(); ++iter) {
-		auto &block = *iter;
-		auto next = iter + 1;
-		bool fallthrough = false;
-
-		if (next == out.end()) continue;
-		
-
-		BasicLinePtr &line = block->exit_branch;
-		if (line) {
-
-			Mnemonic m = line->opcode.mnemonic();
-			if (is_conditional_branch(m))
-				fallthrough = true;
-
-			if (line->directive == SMART_BRANCH) {
-				fallthrough = line->branch.is_conditional();
-
-
-		} else {
-			fallthrough = true;
-		}
-
-
-		if (fallthrough)
-			block->next_set.push_back(*next);
-
-	}
-#endif
-
 	return out;
 }
 
 
-#if 0
-void analyze_block(BasicBlockPtr &block) {
-
-	dp_register_set reg_live;
-	dp_register_set reg_dead;
-	dp_register_set reg_import;
-	dp_register_set reg_export;
-
-	LineQueue lines = std::move(block->lines);
-
-	std::vector<BasicBlockPtr> next;
-
-	// scan forward to calculate lifetimes.
-	for (BasicLinePtr &line : lines) {
-
-		line->reg_live = reg_live;
-
-		line->calc_registers();
-		const dp_register reg = line->reg;
-		auto status = line->reg_status;
-
-		if (status == reg_read || status == reg_rw) {
-			dp_register r = reg;
-			// need to break it out here since we only
-			// import a reg if it's not live.
-			for (unsigned i = 0; i < line->reg_count; ++i) {
-
-				if (!reg_live.contains(r))
-					reg_import += r;
-
-				r.number += 2;
-			}
-
-		}
-
-
-		if (status == reg_write || status == reg_rw) {
-
-			reg_export.insert(reg, line->reg_count);
-		}
-
-		reg_live.insert(reg, line->reg_count);
-	}
-
-
-	// imports are live in all lines.
-	if (reg_import) {
-		for (BasicLinePtr line : block->lines) {
-			line->reg_live += reg_import;
-		}
-	}
-
-	// scan backwards and remove dead writes.
-	// todo -- still needed or will analyze_block_2 catch it?
-	/*
-	 *  sta %t0 << can be killed
-	 *  ...
-	 *  ...
-	 *  sta %t0
-	 */
-
-	LineQueue newLines;
-	while(!lines.empty()) {
-
-		BasicLinePtr line = lines.back();
-		lines.pop_back();
-
-		bool dead = false;
-
-
-		line->reg_live -= reg_dead;
-
-		const dp_register reg = line->reg;
-		unsigned reg_count = line->reg_count;
-
-		if (reg && reg.is_temporary())
-		switch (line->reg_status) {
-
-			case reg_none:
-				break;
-
-			case reg_read:
-			case reg_rw:
-				reg_dead.remove(reg, reg_count);
-				line->reg_live.insert(reg, reg_count);
-				break;
-
-			case reg_write:
-				dp_register r = reg;
-				// can only delete if all registers are dead.
-				if (reg_dead.contains(reg, reg_count))
-					dead = true;
-				reg_dead.insert(reg, reg_count);
-				break;
-		}
-
-
-		if (dead) {
-			//printf("deleting %s\n", line->opcode.toString());
-		}
-		else newLines.push_front(line);
-	}
-
-	block->lines = std::move(newLines);
-	block->reg_import = reg_import;
-	block->reg_export = reg_export;
-}
-
-bool analyze_block_2(BasicBlockPtr block) {
-
-	// second round of analysis.  import set has been calculated at this point.
-
-	LineQueue newLines;
-	LineQueue lines = std::move(block->lines);
-	dp_register_set reg_live; // = block->reg_import;
-	//reg_live += block->reg_export;
-
-	bool delta = false;
-
-	// only need to export registers imported by next blocks.
-	for (BasicBlockPtr block : block->next_set) {
-		reg_live += block->reg_import;
-	}
-
-
-	while(!lines.empty()) {
-
-		BasicLinePtr line = lines.back();
-		lines.pop_back();
-
-		bool dead = false;
-
-		dp_register reg = line->reg;
-		unsigned reg_count = line->reg_count;
-
-		if (reg && reg.is_temporary())
-		switch (line->reg_status) {
-
-			case reg_none:
-				break;
-
-			case reg_read:
-				reg_live.insert(reg, reg_count);
-				break;
-
-			case reg_rw:
-				// read, then write.
-				// if reg is live, it remains live.
-				// if reg is dead, it remains dead.
-				if (!reg_live.contains_any(reg, reg_count))
-					dead = true;
-
-				break;				
-
-
-			case reg_write:
-				// drop the write if not live.
-				if (!reg_live.contains_any(reg, reg_count))
-					dead = true;
-				reg_live.remove(reg, reg_count); // any reason not to?
-				// ugh... what if it's a cross-byte write?
-				// sta.w %t1 write %t1 and %t2, but this treats it as %t0, %t1, %t2, %t3.  
-				// need to treat as bytes, not words.
-				break;
-		}
-
-
-		if (dead) {
-			//printf("deleting %s\n", line->opcode.toString());
-			delta = true;
-		}
-		//if (dead) { delete line; delta = true; }
-		else newLines.push_front(line);
-	}
-
-
-	block->lines = std::move(newLines);
-	return delta;
-
-}
-
-
-static void build_imports(BasicBlockPtr block, dp_register_set imports) {
-
-	imports -= block->reg_export;
-	if (block->processed && block->reg_import.contains(imports)) return;
-
-	block->processed = true;
-	block->reg_import += imports;
-
-	for (BasicBlockPtr prev : block->prev_set) {
-		build_imports(prev, block->reg_import);
-	}
-
-}
-
-static void build_imports(BlockQueue &bq) {
-
-	// do it backwards since that should save time...
-	for(auto iter = bq.rbegin(); iter != bq.rend(); ++iter) {
-		BasicBlockPtr block = *iter;
-		for (BasicBlockPtr prev : block->prev_set) {
-			build_imports(prev, block->reg_import);
-		}
-
-	}
-
-}
-#endif
 
 void print_block_set(const std::vector<BasicBlockPtr> &set) {
 	for (auto x : set) { if (x->label) printf("%s ", x->label->c_str()); }

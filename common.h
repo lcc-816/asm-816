@@ -140,55 +140,10 @@ typedef std::deque<BasicLinePtr> LineQueue;
 
 typedef std::deque<BasicBlockPtr> BlockQueue;
 
-class BasicBlock : public std::enable_shared_from_this<BasicBlock> {
+#include "basic_block.h"
 
+class Segment {
 public:
-
-	static BlockQueue MakeBlockQueue(LineQueue &&);
-
-	template<class...Args>
-	static BasicBlockPtr Make(Args&&... args) {
-		return std::make_shared<BasicBlock>(std::forward<Args>(args)...);
-	}
-
-	void recalc_next_set();
-	void make_dead();
-
-	void remove_prev(BasicBlockPtr);
-	void remove_next(BasicBlockPtr);
-	void replace_prev(BasicBlockPtr oldBlock, BasicBlockPtr newBlock);
-	void replace_next(BasicBlockPtr oldBlock, BasicBlockPtr newBlock);
-
-
-	unsigned pc = 0;
-	//unsigned size = 0;
-	//unsigned id = 0;
-
-	identifier label = nullptr;
-
-	LineQueue lines;
-	BasicLinePtr exit_branch; // if ends w/ a branch.
-	BasicBlockPtr next_block; // if fallthrough.
-
-
-	bool dirty = false; // if optimization has modified it!
-
-	dp_register_set reg_import;
-	dp_register_set reg_export;
-
-	bool processed = false;
-	bool dead = false; // mark for dead-code elimination.
-	bool entry_node = false; // this is an entry point (can't dead-code eliminate)
-	bool exit_node = false;
-
-	std::vector<BasicBlockPtr> next_set;
-	std::vector<BasicBlockPtr> prev_set;
-
-};
-
-
-
-struct Segment {
 	identifier name = nullptr;
 	identifier segment = nullptr;
 
