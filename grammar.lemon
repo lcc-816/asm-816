@@ -429,8 +429,12 @@ pragma ::= DEBUG. {
 	if (cookie->segment) cookie->segment->debug = true;
 }
 
+pragma ::= VOLATILE. {
+	if (cookie->segment) cookie->segment->has_volatile = true;
 }
 
+pragma ::= NORETURN. {
+	if (cookie->segment) cookie->segment->noreturn = true;
 }
 
 

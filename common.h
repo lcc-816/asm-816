@@ -162,6 +162,8 @@ public:
 	bool rts = false;
 	bool global = false;
 	bool databank = false;
+	bool noreturn = false;
+	bool has_volatile = false;
 
 	enum {
 		naked = 0,

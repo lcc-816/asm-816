@@ -466,6 +466,14 @@ void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
 			Parse(parser, tkSEGMENT, 0, &cookie);
 		};
 
+		'volatile'i {
+			Parse(parser, tkVOLATILE, 0, &cookie);
+		};
+
+		'noreturn'i {
+			Parse(parser, tkNORETURN, 0, &cookie);
+		};
+
 		'dynamic'i {
 			Parse(parser, tkDYNAMIC, 0, &cookie);
 		};
