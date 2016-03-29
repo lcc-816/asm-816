@@ -360,6 +360,8 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	segment->prologue_code = std::move(tmp);
 	tmp.clear();
 
+	if (segment->noreturn) return; // no need to do return stuff.
+
 	if (segment->convention == Segment::stdcall || segment->convention == Segment::pascal) {
 
 
