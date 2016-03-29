@@ -38,6 +38,12 @@ public:
 	static ExpressionPtr Identifier(std::string &&s) { return Identifier(intern(std::move(s))); }
 	static ExpressionPtr Identifier(const std::string &s) { return Identifier(intern(s)); }
 
+	static ExpressionPtr WeakIdentifier(identifier name);
+	static ExpressionPtr WeakIdentifier(std::string &&s) { return WeakIdentifier(intern(std::move(s))); }
+	static ExpressionPtr WeakIdentifier(const std::string &s) { return WeakIdentifier(intern(s)); }
+
+
+
 	static ExpressionPtr Unary(unsigned op, ExpressionPtr a);
 	static ExpressionPtr Binary(unsigned op, ExpressionPtr a, ExpressionPtr b);
 	static VectorExpressionPtr Vector();

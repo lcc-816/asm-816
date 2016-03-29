@@ -105,6 +105,12 @@ ExpressionPtr Expression::Identifier(const std::string *value) {
 	return e;
 }
 
+ExpressionPtr Expression::WeakIdentifier(const std::string *value) {
+	ExpressionPtr e = std::make_shared<IdentifierExpression>(value, true);
+	return e;
+}
+
+
 ExpressionPtr Expression::String(const std::string *value) {
 	ExpressionPtr e = std::make_shared<StringExpression>(value);
 	return e;
@@ -447,7 +453,7 @@ void RelExpression::to_omf(std::vector<uint8_t> &rv) const {
 
 void IdentifierExpression::to_omf(std::vector<uint8_t> &rv) const {
 
-	rv.push_back(0x83);
+	rv.push_back(_weak ? 0x82 : 0x83);
 	rv.push_back(_value->length());
 
 	for (auto c : *_value) rv.push_back(c);

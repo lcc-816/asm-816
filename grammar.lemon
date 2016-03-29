@@ -822,6 +822,10 @@ term(rv) ::= IDENTIFIER(a). {
 	rv = Expression::Identifier(a.string_value());
 }
 
+term(rv) ::= WEAK IDENTIFIER(a). {
+	rv = Expression::WeakIdentifier(a.string_value());
+}
+
 term(rv) ::= INTEGER(a). {
 	rv = Expression::Integer(a.int_value());
 }

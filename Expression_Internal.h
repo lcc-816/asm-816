@@ -177,7 +177,7 @@ private:
 
 class IdentifierExpression : public Expression {
 public:
-	IdentifierExpression(identifier value) : Expression(type_identifier), _value(value)
+	IdentifierExpression(identifier value, bool weak = false) : Expression(type_identifier), _value(value), _weak(weak)
 	{}
 
 	virtual bool is_identifier(identifier &) const override final;
@@ -196,6 +196,7 @@ public:
 	bool operator==(const IdentifierExpression &) const;
 
 private:
+	bool _weak = false;
 	identifier _value;
 };
 

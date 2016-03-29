@@ -300,6 +300,11 @@ void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
 			Parse(parser, tkSTRING, s, &cookie);
 		};
 
+		'%weak' {
+			std::string s(ts, te);
+			Parse(parser, tkWEAK, s, &cookie);
+		};
+
 		#identifier => parse_identifier;
 
 		identifier => {
@@ -413,6 +418,11 @@ void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
 		["] ([^"])* ["] {
 			std::string s(ts, te);
 			Parse(parser, tkSTRING, s, &cookie);
+		};
+
+		'%weak' {
+			std::string s(ts, te);
+			Parse(parser, tkWEAK, s, &cookie);
 		};
 
 		identifier => parse_identifier;
