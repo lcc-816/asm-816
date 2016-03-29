@@ -92,6 +92,8 @@ struct Cookie {
 	std::unordered_set<identifier> export_set;
 	std::unordered_set<identifier> import_set; // parsed but ignored.
 
+	std::vector<identifier> strong_vector;
+
 	std::unordered_map<identifier, unsigned> labels; // label -> line number.
 
 	symbol_table equates;

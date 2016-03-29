@@ -628,6 +628,10 @@ void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
 			next_operand = lexer_en_operand_no_reg;
 		};
 
+		'strong'i {
+			Parse(parser, tkSTRONG, 0, &cookie);
+			next_operand = lexer_en_operand_no_reg;
+		};
 
 		'begin_stack'i {
 			Parse(parser, tkFX_PROLOGUE, 0, &cookie);

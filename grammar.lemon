@@ -429,24 +429,33 @@ pragma ::= DEBUG. {
 	if (cookie->segment) cookie->segment->debug = true;
 }
 
-directive ::= EXPORT export_list.
-export_list ::= IDENTIFIER(a). {
-	cookie->export_set.insert(a.string_value());
 }
 
-export_list ::= export_list COMMA IDENTIFIER(a). {
-	cookie->export_set.insert(a.string_value());
 }
 
-directive ::= IMPORT import_list.
-import_list ::= IDENTIFIER(a). {
-	cookie->import_set.insert(a.string_value());
+
+directive ::= EXPORT identifier_list(L). {
+	for (auto &x : L) cookie->export_set.insert(x);	
 }
 
-import_list ::= import_list COMMA IDENTIFIER(a). {
-	cookie->import_set.insert(a.string_value());
+directive ::= IMPORT identifier_list(L). {
+	for (auto &x : L) cookie->import_set.insert(x);		
 }
 
+directive ::= STRONG identifier_list(L). {
+	cookie->strong_vector.insert(cookie->strong_vector.end(), L.begin(), L.end());
+}
+
+%type identifier_list { std::vector<identifier> }
+
+identifier_list(RV) ::= IDENTIFIER(a). {
+	RV.push_back(a.string_value());
+}
+
+identifier_list(RV) ::= identifier_list(L) COMMA IDENTIFIER(a). {
+	RV = std::move(L);
+	RV.push_back(a.string_value());
+}
 
 
 opcode(RV) ::= FX_PROLOGUE. {
