@@ -49,6 +49,8 @@ namespace {
 		// DS $1000-* ? 
 		uint32_t size;
 
+		e = e->simplify();
+
 		if (e->is_integer(size)) {
 			builder.ds(size);
 			return;
