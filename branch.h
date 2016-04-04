@@ -11,7 +11,7 @@
 struct branch {
 
 	enum branch_type {
-		//never,
+		never,
 		always,
 		eq,
 		ne,
@@ -70,6 +70,9 @@ struct branch {
 
 	static branch_type invert(branch_type type);
 	branch operator!() const;
+
+	branch make_signed() const;
+	static branch::branch_type make_signed(branch_type type);
 
 	std::string to_string() const;
 	std::vector<BasicLinePtr> to_code(ExpressionPtr target) const;

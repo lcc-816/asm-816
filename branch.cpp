@@ -78,6 +78,9 @@ bool branch::writes_a() const {
 unsigned branch::size() const {
 	
 	switch(type) {
+	case never:
+		return 0;
+
 	case always:
 		// bra xxx
 		// brl xxx
@@ -165,6 +168,9 @@ bool branch::in_range(uint32_t pc, uint32_t target) const {
 
 	// simple types.
 	switch (type) {
+		case never:
+			return true;
+
 		case always:
 		case eq:
 		case ne:
@@ -219,6 +225,8 @@ unsigned branch::make_far() {
 	if (far) return 0;
 	far = true;
 	switch(type) {
+		case never:
+			return 0;
 		case always:
 			return 1;
 		default:
@@ -230,6 +238,7 @@ unsigned branch::make_far() {
 std::string branch::to_string() const {
 
 	static std::string names[] = {
+		"", // never
 		"__bra",
 		"__beq",
 		"__bne",
@@ -266,6 +275,9 @@ std::vector<BasicLinePtr> branch::to_code(ExpressionPtr target) const {
 	std::vector<BasicLinePtr> rv;
 
 	switch(type) {
+		case never:
+			break;
+
 		case always:
 			if (far) {
 				rv.emplace_back(BasicLine::Make(BRL, relative_long, target));
@@ -461,7 +473,9 @@ std::vector<BasicLinePtr> branch::to_code(ExpressionPtr target) const {
 
 unsigned branch::flags() const {
 	switch(type) {
-		case always: return 0;
+		case never:
+		case always:
+			return 0;
 		case eq:
 		case ne:
 			return z;
@@ -491,9 +505,10 @@ unsigned branch::flags() const {
 branch::branch_type branch::invert(branch_type type) {
 	switch(type) {
 		default:
+		case never:
+			return always;
 		case always:
-			// oops
-			return type;
+			return never;
 		case eq:
 			return ne;
 		case ne:
@@ -534,9 +549,31 @@ branch branch::operator!() const {
 	return branch{ invert(type), far };
 }
 
+branch::branch_type branch::make_signed(branch_type type) {
+	switch(type) {
+
+		case unsigned_ge:
+			return signed_ge;
+		case unsigned_gt:
+			return signed_gt;
+		case unsigned_lt:
+			return signed_lt;
+		case unsigned_le:
+			return signed_le;
+
+		default:
+			return type;
+	}
+}
+
+branch branch::make_signed() const {
+
+	return branch{ make_signed(type), far };
+}
 
 register_set branch::read_registers() const {
 	switch(type) {
+		case never:
 		case always:
 			return register_set(0);
 		case eq:
@@ -569,6 +606,7 @@ register_set branch::read_registers() const {
 
 register_set branch::write_registers() const {
 	switch(type) {
+		case never:
 		case always:
 		case eq:
 		case ne:
