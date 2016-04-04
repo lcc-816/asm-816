@@ -325,11 +325,47 @@ opcode(RV) ::= OPCODE(INSTR) operand(op). {
 	RV = BasicLine::Make(opcode, std::move(e));
 }
 
+opcode(RV) ::= BRANCH cc(c) COMMA expr(e). {
+
+	RV = BasicLine::Make(SMART_BRANCH, std::move(e));
+	RV->branch = branch{c, false};	
+}
+
+%fallback IDENTIFIER SIGNED UNSIGNED CC.
+%type cc {branch::branch_type}
+
+cc(RV) ::= CC(c). {
+	RV = c.branch_value();
+}
+
+cc(RV) ::= BANG CC(c). {
+	RV = branch::invert(c.branch_value());
+}
+
+cc(RV) ::= SIGNED CC(c). {
+	RV = branch::make_signed(c.branch_value());
+}
+
+cc(RV) ::= UNSIGNED CC(c). {
+	RV = c.branch_value();
+}
+
+cc(RV) ::= expr(e). {
+	uint32_t i;
+	e = e->simplify();
+	if (e->is_integer(i)) {
+		RV = i ? branch::always : branch::never;
+	}
+	else {
+		error("Expression too complex for branch");
+	}
+}
+
 opcode(RV) ::= SMART_BRANCH(b) expr(e). {
 
 	// operand vs expression... __bgt <xxx ?
 	RV = BasicLine::Make(SMART_BRANCH, std::move(e));
-	RV->branch = b.branch_value();
+	RV->branch = branch{b.branch_value(), false};
 }
 
 /* dc.b expression [, expression] */
@@ -461,7 +497,7 @@ identifier_list(RV) ::= identifier_list(L) COMMA IDENTIFIER(a). {
 	RV.push_back(a.string_value());
 }
 
-
+/*
 opcode(RV) ::= FX_PROLOGUE. {
 	RV = BasicLine::Make(PROLOGUE);
 }
@@ -469,7 +505,7 @@ opcode(RV) ::= FX_PROLOGUE. {
 opcode(RV) ::= FX_EPILOGUE. {
 	RV = BasicLine::Make(EPILOGUE);
 }
-
+*/
 
 %type expr_list {VectorExpressionPtr}
 

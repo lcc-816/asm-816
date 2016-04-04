@@ -20,19 +20,29 @@ struct Token {
 	Token(const Token &) = default;
 	Token(Token &&) = default;
 
+	Token(unsigned l, identifier i) : line(l), id(i)
+	{}
+
 
 	template <class T>
 	Token(unsigned l, T &&t) : line(l), value(emplaced_type_t<T>{}, std::forward<T>(t))
 	{}
 
+	template <class T>
+	Token(unsigned l, identifier i, T &&t) : line(l), id(i), value(emplaced_type_t<T>{}, std::forward<T>(t))
+	{}
+
+
 	~Token() = default;
 
 
-	unsigned line;
-	variant<identifier, uint32_t, dp_register, Instruction, Mnemonic, ExpressionPtr, branch> value;
+	unsigned line = 0;
+	identifier id = nullptr;
+
+	variant<uint32_t, dp_register, Instruction, Mnemonic, ExpressionPtr, branch::branch_type> value;
 
 	identifier string_value() {
-		return get<identifier>(value);
+		return id;
 	}
 
 	uint32_t int_value() {
@@ -56,8 +66,8 @@ struct Token {
 		return get<ExpressionPtr>(value);
 	}
 
-	const branch branch_value() {
-		return get<branch>(value);
+	const branch::branch_type branch_value() {
+		return get<branch::branch_type>(value);
 	}
 };
 

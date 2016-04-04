@@ -107,9 +107,9 @@ void Parse(void *yyp, int yymajor, ExpressionPtr value, Cookie *cookie)
 }
 
 
-void Parse(void *yyp, int yymajor, const branch &value, Cookie *cookie)
+void Parse(void *yyp, int yymajor, branch::branch_type value, Cookie *cookie)
 {
-	Token t(cookie->line_number, std::move(value));
+	Token t(cookie->line_number, value);
 	Parse(yyp, yymajor, t, cookie);
 }
 
@@ -120,6 +120,12 @@ void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
 	Parse(yyp, yymajor, t, cookie);
 }
 
+void Parse(void *yyp, int yymajor, const std::string &string_value, branch::branch_type value, Cookie *cookie) {
+
+	Token t(cookie->line_number, intern(string_value), value);
+	Parse(yyp, yymajor, t, cookie);
+
+}
 
 
 
@@ -256,6 +262,29 @@ void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
 		'y'i { Parse(parser, tkREGISTER_Y, std::string(ts, te), &cookie); };
 		'z'i { Parse(parser, tkREGISTER_Z, std::string(ts, te), &cookie); };
 		's'i { Parse(parser, tkREGISTER_S, std::string(ts, te), &cookie); };
+
+		# condition codes.
+		'cc'i { Parse(parser, tkCC, std::string(ts, te), branch::cc, &cookie); };
+		'cs'i { Parse(parser, tkCC, std::string(ts, te), branch::cs, &cookie); };
+
+		'eq'i { Parse(parser, tkCC, std::string(ts, te), branch::eq, &cookie); };
+		'ne'i { Parse(parser, tkCC, std::string(ts, te), branch::ne, &cookie); };
+
+		'mi'i { Parse(parser, tkCC, std::string(ts, te), branch::mi, &cookie); };
+		'pl'i { Parse(parser, tkCC, std::string(ts, te), branch::pl, &cookie); };
+
+		'vc'i { Parse(parser, tkCC, std::string(ts, te), branch::vc, &cookie); };
+		'vs'i { Parse(parser, tkCC, std::string(ts, te), branch::vs, &cookie); };
+
+		'gt'i { Parse(parser, tkCC, std::string(ts, te), branch::unsigned_gt, &cookie); };
+		'ge'i { Parse(parser, tkCC, std::string(ts, te), branch::unsigned_ge, &cookie); };
+
+		'lt'i { Parse(parser, tkCC, std::string(ts, te), branch::unsigned_lt, &cookie); };
+		'le'i { Parse(parser, tkCC, std::string(ts, te), branch::unsigned_le, &cookie); };
+
+		'signed'i { Parse(parser, tkSIGNED, std::string(ts, te), &cookie); };
+		'unsigned'i { Parse(parser, tkUNSIGNED, std::string(ts, te), &cookie); };
+
 
 		# numbers
 		'$' xdigit + {
@@ -641,89 +670,76 @@ void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
 			next_operand = lexer_en_operand_no_reg;
 		};
 
-		'begin_stack'i {
-			Parse(parser, tkFX_PROLOGUE, 0, &cookie);
-		};
 
-		'end_stack'i {
-			Parse(parser, tkFX_EPILOGUE, 0, &cookie);
-		};
+#		'begin_stack'i {
+#			Parse(parser, tkFX_PROLOGUE, 0, &cookie);
+#		};
+
+#		'end_stack'i {
+#			Parse(parser, tkFX_EPILOGUE, 0, &cookie);
+#		};
 
 		# smart branches.
 
+		'branch'i {
+			Parse(parser, tkBRANCH, 0, &cookie);
+		};
 
 		'__bra'i {
-			branch b = { branch::always, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::always, &cookie);
 		};
 		'__beq'i {
-			branch b = { branch::eq, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::eq, &cookie);
 		};
 		'__bne'i {
-			branch b = { branch::ne, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::ne, &cookie);
 		};
 
 		'__bcc'i {
-			branch b = { branch::cc, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::cc, &cookie);
 		};
 		'__bcs'i {
-			branch b = { branch::cs, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::cs, &cookie);
 		};
 
 		'__bvc'i {
-			branch b = { branch::vc, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::vc, &cookie);
 		};
 		'__bvs'i {
-			branch b = { branch::vs, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::vs, &cookie);
 		};
 
 		'__bmi'i {
-			branch b = { branch::mi, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::mi, &cookie);
 		};
 		'__bpl'i {
-			branch b = { branch::pl, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::pl, &cookie);
 		};
 
 
 		'__bugt'i {
-			branch b = { branch::unsigned_gt, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::unsigned_gt, &cookie);
 		};
 		'__buge'i {
-			branch b = { branch::unsigned_ge, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::unsigned_ge, &cookie);
 		};
 		'__bult'i {
-			branch b = { branch::unsigned_lt, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::unsigned_lt, &cookie);
 		};
 		'__bule'i {
-			branch b = { branch::unsigned_le, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::unsigned_le, &cookie);
 		};
 		'__bsgt'i {
-			branch b = { branch::signed_gt, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::signed_gt, &cookie);
 		};
 		'__bsge'i {
-			branch b = { branch::signed_ge, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::signed_ge, &cookie);
 		};
 		'__bslt'i {
-			branch b = { branch::signed_lt, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::signed_lt, &cookie);
 		};
 		'__bsle'i {
-			branch b = { branch::signed_le, false };
-			Parse(parser, tkSMART_BRANCH, b, &cookie);
+			Parse(parser, tkSMART_BRANCH, branch::signed_le, &cookie);
 		};
 
 
