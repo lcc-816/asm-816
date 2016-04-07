@@ -445,12 +445,12 @@ void basic_block(Segment *segment) {
 	// todo -- if next_set.size() == 1 && next_set->prev_set.size() == 1
 	// merge the blocks together and re-optimize.
 
-	void fix_branches(BlockQueue &blocks);
+	void fix_branches(Segment *segment, BlockQueue &blocks);
 	void assign_registers(Segment *segment, BlockQueue &);
 
 
 	assign_registers(segment, bq); // creates epilogue/prologue.
-	fix_branches(bq);
+	fix_branches(segment, bq);
 
 
 	//

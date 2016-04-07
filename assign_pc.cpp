@@ -50,7 +50,7 @@ namespace {
 
 		} catch (std::exception &ex) {
 			std::string s = e->to_string();
-			fprintf(stderr, "Unable to evaluate smart branch target: %s\n", s.c_str());
+			fprintf(stderr, "Unable to evaluate smart branch target: %s.  Assuming far branch.\n", s.c_str());
 			return false;
 		}
 	}
@@ -180,8 +180,7 @@ void assign_pc(BlockQueue &blocks) {
 
 }
 
-// does it also need to set the segment name to 0 in the map?
-void fix_branches(BlockQueue &blocks) {
+void fix_branches(Segment *segment, BlockQueue &blocks) {
 
 	// rewrite short branches, if necessary.
 	// todo -- optimization
@@ -206,6 +205,13 @@ void fix_branches(BlockQueue &blocks) {
 
 		uint32_t pc = 0;
 		identifier_map map;
+
+		// insert function name 
+		// this is not actually correct... need to insert as a label so
+		// optimizer can work correctly.
+		if (segment && segment->name) {
+			map.emplace(std::make_pair(segment->name, pc));
+		}
 
 		for (auto block : blocks) {
 			block->pc = pc;
@@ -244,28 +250,5 @@ void fix_branches(BlockQueue &blocks) {
 
 	// check if regular branches are in-range, too?
 
-#if 0
-	// do a pass to convert smart branches to real branches.
-	for (auto block : blocks) {
-
-		LineQueue lines = std::move(block->lines);
-		LineQueue tmp;
-
-		while (!lines.empty()) {
-			auto line = lines.front();
-			lines.pop_front();
-
-			if (line->directive == SMART_BRANCH) {
-				auto xx = line->branch.to_code(line->operands[0]);
-				// also need to mark longm, longx, line, etc?
-				tmp.insert(tmp.end(), xx.begin(), xx.end());
-			}
-			else
-				tmp.push_back(line);
-		}
-
-		block->lines = std::move(tmp);
-	}
-#endif
 }
 
