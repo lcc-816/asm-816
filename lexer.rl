@@ -71,59 +71,52 @@ namespace {
 	}
 
 
-	unsigned error_count = 0;
-	unsigned warn_count = 0;
-
 }
 
-void *ParseAlloc(void *(*mallocProc)(size_t));
-void ParseFree(void *p, void (*freeProc)(void*));
 
-void Parse(void *yyp, int yymajor, Token yyminor, Cookie *cookie);
-
-void Parse(void *yyp, int yymajor, const std::string &string_value, Cookie *cookie)
+void Parser::parse(int yymajor, const std::string &string_value)
 {
-	Token t(cookie->line_number, intern(string_value));
-	Parse(yyp, yymajor, t, cookie);
+	Token t(line_number, intern(string_value));
+	parse(yymajor, std::move(t));
 }
 
-void Parse(void *yyp, int yymajor, uint32_t value, Cookie *cookie)
+void Parser::parse(int yymajor, uint32_t value)
 {
-	Token t(cookie->line_number, value);
-	Parse(yyp, yymajor, t, cookie);
+	Token t(line_number, value);
+	parse(yymajor, std::move(t));
 }
 
 
-void Parse(void *yyp, int yymajor, dp_register value, Cookie *cookie)
+void Parser::parse(int yymajor, dp_register value)
 {
-	Token t(cookie->line_number, std::move(value));
-	Parse(yyp, yymajor, t, cookie);
+	Token t(line_number, std::move(value));
+	parse(yymajor, std::move(t));
 }
 
-void Parse(void *yyp, int yymajor, ExpressionPtr value, Cookie *cookie)
+void Parser::parse(int yymajor, ExpressionPtr value)
 {
-	Token t(cookie->line_number, std::move(value));
-	Parse(yyp, yymajor, t, cookie);
+	Token t(line_number, std::move(value));
+	parse(yymajor, std::move(t));
 }
 
 
-void Parse(void *yyp, int yymajor, branch::branch_type value, Cookie *cookie)
+void Parser::parse(int yymajor, branch::branch_type value)
 {
-	Token t(cookie->line_number, value);
-	Parse(yyp, yymajor, t, cookie);
+	Token t(line_number, value);
+	parse(yymajor, std::move(t));
 }
 
 
-void Parse(void *yyp, int yymajor, const Instruction &value, Cookie *cookie)
+void Parser::parse(int yymajor, const Instruction &value)
 {
-	Token t(cookie->line_number, std::move(value));
-	Parse(yyp, yymajor, t, cookie);
+	Token t(line_number, std::move(value));
+	parse(yymajor, std::move(t));
 }
 
-void Parse(void *yyp, int yymajor, const std::string &string_value, branch::branch_type value, Cookie *cookie) {
+void Parser::parse(int yymajor, const std::string &string_value, branch::branch_type value) {
 
-	Token t(cookie->line_number, intern(string_value), value);
-	Parse(yyp, yymajor, t, cookie);
+	Token t(line_number, intern(string_value), value);
+	parse(yymajor, std::move(t));
 
 }
 
@@ -134,13 +127,13 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 
 	action eol {
 
-			Parse(parser, tkEOL, 0, &cookie);
-			Parse(parser, 0, 0, &cookie);
+			parse(tkEOL, 0);
+			parse(0, 0);
 
 			line_start = te;
-			cookie.line_number++;
-			cookie.line_warning = false;
-			cookie.line_error = false;
+			line_number++;
+			line_warning = false;
+			line_error = false;
 
 			next_operand = 0;
 			fgoto main;
@@ -149,29 +142,29 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 	action error {
 			fprintf(stderr, "Unable to lex!\n");
 			// clear out the parser
-			Parse(parser, 0, 0, &cookie);
+			parse(0, 0);
 			fgoto error;
 	}
 
 	action parse_identifier {
 			std::string s(ts, te);
-			Parse(parser, tkIDENTIFIER, s, &cookie);	
+			parse(tkIDENTIFIER, s);	
 	}
 
 	action parse_local_identifier {
 			std::string s;
-			if (cookie.current_label)
-				s = *cookie.current_label;
+			if (current_label)
+				s = *current_label;
 
 			s.assign(ts, te);
-			Parse(parser, tkIDENTIFIER, s, &cookie);	
+			parse(tkIDENTIFIER, s);	
 	}
 
 	action parse_dp_register {
 		unsigned type = ts[1];
 		unsigned number = scan10(ts+2, te);
 		dp_register dp = { type, number };
-		Parse(parser, tkDP_REGISTER, dp, &cookie);
+		parse(tkDP_REGISTER, dp);
 	}
 
 
@@ -197,12 +190,12 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 
 		'\r'|'\n'|'\r\n' {
 			// slightly modified version of eol.
-			//Parse(parser, 0, 0, &cookie); happens before we enter.
+			//parse(0, 0); happens before we enter.
 	
 			line_start = te;
-			cookie.line_number++;
-			cookie.line_warning = false;
-			cookie.line_error = false;
+			line_number++;
+			line_warning = false;
+			line_error = false;
 
 			next_operand = 0;
 			fgoto main;
@@ -228,110 +221,110 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 		};
 
 		# single-char ops
-		'(' { Parse(parser, tkLPAREN, 0, &cookie); };
-		')' { Parse(parser, tkRPAREN, 0, &cookie); };
-		'[' { Parse(parser, tkLBRACKET, 0, &cookie); };
-		']' { Parse(parser, tkRBRACKET, 0, &cookie); };
-		'=' { Parse(parser, tkEQ, 0, &cookie); };
-		'+' { Parse(parser, tkPLUS, 0, &cookie); };
-		'-' { Parse(parser, tkMINUS, 0, &cookie); };
-		'*' { Parse(parser, tkSTAR, 0, &cookie); };
-		'/' { Parse(parser, tkSLASH, 0, &cookie); };
-		'%' { Parse(parser, tkPERCENT, 0, &cookie); };
-		'~' { Parse(parser, tkTILDE, 0, &cookie); };
-		'!' { Parse(parser, tkBANG, 0, &cookie); };
-		'^' { Parse(parser, tkCARET, 0, &cookie); };
-		'&' { Parse(parser, tkAMP, 0, &cookie); };
-		'|' { Parse(parser, tkPIPE, 0, &cookie); };
-		'<' { Parse(parser, tkLT, 0, &cookie); };
-		'>' { Parse(parser, tkGT, 0, &cookie); };
-		'|' { Parse(parser, tkPIPE, 0, &cookie); };
-		'#' { Parse(parser, tkHASH, 0, &cookie); };
-		#':' { Parse(parser, tkCOLON, 0, &cookie); };
-		#'.' { Parse(parser, tkPERIOD, 0, &cookie); };
-		',' { Parse(parser, tkCOMMA, 0, &cookie); };
+		'(' { parse(tkLPAREN, 0); };
+		')' { parse(tkRPAREN, 0); };
+		'[' { parse(tkLBRACKET, 0); };
+		']' { parse(tkRBRACKET, 0); };
+		'=' { parse(tkEQ, 0); };
+		'+' { parse(tkPLUS, 0); };
+		'-' { parse(tkMINUS, 0); };
+		'*' { parse(tkSTAR, 0); };
+		'/' { parse(tkSLASH, 0); };
+		'%' { parse(tkPERCENT, 0); };
+		'~' { parse(tkTILDE, 0); };
+		'!' { parse(tkBANG, 0); };
+		'^' { parse(tkCARET, 0); };
+		'&' { parse(tkAMP, 0); };
+		'|' { parse(tkPIPE, 0); };
+		'<' { parse(tkLT, 0); };
+		'>' { parse(tkGT, 0); };
+		'|' { parse(tkPIPE, 0); };
+		'#' { parse(tkHASH, 0); };
+		#':' { parse(tkCOLON, 0); };
+		#'.' { parse(tkPERIOD, 0); };
+		',' { parse(tkCOMMA, 0); };
 
-		'*' { Parse(parser, tkSTAR, 0, &cookie); };
+		'*' { parse(tkSTAR, 0); };
 
 		# dp-registers -- %t0, etc
 		dp_register => parse_dp_register;
 
 		# real registers
-		#'a'i { Parse(parser, tkREGISTER_A, std::string(ts, te), &cookie); };
-		'x'i { Parse(parser, tkREGISTER_X, std::string(ts, te), &cookie); };
-		'y'i { Parse(parser, tkREGISTER_Y, std::string(ts, te), &cookie); };
-		'z'i { Parse(parser, tkREGISTER_Z, std::string(ts, te), &cookie); };
-		's'i { Parse(parser, tkREGISTER_S, std::string(ts, te), &cookie); };
+		#'a'i { parse(tkREGISTER_A, std::string(ts, te)); };
+		'x'i { parse(tkREGISTER_X, std::string(ts, te)); };
+		'y'i { parse(tkREGISTER_Y, std::string(ts, te)); };
+		'z'i { parse(tkREGISTER_Z, std::string(ts, te)); };
+		's'i { parse(tkREGISTER_S, std::string(ts, te)); };
 
 		# condition codes.
-		'cc'i { Parse(parser, tkCC, std::string(ts, te), branch::cc, &cookie); };
-		'cs'i { Parse(parser, tkCC, std::string(ts, te), branch::cs, &cookie); };
+		'cc'i { parse(tkCC, std::string(ts, te), branch::cc); };
+		'cs'i { parse(tkCC, std::string(ts, te), branch::cs); };
 
-		'eq'i { Parse(parser, tkCC, std::string(ts, te), branch::eq, &cookie); };
-		'ne'i { Parse(parser, tkCC, std::string(ts, te), branch::ne, &cookie); };
+		'eq'i { parse(tkCC, std::string(ts, te), branch::eq); };
+		'ne'i { parse(tkCC, std::string(ts, te), branch::ne); };
 
-		'mi'i { Parse(parser, tkCC, std::string(ts, te), branch::mi, &cookie); };
-		'pl'i { Parse(parser, tkCC, std::string(ts, te), branch::pl, &cookie); };
+		'mi'i { parse(tkCC, std::string(ts, te), branch::mi); };
+		'pl'i { parse(tkCC, std::string(ts, te), branch::pl); };
 
-		'vc'i { Parse(parser, tkCC, std::string(ts, te), branch::vc, &cookie); };
-		'vs'i { Parse(parser, tkCC, std::string(ts, te), branch::vs, &cookie); };
+		'vc'i { parse(tkCC, std::string(ts, te), branch::vc); };
+		'vs'i { parse(tkCC, std::string(ts, te), branch::vs); };
 
-		'gt'i { Parse(parser, tkCC, std::string(ts, te), branch::unsigned_gt, &cookie); };
-		'ge'i { Parse(parser, tkCC, std::string(ts, te), branch::unsigned_ge, &cookie); };
+		'gt'i { parse(tkCC, std::string(ts, te), branch::unsigned_gt); };
+		'ge'i { parse(tkCC, std::string(ts, te), branch::unsigned_ge); };
 
-		'lt'i { Parse(parser, tkCC, std::string(ts, te), branch::unsigned_lt, &cookie); };
-		'le'i { Parse(parser, tkCC, std::string(ts, te), branch::unsigned_le, &cookie); };
+		'lt'i { parse(tkCC, std::string(ts, te), branch::unsigned_lt); };
+		'le'i { parse(tkCC, std::string(ts, te), branch::unsigned_le); };
 
-		'signed'i { Parse(parser, tkSIGNED, std::string(ts, te), &cookie); };
-		'unsigned'i { Parse(parser, tkUNSIGNED, std::string(ts, te), &cookie); };
+		'signed'i { parse(tkSIGNED, std::string(ts, te)); };
+		'unsigned'i { parse(tkUNSIGNED, std::string(ts, te)); };
 
 
 		# numbers
 		'$' xdigit + {
 			uint32_t value = scan16(ts + 1, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'0x'i xdigit+ {
 			// hexadecimal
 			uint32_t value = scan16(ts + 2, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'0b'i [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 2, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'%' [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 1, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		digit+ {
 			uint32_t value = scan10(ts, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		['] [^']{1,4} ['] {
 			// 4 cc code
 
 			uint32_t value = scancc(ts + 1, te - 1);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 
 		};
 
 		# strings.
 		["] ([^"])* ["] {
 			std::string s(ts + 1, te - 1);
-			Parse(parser, tkSTRING, s, &cookie);
+			parse(tkSTRING, s);
 		};
 
 		'%weak' {
 			std::string s(ts, te);
-			Parse(parser, tkWEAK, s, &cookie);
+			parse(tkWEAK, s);
 		};
 
 		#identifier => parse_identifier;
@@ -341,17 +334,17 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 			std::string s(ts, te);
 			auto id = intern(s);
 
-			ExpressionPtr e = cookie.equates.find(id);
+			ExpressionPtr e = equates.find(id);
 			if (e) {
 				dp_register dp;
 				// register is a special case...
 
 				if (e->is_register(dp)) {
-					Parse(parser, tkDP_REGISTER, dp, &cookie);
+					parse(tkDP_REGISTER, dp);
 				}
-				else Parse(parser, tkEXPRESSION, e, &cookie);
+				else parse(tkEXPRESSION, e);
 			} else {
-				Parse(parser, tkIDENTIFIER, s, &cookie);
+				parse(tkIDENTIFIER, s);
 			}
 
 		};
@@ -378,80 +371,80 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 		};
 
 		# single-char ops
-		'(' { Parse(parser, tkLPAREN, 0, &cookie); };
-		')' { Parse(parser, tkRPAREN, 0, &cookie); };
-		'[' { Parse(parser, tkLBRACKET, 0, &cookie); };
-		']' { Parse(parser, tkRBRACKET, 0, &cookie); };
-		'=' { Parse(parser, tkEQ, 0, &cookie); };
-		'+' { Parse(parser, tkPLUS, 0, &cookie); };
-		'-' { Parse(parser, tkMINUS, 0, &cookie); };
-		'*' { Parse(parser, tkSTAR, 0, &cookie); };
-		'/' { Parse(parser, tkSLASH, 0, &cookie); };
-		'%' { Parse(parser, tkPERCENT, 0, &cookie); };
-		'~' { Parse(parser, tkTILDE, 0, &cookie); };
-		'!' { Parse(parser, tkBANG, 0, &cookie); };
-		'^' { Parse(parser, tkCARET, 0, &cookie); };
-		'&' { Parse(parser, tkAMP, 0, &cookie); };
-		'|' { Parse(parser, tkPIPE, 0, &cookie); };
-		'<' { Parse(parser, tkLT, 0, &cookie); };
-		'>' { Parse(parser, tkGT, 0, &cookie); };
-		'|' { Parse(parser, tkPIPE, 0, &cookie); };
-		'#' { Parse(parser, tkHASH, 0, &cookie); };
-		#':' { Parse(parser, tkCOLON, 0, &cookie); };
-		#'.' { Parse(parser, tkPERIOD, 0, &cookie); };
-		',' { Parse(parser, tkCOMMA, 0, &cookie); };
+		'(' { parse(tkLPAREN, 0); };
+		')' { parse(tkRPAREN, 0); };
+		'[' { parse(tkLBRACKET, 0); };
+		']' { parse(tkRBRACKET, 0); };
+		'=' { parse(tkEQ, 0); };
+		'+' { parse(tkPLUS, 0); };
+		'-' { parse(tkMINUS, 0); };
+		'*' { parse(tkSTAR, 0); };
+		'/' { parse(tkSLASH, 0); };
+		'%' { parse(tkPERCENT, 0); };
+		'~' { parse(tkTILDE, 0); };
+		'!' { parse(tkBANG, 0); };
+		'^' { parse(tkCARET, 0); };
+		'&' { parse(tkAMP, 0); };
+		'|' { parse(tkPIPE, 0); };
+		'<' { parse(tkLT, 0); };
+		'>' { parse(tkGT, 0); };
+		'|' { parse(tkPIPE, 0); };
+		'#' { parse(tkHASH, 0); };
+		#':' { parse(tkCOLON, 0); };
+		#'.' { parse(tkPERIOD, 0); };
+		',' { parse(tkCOMMA, 0); };
 
-		'*' { Parse(parser, tkSTAR, 0, &cookie); };
+		'*' { parse(tkSTAR, 0); };
 
-		'<<' { Parse(parser, tkLTLT, 0, &cookie); };
-		'>>' { Parse(parser, tkGTGT, 0, &cookie); };
+		'<<' { parse(tkLTLT, 0); };
+		'>>' { parse(tkGTGT, 0); };
 
 		# numbers
 		'$' xdigit + {
 			uint32_t value = scan16(ts + 1, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'0x'i xdigit+ {
 			// hexadecimal
 			uint32_t value = scan16(ts + 2, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'0b'i [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 2, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'%' [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 1, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		digit+ {
 			uint32_t value = scan10(ts, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		['] [^']{1,4} ['] {
 			// 4 cc code
 
 			uint32_t value = scancc(ts + 1, te - 1);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 
 		};
 
 		# strings.
 		["] ([^"])* ["] {
 			std::string s(ts, te);
-			Parse(parser, tkSTRING, s, &cookie);
+			parse(tkSTRING, s);
 		};
 
 		'%weak' {
 			std::string s(ts, te);
-			Parse(parser, tkWEAK, s, &cookie);
+			parse(tkWEAK, s);
 		};
 
 		identifier => parse_identifier;
@@ -470,11 +463,11 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 
 		dp_register => parse_dp_register;
 
-		#'a'i { Parse(parser, tkREGISTER_A, 0, &cookie); };
-		'x'i { Parse(parser, tkREGISTER_X, 0, &cookie); };
-		'y'i { Parse(parser, tkREGISTER_Y, 0, &cookie); };
-		'z'i { Parse(parser, tkREGISTER_Z, 0, &cookie); };
-		's'i { Parse(parser, tkREGISTER_S, 0, &cookie); };
+		#'a'i { parse(tkREGISTER_A, 0); };
+		'x'i { parse(tkREGISTER_X, 0); };
+		'y'i { parse(tkREGISTER_Y, 0); };
+		'z'i { parse(tkREGISTER_Z, 0); };
+		's'i { parse(tkREGISTER_S, 0); };
 
 		any => error;
 	*|;
@@ -488,102 +481,102 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 
 		';' { fgoto comment; };
 
-		'=' { Parse(parser, tkEQ, 0, &cookie); };
-		',' { Parse(parser, tkCOMMA, 0, &cookie); };
+		'=' { parse(tkEQ, 0); };
+		',' { parse(tkCOMMA, 0); };
 
 		'segment'i {
-			Parse(parser, tkSEGMENT, 0, &cookie);
+			parse(tkSEGMENT, 0);
 		};
 
 		'volatile'i {
-			Parse(parser, tkVOLATILE, 0, &cookie);
+			parse(tkVOLATILE, 0);
 		};
 
 		'noreturn'i {
-			Parse(parser, tkNORETURN, 0, &cookie);
+			parse(tkNORETURN, 0);
 		};
 
 		'dynamic'i {
-			Parse(parser, tkDYNAMIC, 0, &cookie);
+			parse(tkDYNAMIC, 0);
 		};
 
 		'databank'i {
-			Parse(parser, tkDATABANK, 0, &cookie);
+			parse(tkDATABANK, 0);
 		};
 
 		'debug'i {
-			Parse(parser, tkDEBUG, 0, &cookie);
+			parse(tkDEBUG, 0);
 		};
 
 		'private'i {
-			Parse(parser, tkPRIVATE, 0, &cookie);
+			parse(tkPRIVATE, 0);
 		};
 
 		'kind'i {
-			Parse(parser, tkKIND, 0, &cookie);
+			parse(tkKIND, 0);
 		};
 
 		'cdecl'i {
-			Parse(parser, tkCDECL, 0, &cookie);
+			parse(tkCDECL, 0);
 		};
 		'pascal'i {
-			Parse(parser, tkPASCAL, 0, &cookie);
+			parse(tkPASCAL, 0);
 		};
 		'stdcall'i {
-			Parse(parser, tkSTDCALL, 0, &cookie);
+			parse(tkSTDCALL, 0);
 		};
 		'naked'i {
-			Parse(parser, tkNAKED, 0, &cookie);
+			parse(tkNAKED, 0);
 		};
 
 
 		'void'i {
-			Parse(parser, tkVOID, 0, &cookie);
+			parse(tkVOID, 0);
 		};
 
 		'rts'i {
-			Parse(parser, tkRTS, 0, &cookie);
+			parse(tkRTS, 0);
 		};
 
 		'locals'i {
-			Parse(parser, tkLOCALS, 0, &cookie);
+			parse(tkLOCALS, 0);
 		};
 
 		'parameters'i {
-			Parse(parser, tkPARAMETERS, 0, &cookie);
+			parse(tkPARAMETERS, 0);
 		};
 
 		'return'i {
-			Parse(parser, tkRETURN, 0, &cookie);
+			parse(tkRETURN, 0);
 		};
 
 		# numbers
 		'$' xdigit + {
 			uint32_t value = scan16(ts + 1, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'0x'i xdigit+ {
 			// hexadecimal
 			uint32_t value = scan16(ts + 2, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'0b'i [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 2, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		'%' [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 1, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		digit+ {
 			uint32_t value = scan10(ts, te);
-			Parse(parser, tkINTEGER, value, &cookie);
+			parse(tkINTEGER, value);
 		};
 
 		
@@ -608,138 +601,138 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 
 
 		'dc.b'i {
-			Parse(parser, tkDCB, 0, &cookie);
+			parse(tkDCB, 0);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'dc.w'i {
-			Parse(parser, tkDCW, 0, &cookie);
+			parse(tkDCW, 0);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'dc.l'i {
-			Parse(parser, tkDCL, 0, &cookie);
+			parse(tkDCL, 0);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'ds'i {
-			Parse(parser, tkDS, 0, &cookie);
+			parse(tkDS, 0);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'align'i {
-			Parse(parser, tkALIGN, 0, &cookie);
+			parse(tkALIGN, 0);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'pragma'i {
-			Parse(parser, tkPRAGMA, 0, &cookie);
+			parse(tkPRAGMA, 0);
 			next_operand = lexer_en_operand_pragma;
 		};
 
 		'equ'i {
-			Parse(parser, tkEQU, 0, &cookie);
+			parse(tkEQU, 0);
 		};
 
 		# create a separate context for first token vs
 		# checking whitespace?
 		'start'i {
-			Parse(parser, tkSTART, 0, &cookie);
+			parse(tkSTART, 0);
 		};
 
 		'data'i {
-			Parse(parser, tkDATA, 0, &cookie);
+			parse(tkDATA, 0);
 		};
 
 		'end'i {
-			Parse(parser, tkEND, 0, &cookie);
+			parse(tkEND, 0);
 		};
 
 		'export'i {
-			Parse(parser, tkEXPORT, 0, &cookie);
+			parse(tkEXPORT, 0);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'import'i {
-			Parse(parser, tkIMPORT, 0, &cookie);
+			parse(tkIMPORT, 0);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
 		'strong'i {
-			Parse(parser, tkSTRONG, 0, &cookie);
+			parse(tkSTRONG, 0);
 			next_operand = lexer_en_operand_no_reg;
 		};
 
 
 #		'begin_stack'i {
-#			Parse(parser, tkFX_PROLOGUE, 0, &cookie);
+#			parse(tkFX_PROLOGUE, 0);
 #		};
 
 #		'end_stack'i {
-#			Parse(parser, tkFX_EPILOGUE, 0, &cookie);
+#			parse(tkFX_EPILOGUE, 0);
 #		};
 
 		# smart branches.
 
 		'branch'i {
-			Parse(parser, tkBRANCH, 0, &cookie);
+			parse(tkBRANCH, 0);
 		};
 
 		'__bra'i {
-			Parse(parser, tkSMART_BRANCH, branch::always, &cookie);
+			parse(tkSMART_BRANCH, branch::always);
 		};
 		'__beq'i {
-			Parse(parser, tkSMART_BRANCH, branch::eq, &cookie);
+			parse(tkSMART_BRANCH, branch::eq);
 		};
 		'__bne'i {
-			Parse(parser, tkSMART_BRANCH, branch::ne, &cookie);
+			parse(tkSMART_BRANCH, branch::ne);
 		};
 
 		'__bcc'i {
-			Parse(parser, tkSMART_BRANCH, branch::cc, &cookie);
+			parse(tkSMART_BRANCH, branch::cc);
 		};
 		'__bcs'i {
-			Parse(parser, tkSMART_BRANCH, branch::cs, &cookie);
+			parse(tkSMART_BRANCH, branch::cs);
 		};
 
 		'__bvc'i {
-			Parse(parser, tkSMART_BRANCH, branch::vc, &cookie);
+			parse(tkSMART_BRANCH, branch::vc);
 		};
 		'__bvs'i {
-			Parse(parser, tkSMART_BRANCH, branch::vs, &cookie);
+			parse(tkSMART_BRANCH, branch::vs);
 		};
 
 		'__bmi'i {
-			Parse(parser, tkSMART_BRANCH, branch::mi, &cookie);
+			parse(tkSMART_BRANCH, branch::mi);
 		};
 		'__bpl'i {
-			Parse(parser, tkSMART_BRANCH, branch::pl, &cookie);
+			parse(tkSMART_BRANCH, branch::pl);
 		};
 
 
 		'__bugt'i {
-			Parse(parser, tkSMART_BRANCH, branch::unsigned_gt, &cookie);
+			parse(tkSMART_BRANCH, branch::unsigned_gt);
 		};
 		'__buge'i {
-			Parse(parser, tkSMART_BRANCH, branch::unsigned_ge, &cookie);
+			parse(tkSMART_BRANCH, branch::unsigned_ge);
 		};
 		'__bult'i {
-			Parse(parser, tkSMART_BRANCH, branch::unsigned_lt, &cookie);
+			parse(tkSMART_BRANCH, branch::unsigned_lt);
 		};
 		'__bule'i {
-			Parse(parser, tkSMART_BRANCH, branch::unsigned_le, &cookie);
+			parse(tkSMART_BRANCH, branch::unsigned_le);
 		};
 		'__bsgt'i {
-			Parse(parser, tkSMART_BRANCH, branch::signed_gt, &cookie);
+			parse(tkSMART_BRANCH, branch::signed_gt);
 		};
 		'__bsge'i {
-			Parse(parser, tkSMART_BRANCH, branch::signed_ge, &cookie);
+			parse(tkSMART_BRANCH, branch::signed_ge);
 		};
 		'__bslt'i {
-			Parse(parser, tkSMART_BRANCH, branch::signed_lt, &cookie);
+			parse(tkSMART_BRANCH, branch::signed_lt);
 		};
 		'__bsle'i {
-			Parse(parser, tkSMART_BRANCH, branch::signed_le, &cookie);
+			parse(tkSMART_BRANCH, branch::signed_le);
 		};
 
 
@@ -759,12 +752,12 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 				unsigned tk = tkOPCODE;
 				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
 				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
-				Parse(parser, tk, instr, &cookie);
+				parse(tk, instr);
 				//fgoto operand;
 
 			} else {
-				error("Invalid opcode/directive", cookie);
-				Parse(parser, 0, 0, &cookie);
+				error("Invalid opcode/directive");
+				parse(0, 0);
 				fgoto error;
 			}
 		};
@@ -792,12 +785,12 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 
 		# this is here so we can have label:
 		# maybe we should just drop the :
-		#':' { Parse(parser, tkCOLON, 0, &cookie); };
+		#':' { parse(tkCOLON, 0); };
 
 		any {
 			fprintf(stderr, "Unable to lex!\n");
 			// clear out the parser
-			Parse(parser, 0, 0, &cookie);
+			parse(0, 0);
 			fgoto error;
 		};
 
@@ -807,15 +800,15 @@ void Parse(void *yyp, int yymajor, const std::string &string_value, branch::bran
 
 
 %% write data;
-%% access cookie.fsm.;
+%% access fsm.;
 
 
 
-void error(const std::string &s, Cookie &cookie) {
+void Parser::error(const std::string &s) {
 
-	if (!cookie.line_error && !cookie.line_warning) {
-		const char *p = cookie.fsm.line_start;
-		while (p != cookie.fsm.line_end) {
+	if (!line_error && !line_warning) {
+		const char *p = fsm.line_start;
+		while (p != fsm.line_end) {
 			char c = *p++;
 			if (c == '\r' || c == '\n') break;
 			fputc(c, stderr);
@@ -823,17 +816,17 @@ void error(const std::string &s, Cookie &cookie) {
 		fprintf(stderr, "\n");
 	}
 
-	fprintf(stderr, "Error: Line %u: %s\n", cookie.line_number, s.c_str());
+	fprintf(stderr, "Error: Line %u: %s\n", line_number, s.c_str());
 
-	cookie.line_error = true;
+	line_error = true;
 	error_count++;
 }
 
-void warn(const std::string &s, Cookie &cookie) {
+void Parser::warn(const std::string &s) {
 
-	if (!cookie.line_error && !cookie.line_warning) {
-		const char *p = cookie.fsm.line_start;
-		while (p != cookie.fsm.line_end) {
+	if (!line_error && !line_warning) {
+		const char *p = fsm.line_start;
+		while (p != fsm.line_end) {
 			char c = *p++;
 			if (c == '\r' || c == '\n') break;
 			fputc(c, stderr);
@@ -841,22 +834,22 @@ void warn(const std::string &s, Cookie &cookie) {
 		fprintf(stderr, "\n");
 	}
 
-	fprintf(stderr, "Error: Line %u: %s\n", cookie.line_number, s.c_str());
+	fprintf(stderr, "Error: Line %u: %s\n", line_number, s.c_str());
 
-	cookie.line_warning = true;
+	line_warning = true;
 	warn_count++;
 }
 
-void parse_text(void *parser, Cookie &cookie, const char *p, const char *pe, bool end_of_file) {
+void Parser::parse_text(const char *p, const char *pe, bool end_of_file) {
 	
 	const char *eof = end_of_file ? pe : nullptr;
 	//int cs, act;
 
-	auto &te = cookie.fsm.te;
-	auto &ts = cookie.fsm.ts;
-	auto &next_operand = cookie.fsm.next_operand;
-	auto &line_start = cookie.fsm.line_start;
-	auto &line_end = cookie.fsm.line_end;
+	auto &te = fsm.te;
+	auto &ts = fsm.ts;
+	auto &next_operand = fsm.next_operand;
+	auto &line_start = fsm.line_start;
+	auto &line_end = fsm.line_end;
 
 	line_start = p;
 	line_end = pe;
@@ -868,61 +861,47 @@ void parse_text(void *parser, Cookie &cookie, const char *p, const char *pe, boo
 
 	if (end_of_file) {
 
-		Parse(parser, tkEOL, 0, &cookie);
-		Parse(parser, 0, 0, &cookie);
+		parse(tkEOL, 0);
+		parse(0, 0);
 	}
 }
 
 
-void ParseTrace(FILE *TraceFILE, char *zTracePrompt);
-
-void *init(Cookie &cookie) {
+Parser::Parser() {
 	
-	void *parser;
-
-	parser = ParseAlloc(malloc);
-
-	//ParseTrace(stderr, (char *)": ");
-
-	cookie.data_segment.reset(new Segment);
-	cookie.data_segment->convention = Segment::data;
-
+	data_segment.reset(new Segment);
+	data_segment->convention = Segment::data;
 
 	%% write init;
-
-	return parser;
 }
 
 
-void cleanup_cookie(Cookie &cookie, SegmentQueue &rv) {
+void Parser::get_segments(SegmentQueue &rv) {
 
-	cookie.segments.emplace_back(std::move(cookie.data_segment));
+	segments.emplace_back(std::move(data_segment));
 
 	// set exports.
-	for (auto &seg : cookie.segments) {
+	for (auto &seg : segments) {
 
 		identifier label = seg->name;
-		if (label && cookie.export_set.count(label))
+		if (label && export_set.count(label))
 			seg->global = true;
 
 		for (auto line : seg->lines) {
 			identifier label = line->label;
-			if (label && cookie.export_set.count(label))
+			if (label && export_set.count(label))
 				line->global = true;
 		}
 	}
 
-	rv = std::move(cookie.segments);
+	rv = std::move(segments);
 }
 
 
 bool parse_file(FILE *file, SegmentQueue &rv) {
 
 
-
-	Cookie cookie;
-
-	void *parser = init(cookie);
+	auto parser = Parser::make();
 
 	for(;;) {
 		char *cp;
@@ -933,14 +912,12 @@ bool parse_file(FILE *file, SegmentQueue &rv) {
 		if (!cp) break;
 
 		// 
-		parse_text(parser, cookie, cp, cp + len, false);
+		parser->parse_text(cp, cp + len, false);
 
 	}
 	const char *eofstr="";
-	parse_text(parser, cookie, eofstr, eofstr, true);
+	parser->parse_text(eofstr, eofstr, true);
 
-
-	ParseFree(parser, free);
 
 	if (ferror(file)) {
 
@@ -948,11 +925,11 @@ bool parse_file(FILE *file, SegmentQueue &rv) {
 		return false;
 	}
 
-	if (error_count > 0) {
+	if (parser->error_count > 0) {
 		return false;
 	}
 
-	cleanup_cookie(cookie, rv);
+	parser->get_segments(rv);
 	return true;
 }
 
@@ -964,9 +941,6 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 	void *buffer;
 	int ok;
 
-	Cookie cookie;
-
-	void *parser;
 
 	fd = open(filename.c_str(), O_RDONLY);
 	if (fd < 0) {
@@ -989,25 +963,22 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 	}
 	close(fd);
 
-	parser = init(cookie);
-
+	auto parser = Parser::make();
 
 	const char *p = (const char *)buffer;
 	const char *pe = (const char *)buffer + st.st_size;
 	const char *eof = pe;
 
 
-	parse_text(parser, cookie, p, pe, true);
-
-	ParseFree(parser, free);
+	parser->parse_text(p, pe, true);
 
 	munmap(buffer, st.st_size);
 
-	if (error_count > 0) {
+	if (parser->error_count > 0) {
 		// todo -- kill data, if needed.
 		return false;
 	}
 
-	cleanup_cookie(cookie, rv);
+	parser->get_segments(rv);
 	return true;
 }

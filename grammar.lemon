@@ -11,7 +11,6 @@
 
 #include "cxx/variant.h"
 
-
 #include "Machine.h"
 #include "Instruction.h"
 #include "Expression.h"
@@ -19,16 +18,10 @@
 #include "cookie.h"
 #include "dp_register.h"
 
-	extern void error(const std::string &, Cookie &);
-	extern void warn(const std::string &, Cookie &);
 
-#define error(x) error(x, *cookie)
-#define warn(x) warn(x, *cookie)
-
-
+#define LEMON_SUPER Parser
 }
 
-%extra_argument {Cookie *cookie}
 %token_type {Token}
 %default_type {int}
 %token_prefix tk
@@ -48,27 +41,6 @@
 %left STAR SLASH PERCENT.
 %right BANG TILDE.
 
-
-%parse_failure {
-	error("parse failure.");
-
-	cookie->parse_error = 1;
-}
-
-
-%syntax_error {
-	// TOKEN is the most recent token.
-
-	fprintf(stderr, "--> %d: %s\n", yymajor, yyTokenName[yymajor]);
-
-	error("syntax error.");
-	cookie->syntax_error = true;
-}
-
-
-%parse_accept {
-	//printf("parsing complete!\n");
-}
 
 
 %include {
@@ -176,7 +148,7 @@
 		return OpCode(instr, mode);
 	}
 
-	void Cookie::add_label(identifier label) {
+	void Parser::add_label(identifier label) {
 		if (!label) return;
 		if (!segment) return; // ?
 
@@ -187,10 +159,10 @@
 			current_label = label;
 	}
 
-	void Cookie::begin_segment(identifier name, SegmentType type) {
+	void Parser::begin_segment(identifier name, SegmentType type) {
 
 		if (segment) {
-			syntax_error = true;
+			has_syntax_error = true;
 			fprintf(stdout, "Error: Segment still active.\n");
 			end_segment();
 		}
@@ -209,9 +181,9 @@
 		current_label = name;
 	}
 
-	void Cookie::end_segment() {
+	void Parser::end_segment() {
 		if (!segment) {
-			syntax_error = true;
+			has_syntax_error = true;
 			fprintf(stdout, "Error: No active segment.\n");
 		} else {
 			segment = nullptr;
@@ -235,37 +207,37 @@ line_list ::= line_list line.
 
 
 line ::= opt_label(label) opcode(OP) EOL. {
-	if (label) cookie->add_label(label);
+	if (label) add_label(label);
 
-	if (OP && cookie->segment) {
+	if (OP && segment) {
 		// todo ... check warn if segment not active.
-		cookie->lines->emplace_back(std::move(OP));
+		lines->emplace_back(std::move(OP));
 	}
 }
 
 line ::= opt_label(label) directive EOL. {
-	if (label) cookie->add_label(label);
+	if (label) add_label(label);
 }
 
 
 line ::= EOL.
 
 line ::= IDENTIFIER(id) EOL. {
-	cookie->add_label(id.string_value());
+	add_label(id.string_value());
 }
 
 line ::= opt_label(label) START EOL. {
-	cookie->begin_segment(label, Cookie::code);
+	begin_segment(label, Parser::code);
 }
 
 /* anonymous or named data section */
 line ::=  opt_label(label) DATA EOL. {
-	cookie->begin_segment(label, Cookie::data);
+	begin_segment(label, Parser::data);
 }
 
 	// opt_label?
 line ::= END EOL. {
-	cookie->end_segment();
+	end_segment();
 }
 
 
@@ -273,7 +245,7 @@ line ::= IDENTIFIER(id) EQU expr(e) EOL. {
 	// check if expr defined...
 	// how to handle '*' ?
 
-	cookie->equates.insert(id.string_value(), e->simplify());
+	equates.insert(id.string_value(), e->simplify());
 }
 
 
@@ -392,7 +364,7 @@ opcode(RV) ::= ALIGN expr(e). {
 
 
 directive ::= PRAGMA pragma_list. {
-	if (!cookie->segment) 
+	if (!segment) 
 		warn("PRAGMA outside of segment.");
 }
 
@@ -411,79 +383,79 @@ pragma_list ::= pragma_list COMMA pragma.
  * databank
  */
 pragma ::= SEGMENT EQ STRING(a). {
-	if (cookie->segment) cookie->segment->segment = a.string_value();
+	if (segment) segment->segment = a.string_value();
 }  
 pragma ::= LOCALS EQ INTEGER(a). {
-	if (cookie->segment) cookie->segment->local_size = a.int_value();
+	if (segment) segment->local_size = a.int_value();
 }
 pragma ::= PARAMETERS EQ INTEGER(a). {
-	if (cookie->segment) cookie->segment->parm_size = a.int_value();
+	if (segment) segment->parm_size = a.int_value();
 }
 pragma ::= RETURN EQ INTEGER(a). {
-	if (cookie->segment) cookie->segment->return_size = a.int_value();
+	if (segment) segment->return_size = a.int_value();
 }
 pragma ::= KIND EQ INTEGER(a). {
-	if (cookie->segment) cookie->segment->kind = a.int_value();
+	if (segment) segment->kind = a.int_value();
 }
 pragma ::= PRIVATE. {
 	// mark omf kind.
-	if (cookie->segment) cookie->segment->kind |= 0x4000;
+	if (segment) segment->kind |= 0x4000;
 }
 pragma ::= RTS. {
-	if (cookie->segment) cookie->segment->rts = true;	
+	if (segment) segment->rts = true;	
 }
 
 pragma ::= VOID. {
-	if (cookie->segment) cookie->segment->return_size = 0;
+	if (segment) segment->return_size = 0;
 }
 pragma ::= CDECL. {
-	if (cookie->segment) cookie->segment->convention = Segment::cdecl;	
+	if (segment) segment->convention = Segment::cdecl;	
 }
 
 pragma ::= STDCALL. {
-	if (cookie->segment) cookie->segment->convention = Segment::stdcall;	
+	if (segment) segment->convention = Segment::stdcall;	
 }
 
 pragma ::= PASCAL. {
-	if (cookie->segment) cookie->segment->convention = Segment::pascal;
+	if (segment) segment->convention = Segment::pascal;
 }
 
 pragma ::= NAKED. {
-	if (cookie->segment) cookie->segment->convention = Segment::naked;
+	if (segment) segment->convention = Segment::naked;
 }
 
 pragma ::= DYNAMIC. {
-	if (cookie->segment) cookie->segment->dynamic = true;
+	if (segment) segment->dynamic = true;
 }
 
 pragma ::= DATABANK. {
-	if (cookie->segment) cookie->segment->databank = true;
+	if (segment) segment->databank = true;
 }
 
 
 pragma ::= DEBUG. {
-	if (cookie->segment) cookie->segment->debug = true;
+	if (segment) segment->debug = true;
 }
 
 pragma ::= VOLATILE. {
-	if (cookie->segment) cookie->segment->has_volatile = true;
+	if (segment) segment->has_volatile = true;
 }
 
 pragma ::= NORETURN. {
-	if (cookie->segment) cookie->segment->noreturn = true;
+	if (segment) segment->noreturn = true;
 }
 
 
 directive ::= EXPORT identifier_list(L). {
-	for (auto &x : L) cookie->export_set.insert(x);	
+	for (auto &x : L) export_set.insert(x);	
 }
 
 directive ::= IMPORT identifier_list(L). {
-	for (auto &x : L) cookie->import_set.insert(x);		
+	for (auto &x : L) import_set.insert(x);		
 }
 
 directive ::= STRONG identifier_list(L). {
-	cookie->strong_vector.insert(cookie->strong_vector.end(), L.begin(), L.end());
+	strong_vector.insert(strong_vector.end(), L.begin(), L.end());
 }
 
 %type identifier_list { std::vector<identifier> }
@@ -896,4 +868,20 @@ dp_register(rv) ::= DP_REGISTER(a) PLUS INTEGER(n). {
 	rv = Expression::Register(dp);
 }
 
+
+%code {
+	
+	std::unique_ptr<Parser> Parser::make() {
+		return std::make_unique<yypParser>();
+	}
+
+	void Parser::syntax_error(int yymajor, token_type &yyminor)
+	{
+		fprintf(stderr, "--> %d: %s\n", yymajor, yyTokenName[yymajor]);
+		error("syntax error.");
+		has_syntax_error = true;
+	}
+
+
+}
 

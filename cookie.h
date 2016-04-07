@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <memory>
 
 #include "common.h"
 #include "symbol_table.h"
@@ -12,6 +13,7 @@
 
 #include "cxx/variant.h"
 
+#include "lemon_base.h"
 
 
 struct Token {
@@ -72,7 +74,12 @@ struct Token {
 };
 
 
-struct Cookie {
+class Parser : public lemon_base<Token>
+{
+public:
+
+	static std::unique_ptr<Parser> make();
+	Parser();
 
 	enum SegmentType {
 		none,
@@ -80,13 +87,51 @@ struct Cookie {
 		data
 	};
 
+	using lemon_base::parse;
+
+	void parse(int yymajor, const std::string &string_value);
+	void parse(int yymajor, uint32_t value);
+	void parse(int yymajor, dp_register value);
+	void parse(int yymajor, ExpressionPtr value);
+	void parse(int yymajor, branch::branch_type value);
+	void parse(int yymajor, const Instruction &value);
+	void parse(int yymajor, const std::string &string_value, branch::branch_type value);
+
+
+
+	void add_label(identifier label);
+	void begin_segment(identifier name, SegmentType type);
+	void end_segment();
+
+
+	void error(const std::string &);
+	void warn(const std::string &);
+
+	void parse_text(const char *p, const char *pe, bool end_of_file);
+	void get_segments(SegmentQueue &rv);
+
+
+	unsigned error_count = 0;
+	unsigned warn_count = 0;
+
+
+protected:
+
+
+	virtual void parse_failure() override {
+		error("parse error");
+		has_parse_error = true;
+	}
+
+	virtual void syntax_error(int yymajor, token_type &yyminor) override;
+
 
 	unsigned line_number = 1;
 	bool line_error = false;
 	bool line_warning = false;
 
-	bool syntax_error = false;
-	bool parse_error = false;
+	bool has_syntax_error = false;
+	bool has_parse_error = false;
 
 	SegmentQueue segments;
 	std::unique_ptr<Segment> data_segment; // anonymous data segment.
@@ -109,13 +154,7 @@ struct Cookie {
 	symbol_table equates;
 
 
-
-
-	void add_label(identifier label);
-	void begin_segment(identifier name, SegmentType type);
-	void end_segment();
-
-
+private:
 	// lexer stuff.
 
 	struct {
@@ -134,7 +173,7 @@ struct Cookie {
 
 
 	} fsm;
-	
+
 };
 
 #endif
