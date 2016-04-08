@@ -177,6 +177,8 @@ public:
 
 	std::vector<BasicLinePtr> prologue_code;
 	std::vector<BasicLinePtr> epilogue_code;
+	std::vector<identifier> strong_vector;
+
 };
 
 // n. b. -- other stuff outside of segment, like export / import set.

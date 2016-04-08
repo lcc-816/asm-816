@@ -183,6 +183,11 @@ OMF::Segment data_to_omf(Segment *segment) {
 
 	}
 
+	// strong references
+	for (auto id : segment->strong_vector) {
+		if (id) builder.strong(*id);
+	}
+
 	builder.end();
 	//
 	OMF::Segment seg;
@@ -278,6 +283,11 @@ OMF::Segment code_to_omf(Segment *segment) {
 			}
 
 		}
+	}
+
+	// strong references
+	for (auto id : segment->strong_vector) {
+		if (id) builder.strong(*id);
 	}
 
 

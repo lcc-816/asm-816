@@ -466,7 +466,8 @@ directive ::= IMPORT identifier_list(L). {
 }
 
 directive ::= STRONG identifier_list(L). {
-	strong_vector.insert(strong_vector.end(), L.begin(), L.end());
+	if (segment)
+		segment->strong_vector.insert(segment->strong_vector.end(), L.begin(), L.end());
 }
 
 %type identifier_list { std::vector<identifier> }

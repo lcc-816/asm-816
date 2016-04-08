@@ -257,6 +257,12 @@ void print(FILE *file, const Segment *segment) {
 
 	fprintf(file, "%s    %s\n", segment->name ? segment->name->c_str() : "", start);
 	print(file, segment->lines);
+
+	// add any strong references.
+	for (auto id : segment->strong_vector) {
+		if (id) fprintf(file, "    strong %s\n", id->c_str());
+	}
+
 	fprintf(file, "    end\n\n");
 }
 
