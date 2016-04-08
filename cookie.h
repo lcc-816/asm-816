@@ -93,8 +93,7 @@ public:
 	void parse(int yymajor, uint32_t value);
 	void parse(int yymajor, dp_register value);
 	void parse(int yymajor, ExpressionPtr value);
-	void parse(int yymajor, branch::branch_type value);
-	void parse(int yymajor, const Instruction &value);
+	void parse(int yymajor, const std::string &string_value, const Instruction &value);
 	void parse(int yymajor, const std::string &string_value, branch::branch_type value);
 
 

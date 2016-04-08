@@ -100,16 +100,9 @@ void Parser::parse(int yymajor, ExpressionPtr value)
 }
 
 
-void Parser::parse(int yymajor, branch::branch_type value)
+void Parser::parse(int yymajor, const std::string &string_value, const Instruction &value)
 {
-	Token t(line_number, value);
-	parse(yymajor, std::move(t));
-}
-
-
-void Parser::parse(int yymajor, const Instruction &value)
-{
-	Token t(line_number, std::move(value));
+	Token t(line_number, intern(string_value), std::move(value));
 	parse(yymajor, std::move(t));
 }
 
@@ -323,8 +316,7 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 		};
 
 		'%weak' {
-			std::string s(ts, te);
-			parse(tkWEAK, s);
+			parse(tkWEAK, std::string(ts, te));
 		};
 
 		#identifier => parse_identifier;
@@ -538,6 +530,10 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 			parse(tkRTS, 0);
 		};
 
+		'rtl'i {
+			parse(tkRTL, 0);
+		};
+
 		'locals'i {
 			parse(tkLOCALS, 0);
 		};
@@ -675,64 +671,64 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 		# smart branches.
 
 		'branch'i {
-			parse(tkBRANCH, 0);
+			parse(tkBRANCH, std::string(ts, te));
 		};
 
 		'__bra'i {
-			parse(tkSMART_BRANCH, branch::always);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::always);
 		};
 		'__beq'i {
-			parse(tkSMART_BRANCH, branch::eq);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::eq);
 		};
 		'__bne'i {
-			parse(tkSMART_BRANCH, branch::ne);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::ne);
 		};
 
 		'__bcc'i {
-			parse(tkSMART_BRANCH, branch::cc);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::cc);
 		};
 		'__bcs'i {
-			parse(tkSMART_BRANCH, branch::cs);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::cs);
 		};
 
 		'__bvc'i {
-			parse(tkSMART_BRANCH, branch::vc);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::vc);
 		};
 		'__bvs'i {
-			parse(tkSMART_BRANCH, branch::vs);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::vs);
 		};
 
 		'__bmi'i {
-			parse(tkSMART_BRANCH, branch::mi);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::mi);
 		};
 		'__bpl'i {
-			parse(tkSMART_BRANCH, branch::pl);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::pl);
 		};
 
 
 		'__bugt'i {
-			parse(tkSMART_BRANCH, branch::unsigned_gt);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_gt);
 		};
 		'__buge'i {
-			parse(tkSMART_BRANCH, branch::unsigned_ge);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_ge);
 		};
 		'__bult'i {
-			parse(tkSMART_BRANCH, branch::unsigned_lt);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_lt);
 		};
 		'__bule'i {
-			parse(tkSMART_BRANCH, branch::unsigned_le);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_le);
 		};
 		'__bsgt'i {
-			parse(tkSMART_BRANCH, branch::signed_gt);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_gt);
 		};
 		'__bsge'i {
-			parse(tkSMART_BRANCH, branch::signed_ge);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_ge);
 		};
 		'__bslt'i {
-			parse(tkSMART_BRANCH, branch::signed_lt);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_lt);
 		};
 		'__bsle'i {
-			parse(tkSMART_BRANCH, branch::signed_le);
+			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_le);
 		};
 
 
@@ -745,14 +741,11 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 			std::string s(ts, te);
 			Instruction instr(m65816, s);
 			if (instr) {
-				// just insert the instruction directly into the cookie.
-				// since it's easier than dealing with c++ unions.
 
-				//cookie.scratch.instruction = instr;
 				unsigned tk = tkOPCODE;
 				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
 				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
-				parse(tk, instr);
+				parse(tk, s, instr);
 				//fgoto operand;
 
 			} else {
@@ -892,6 +885,7 @@ void Parser::get_segments(SegmentQueue &rv) {
 			if (label && export_set.count(label))
 				line->global = true;
 		}
+
 	}
 
 	rv = std::move(segments);
@@ -981,4 +975,44 @@ bool parse_file(const std::string &filename, SegmentQueue &rv)
 
 	parser->get_segments(rv);
 	return true;
+}
+
+
+unsigned reparse_pragma(const std::string &s) {
+%%{
+	machine pragma;
+
+	main := 
+		  'rtl'i        %{ return tkRTL; }
+		| 'rts'i        %{ return tkRTS; }
+		| 'cdecl'i      %{ return tkCDECL; }
+		| 'pascal'i     %{ return tkPASCAL; }
+		| 'stdcall'i    %{ return tkSTDCALL; }
+		| 'naked'i      %{ return tkNAKED; }
+		| 'dynamic'i    %{ return tkDYNAMIC; }
+		| 'databank'i   %{ return tkDATABANK; }
+		| 'debug'i      %{ return tkDEBUG; }
+		| 'segment'i    %{ return tkSEGMENT; }
+		| 'noreturn'i   %{ return tkNORETURN; }
+		| 'volatile'i   %{ return tkVOLATILE; }
+		| 'private'i    %{ return tkPRIVATE; }
+		| 'kind'i       %{ return tkKIND; }
+		| 'void'i       %{ return tkVOID; }
+		| 'locals'i     %{ return tkLOCALS; }
+		| 'parameters'i %{ return tkPARAMETERS; }
+		| 'return'i     %{ return tkRETURN; }
+	;
+}%%
+
+%% write data;
+
+	const char *p = s.data();
+	const char *pe = s.data() + s.length();
+	const char *eof = pe;
+	int cs;
+
+%% write init;
+%% write exec;
+
+	return 0;
 }

@@ -186,6 +186,7 @@
 			has_syntax_error = true;
 			fprintf(stdout, "Error: No active segment.\n");
 		} else {
+
 			segment = nullptr;
 			lines = nullptr;
 			seg_type = none;
@@ -303,6 +304,12 @@ opcode(RV) ::= BRANCH cc(c) COMMA expr(e). {
 	RV->branch = branch{c, false};	
 }
 
+opcode(RV) ::= BRANCH expr(e). {
+	// branch target
+	RV = BasicLine::Make(SMART_BRANCH, std::move(e));
+	RV->branch = branch{branch::always, false};	
+}
+
 %fallback IDENTIFIER SIGNED UNSIGNED CC.
 %type cc {branch::branch_type}
 
@@ -403,6 +410,10 @@ pragma ::= PRIVATE. {
 }
 pragma ::= RTS. {
 	if (segment) segment->rts = true;	
+}
+
+pragma ::= RTL. {
+	if (segment) segment->rts = false;	
 }
 
 pragma ::= VOID. {
