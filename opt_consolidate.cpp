@@ -62,7 +62,7 @@ bool common_line_consolidation(BasicBlockPtr block) {
 	// if all previous entries flow into this one (and only) this one,
 	// move any common trailing lines.
 
-	if (!block || block->dead || block->entry_node) return false;
+	if (!block || block->dead || block->entry_node || block->global_node) return false;
 
 	auto &prev_set = block->prev_set;
 

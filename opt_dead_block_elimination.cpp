@@ -22,6 +22,7 @@ bool dead_block_elimination(BlockQueue &bq) {
 		erase_if(bq, [](BasicBlockPtr block) {
 			if (block->dead) return true;
 			if (block->entry_node) return false;
+			if (block->global_node) return false;
 			//if (block->exit_node) return false;
 
 			if (block->prev_set.empty()) {

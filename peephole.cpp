@@ -443,7 +443,7 @@ bool peephole(BasicBlockPtr block) {
 
 		case EOR:
 			/* EOR #const1, EOR #const2 -> EOR #(const1 ^ const 2) */
-			if (match(list, EOR, EOR, [&](BasicLinePtr a, BasicLinePtr b){
+			if (match(list, EOR/immediate, EOR/immediate, [&](BasicLinePtr a, BasicLinePtr b){
 				if (a->opcode.addressMode() != immediate) return false;
 				if (b->opcode.addressMode() != immediate) return false;
 
@@ -465,6 +465,24 @@ bool peephole(BasicBlockPtr block) {
 				return false;
 			})) continue;
 
+#if 0
+			/* EOR #-1, CLC, ADC #const -> SEC SBC #const-1 */
+			/* oops, this is actually  (const-1)-a, so not optimizable here */
+			if (match(list, EOR/immediate, CLC, ADC/immediate, [&](BasicLinePtr a, BasicLinePtr b, BasicLinePtr c){
+				uint32_t a_value, c_value;
+				if (a->operands[0]->is_integer(a_value) && c->operands[0]->is_integer(c_value)) {
+					if ((a_value & 0xffff) == 0xffff) {
+						list.pop_front();
+						list.pop_front();
+						list.pop_front();
+						auto sec = BasicLine::Make(SEC);
+						auto sbc = BasicLine::MAKE(SBC, immediate, Expression::Integer(c_value - 1));
+						list.insert(list.begin(), { sec, sbc });
+					}
+				}
+				return false;
+			})) continue;
+#endif
 			break;
 
 

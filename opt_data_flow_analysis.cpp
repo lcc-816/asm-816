@@ -52,7 +52,7 @@ void add_imports(BasicBlockPtr block, dp_register_set imports) {
 	imports -= block->dp_reg_export;
 	if (!imports) return;
 
-	if (block->dp_reg_import.contains(imports)) return;
+	if (block->dp_reg_import.includes(imports)) return;
 
 	block->dp_reg_import += imports;
 	for (auto prev : block->prev_set) 
@@ -115,7 +115,7 @@ void import_export(BasicBlockPtr block) {
 		// (in which case it will be in the export set.
 		if (rs.zp()) {
 			for_each(line->reg, line->reg_count, [&dp_reg_import, &dp_reg_export](dp_register r){
-				if (!dp_reg_export.contains(r)) dp_reg_import += r;
+				if (!dp_reg_export.includes(r)) dp_reg_import += r;
 			});
 			//dp_reg_import += (registers - dp_reg_export)
 		}
@@ -238,9 +238,9 @@ bool dataflow_analysis(BasicBlockPtr block) {
 			if (ws.p() == 0 && reg.is_temporary()) {
 
 				if (none_of(line->reg, line->reg_count, [&dp_live](dp_register r){
-					return dp_live.contains(r);
+					return dp_live.includes(r);
 				})) return false;
-				//if (!dp_live.contains(rp)) return false;
+				//if (!dp_live.includes(rp)) return false;
 			}
 
 			for_each(line->reg, line->reg_count, [&dp_live](dp_register r){
