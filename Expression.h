@@ -111,6 +111,22 @@ public:
 		return rv;
 	}
 
+	std::vector<uint8_t> to_omf(unsigned type, unsigned size, unsigned displacement) {
+		std::vector<uint8_t> rv;
+
+		rv.push_back(type);
+		rv.push_back(size);
+		rv.push_back(displacement >> 0);
+		rv.push_back(displacement >> 8);
+		rv.push_back(displacement >> 16);
+		rv.push_back(displacement >> 24);
+		to_omf(rv);
+		rv.push_back(0x00);
+		return rv;
+	}
+
+
+
 	virtual bool is_identifier(identifier &) const;
 	virtual bool is_integer(uint32_t &) const;
 	virtual bool is_register(dp_register &) const;

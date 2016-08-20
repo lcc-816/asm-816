@@ -103,7 +103,7 @@ namespace {
 				return;
 			}
 
-			std::vector<uint8_t> tmp = e->to_omf(OMF::RELEXPR, bytes);
+			std::vector<uint8_t> tmp = e->to_omf(OMF::RELEXPR, bytes, bytes); // 0 displacement?
 			builder.raw_append(tmp.begin(), tmp.end(), bytes);
 
 			return;
