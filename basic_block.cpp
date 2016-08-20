@@ -274,6 +274,8 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 
 			current = BasicBlock::Make();
 			current->label = line->label;
+
+			if (line->global) current->global_node = true;
 			out.push_back(current);
 
 			if (fallthrough && prev) {
@@ -473,7 +475,9 @@ void basic_block(Segment *segment) {
 		}
 
 		if (block->label) {
-			lines.emplace_front(BasicLine::Make(block->label));
+			auto line = BasicLine::Make(block->label);
+			if (block->global_node) line->global = true;
+			lines.emplace_front(std::move(line));
 		}
 
 		// if this branches to an exit node and the exit code is small, just do it here.

@@ -55,7 +55,7 @@ public:
 
 	bool entry_node = false; // this is an entry point (can't dead-code eliminate)
 	bool exit_node = false;
-
+	bool global_node = false;
 };
 
 #endif
