@@ -47,7 +47,7 @@ struct branch {
 	bool reads_v() const;
 	bool is_signed() const;
 	bool is_conditional() const {
-		return type != always;
+		return type != always && type != never;
 	}
 
 	bool reads_a() const;
