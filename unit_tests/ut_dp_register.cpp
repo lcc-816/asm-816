@@ -1,8 +1,6 @@
 #include "dp_register.h"
 #include "dp_register_set.h"
-#include <cassert>
 
-#define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "catch.hpp"
 
 
@@ -31,4 +29,5 @@ TEST_CASE("dp_register", "[dp_register]") {
 	CHECK(0_r != 0_t);
 	CHECK(0_r != 0_v);
 
+	CHECK(++(0_r) == 2_r);
 }
