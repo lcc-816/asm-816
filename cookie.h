@@ -98,9 +98,14 @@ public:
 
 
 
-	void add_label(identifier label);
+	void add_label(identifier label, bool hidden = false);
+	void add_line(BasicLinePtr &&line);
+	void add_lines(std::vector<BasicLinePtr> &&line);
+
 	void begin_segment(identifier name, SegmentType type);
 	void end_segment();
+
+	identifier gen_sym();
 
 
 	void error(const std::string &);
@@ -137,7 +142,7 @@ protected:
 	
 	// current segment.
 	Segment *segment = nullptr;
-	LineQueue *lines = nullptr;
+	LineQueue lines;
 	SegmentType seg_type = none;
 	identifier current_label; 
 
@@ -153,6 +158,8 @@ protected:
 
 private:
 	// lexer stuff.
+
+	unsigned _gen_sym = 0;
 
 	struct {
 
