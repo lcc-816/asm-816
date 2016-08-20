@@ -5,11 +5,13 @@
 #include <bitset>
 #include <vector>
 #include <functional>
+#include <initializer_list>
 
+#include <experimental/optional>
+
+using namespace std::experimental;
 #include "dp_register.h"
 
-
-#define RS_BITSET
 
 class dp_register_pair {
 	struct dp_register r;
@@ -25,16 +27,20 @@ public:
 	dp_register_set() = default;
 	dp_register_set(dp_register_set &&) = default;
 	dp_register_set(const dp_register_set &) = default;
+
+	dp_register_set(std::initializer_list<dp_register> l);
+	dp_register_set(const std::vector<dp_register> &v);
+
 	~dp_register_set() = default;
 
 	dp_register_set &operator=(const dp_register_set &) = default;
 	dp_register_set &operator=(dp_register_set &&) = default;
 
-	bool contains(dp_register r);
-	bool contains(dp_register r, unsigned count);
-	bool contains(const dp_register_set &);
+	bool includes(dp_register r);
+	bool includes(dp_register r, unsigned count);
+	bool includes(const dp_register_set &);
 
-	bool contains_any(dp_register r, unsigned count = 1);
+	bool includes_any(dp_register r, unsigned count = 1);
 
 	void insert(dp_register r, unsigned count = 1);
 	void remove(dp_register r, unsigned count = 1);
@@ -54,11 +60,6 @@ public:
 
 	explicit operator bool() const;
 
-	#if 0
-	#ifdef RS_BITSET
-	std::bitset<32> bits(char type) const;
-	#endif
-	#endif
 
 	std::vector<dp_register> registers(char type) const;
 	std::vector<dp_register> registers() const;
@@ -68,14 +69,11 @@ public:
 private:
 
 	void reset();
+	void normalize_extra();
 	
-	#ifdef RS_BITSET
-	// lcc is currently limited to 32 registers, so this is good enough for now.
-	// hmm .. no longer true :( -- use optional<vector<dp_register>> for overflow!
-	std::array< std::bitset<32>, 4> _data;
-	#else
-	std::array< std::vector<bool>, 4> _data;
-	#endif
+	// any overflow goes into the _extra vector which is sorted.
+	std::array< std::bitset<64>, 4> _data;
+	optional<std::vector<dp_register>> _extra;
 };
 
 #endif

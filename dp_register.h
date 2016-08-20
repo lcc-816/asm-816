@@ -20,6 +20,9 @@ struct dp_register {
 	constexpr explicit operator bool() const noexcept { return (bool)type; }
 	constexpr dp_register &operator += (int i) noexcept { number += i; return *this;}
 
+	// currently +2.  should change to +1 at some point!
+	constexpr dp_register &operator++() { number += 2; return *this; }
+
 	constexpr bool operator == (const dp_register &rhs) const noexcept {
 		return (type == rhs.type) && (number == rhs.number);
 	}
@@ -30,31 +33,40 @@ struct dp_register {
 
 	constexpr bool operator < (const dp_register &rhs) const noexcept {
 		if (type < rhs.type) return true;
-		if (number < rhs.number) return true;
-		return false;
+		if (type > rhs.type) return false;
+		return (number < rhs.number);
 	}
+
+	constexpr bool operator <= (const dp_register &rhs) const noexcept {
+		if (type < rhs.type) return true;
+		if (type > rhs.type) return false;
+		return number <= rhs.number;
+	}
+
+
+	constexpr bool operator > (const dp_register &rhs) const noexcept {
+		if (type > rhs.type) return true;
+		if (type < rhs.type) return false;
+		return number > rhs.number;
+	}
+
+	constexpr bool operator >= (const dp_register &rhs) const noexcept {
+		if (type > rhs.type) return true;
+		if (type < rhs.type) return false;
+		return number >= rhs.number;
+	}
+
+
 };
 
-#if 0
-// having them out here breaks peephole reg_a != reg_d for some reason.
-// (operator bool ?)
-inline bool operator==(const dp_register &a, const dp_register &b) {
-	return (a.type == b.type) && (a.number == b.number);
-}
 
-inline bool operator!=(const dp_register &a, const dp_register &b) {
-	return (a.type != b.type) || (a.number != b.number);
-}
-
-/* for std::sort */
-inline bool operator<(const dp_register &a, const dp_register &b) {
-	if (a.type < b.type) return true;
-	if (a.number < b.number) return true;
-	return false;
-}
-#endif
 
 inline constexpr dp_register operator+(dp_register r, int i) {
+	r.number += i;
+	return r;
+}
+
+inline constexpr dp_register operator+(int i, dp_register r) {
 	r.number += i;
 	return r;
 }
