@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <cassert>
+#include <utility>
 
 #include "cxx/variant.h"
 
@@ -27,7 +28,11 @@
 %token_prefix tk
 
 // allow X, Y, Z to be used as identifiers if appropriate.
-%fallback IDENTIFIER REGISTER_X REGISTER_Y REGISTER_S REGISTER_Z.
+%fallback IDENTIFIER REGISTER_X REGISTER_Y REGISTER_S REGISTER_Z REGISTER_A REGISTER_B REGISTER_K REGISTER_D.
+%fallback IDENTIFIER SIGNED UNSIGNED CC.
+%fallback IDENTIFIER OPCODE OPCODE_0 OPCODE_2.
+
+%fallback IDENTIFIER DO WHILE IF.
 
 %left PIPEPIPE.
 %left AMPAMP.
@@ -41,6 +46,70 @@
 %left STAR SLASH PERCENT.
 %right BANG TILDE.
 
+%code {
+
+	void Parser::begin_segment(identifier name, SegmentType type) {
+
+		if (segment) {
+			has_syntax_error = true;
+			fprintf(stdout, "Error: Segment still active.\n");
+			end_segment();
+		}
+		if (name == nullptr && type == data) {
+			segment = data_segment.get();
+		} else {
+			segments.emplace_back(std::make_unique<Segment>());
+			segment = segments.back().get();
+			segment->name = name;
+		}
+
+		seg_type = type;
+		equates.push();
+
+		current_label = name;
+	}
+
+	void Parser::end_segment() {
+		if (!segment) {
+			has_syntax_error = true;
+			fprintf(stdout, "Error: No active segment.\n");
+		} else {
+
+			segment->lines = std::move(lines);
+
+			equates.pop();
+		}
+
+		segment = nullptr;
+		lines.clear();
+		seg_type = none;
+		current_label = nullptr;
+	}
+
+
+
+	void Parser::add_label(identifier label, bool hidden) {
+		if (!label) return;
+
+		lines.emplace_back(BasicLine::Make(label));
+
+
+		if (!hidden && label->find('@') == label->npos)
+			current_label = label;
+	}
+
+	void Parser::add_line(BasicLinePtr &&line) {
+		if (!line) return;
+		lines.emplace_back(std::move(line));
+	}
+
+	void Parser::add_lines(std::vector<BasicLinePtr> &&lines) {
+		for (auto &x : lines)
+			if (x) lines.emplace_back(std::move(x));
+	}
+
+
+}
 
 
 %include {
@@ -148,121 +217,321 @@
 		return OpCode(instr, mode);
 	}
 
-	void Parser::add_label(identifier label) {
-		if (!label) return;
-		if (!segment) return; // ?
-
-		lines->emplace_back(BasicLine::Make(label));
-
-
-		if (label->find('@') == label->npos)
-			current_label = label;
-	}
-
-	void Parser::begin_segment(identifier name, SegmentType type) {
-
-		if (segment) {
-			has_syntax_error = true;
-			fprintf(stdout, "Error: Segment still active.\n");
-			end_segment();
-		}
-		if (name == nullptr && type == data) {
-			segment = data_segment.get();
-		} else {
-			segments.emplace_back(std::make_unique<Segment>());
-			segment = segments.back().get();
-			segment->name = name;
-		}
-
-		seg_type = type;
-		lines = &segment->lines;
-		equates.push();
-
-		current_label = name;
-	}
-
-	void Parser::end_segment() {
-		if (!segment) {
-			has_syntax_error = true;
-			fprintf(stdout, "Error: No active segment.\n");
-		} else {
-
-			segment = nullptr;
-			lines = nullptr;
-			seg_type = none;
-			equates.pop();
-		}
-
-		current_label = nullptr;
-	}
-
-
 }
 
+program ::= top_level .
 
-program ::= .
-program ::= line_list.
+top_level ::= .
+top_level ::= top_level segment .
+top_level ::= top_level record .
+top_level ::= top_level tl_directive .
 
-line_list ::= line.
-line_list ::= line_list line.
+tl_directive ::= EOL.
+tl_directive ::= error EOL.
 
-
-line ::= opt_label(label) opcode(OP) EOL. {
-	if (label) add_label(label);
-
-	if (OP && segment) {
-		// todo ... check warn if segment not active.
-		lines->emplace_back(std::move(OP));
-	}
+tl_directive ::= EXPORT identifier_list(L). {
+	for (auto &x : L) export_set.insert(x);	
 }
 
-line ::= opt_label(label) directive EOL. {
-	if (label) add_label(label);
+tl_directive ::= IMPORT identifier_list(L). {
+	for (auto &x : L) import_set.insert(x);		
 }
 
-
-line ::= EOL.
-
-line ::= IDENTIFIER(id) EOL. {
-	add_label(id.string_value());
-}
-
-line ::= opt_label(label) START EOL. {
-	begin_segment(label, Parser::code);
-}
-
-/* anonymous or named data section */
-line ::=  opt_label(label) DATA EOL. {
-	begin_segment(label, Parser::data);
-}
-
-	// opt_label?
-line ::= END EOL. {
-	end_segment();
-}
-
-
-line ::= IDENTIFIER(id) EQU expr(e) EOL. {
-	// check if expr defined...
-	// how to handle '*' ?
-
+tl_directive ::= LABEL(id) EQU expr(e). {
 	equates.insert(id.string_value(), e->simplify());
 }
 
+nl ::= .
+nl ::= EOL.
 
-%type opt_label {identifier}
-
-opt_label(L) ::= . {
-	L = nullptr;
+segment ::= segment_start segment_attr nl block . {
+	end_segment();
 }
 
-opt_label(L) ::= IDENTIFIER(ID). {
-	L = ID.string_value();
+record ::= record_start nl record_block. {
+}
+
+segment_attr ::= .
+segment_attr ::= LPAREN nl RPAREN.
+segment_attr ::= LPAREN nl attr_list nl RPAREN.
+segment_attr ::= LPAREN error RPAREN.
+
+
+attr_list ::= attr .
+attr_list ::= attr_list COMMA nl attr .
+
+%include {
+	unsigned reparse_pragma(const std::string &s);
+	char reparse_modifier(const std::string &s);
+	#include "grammar.h"
+}
+
+attr ::= IDENTIFIER(ID). {
+	const std::string &s = *ID.string_value();
+	unsigned type = reparse_pragma(s);
+	switch(type) {
+	case 0:
+		warn(std::string("Unknown pragma: ") + s);
+		break;
+	default:
+		warn(std::string("Pragma requires a parameter: ") + s);
+		break;
+	case tkCDECL:
+		segment->convention = Segment::cdecl;
+		break;
+	case tkPASCAL:
+		segment->convention = Segment::pascal;
+		break;
+	case tkSTDCALL:
+		segment->convention = Segment::stdcall;
+		break;
+	case tkNAKED:
+		segment->convention = Segment::naked;
+		break;
+	case tkRTS:
+		segment->rts = true;
+		break;
+	case tkRTL:
+		segment->rts = false;
+		break;
+	case tkPRIVATE:
+		segment->kind |= 0x4000;
+		break;
+	case tkVOID:
+		segment->return_size = 0;
+		break;
+	case tkDYNAMIC:
+		segment->dynamic = true;
+		break;
+	case tkDATABANK:
+		segment->databank = true;
+		break;
+	case tkDEBUG:
+		segment->debug = true;
+		break;
+	case tkVOLATILE:
+		segment->has_volatile = true;
+		break;
+	case tkNORETURN:
+		segment->noreturn = true;
+		break;
+	}	
+}
+attr ::= IDENTIFIER(ID) EQ STRING(S). {
+	const std::string &s = *ID.string_value();
+	unsigned type = reparse_pragma(s);
+	switch(type) {
+	case 0:
+		warn(std::string("Unknown pragma: ") + s);
+		break;
+	default:
+		warn(std::string("Pragma does not take a string parameter: ") + s);
+		break;
+	case tkSEGMENT:
+		segment->segment = S.string_value();
+		break;
+	}
+}
+
+attr ::= IDENTIFIER(ID) EQ expr(e). {
+
+	const std::string &s = *ID.string_value();
+	unsigned type = reparse_pragma(s);
+
+	e = e->simplify();
+	uint32_t i;
+	if (e->is_integer(i)) {
+
+		switch(type) {
+		case 0:
+			warn(std::string("Unknown pragma: ") + s);
+			break;
+		default:
+			warn(std::string("Pragma does not take a string parameter: ") + s);
+			break;
+		case tkLOCALS:
+			segment->local_size = i;
+			break;
+		case tkPARAMETERS:
+			segment->parm_size = i;
+			break;
+		case tkRETURN:
+			segment->return_size = i;
+			break;
+		case tkKIND:
+			segment->kind = i;
+			break;
+		}
+
+	}
+	else {
+		warn(std::string("Expression too complex for pragma ") + s);
+	}
+
+
+
 }
 
 
+
+%type opt_identifier {identifier}
+opt_identifier ::= .
+opt_identifier(RV) ::= IDENTIFIER(ID). { RV = ID.string_value(); }
+
+segment_start ::= FUNCTION opt_identifier(name). {
+	begin_segment(name, code);
+}
+segment_start ::= DATA opt_identifier(name). {
+	begin_segment(name, data);
+}
+
+
+/*
+ * records
+ */
+record_start ::= RECORD IDENTIFIER. {
+}
+
+
+record_block ::= LBRACKET record_block_lines RBRACKET.
+record_block ::= LBRACKET error RBRACKET.
+
+
+record_block_lines ::= record_block_line .
+record_block_lines ::= record_block_lines EOL record_block_line.
+
+
+record_block_line ::= error EOL .
+
+record_block_line ::= .
+record_block_line ::= LABEL.
+record_block_line ::= LABEL EQU expr .
+record_block_line ::= LABEL DS expr .
+record_block_line ::= DS expr .
+
+
+/*
+ *
+ */
+
+block ::= LBRACKET block_lines RBRACKET.
+block ::= LBRACKET error RBRACKET.
+
+block_lines ::= block_line .
+block_lines ::= block_lines EOL block_line.
+
+block_line ::= error EOL .
+
+block_line ::= LABEL(id) EQU expr(e). {
+
+	// how to handle '*' ?
+	equates.insert(id.string_value(), e->simplify());
+	
+}
+
+block_line ::= opt_label opcode(OP). {
+	add_line(std::move(OP));
+}
+
+block_line ::= opt_label block_opcode.
+block_line ::= opt_label directive.
+
+%type opt_label {void}
+
+opt_label ::= .
+opt_label ::= LABEL(id). {
+	add_label(id.string_value());
+}
+
+block_opcode ::= .
+block_opcode ::= if_stmt.
+block_opcode ::= do_stmt.
+block_opcode ::= while_stmt.
+
+
+%type if_head {BasicLinePtr}
+
+if_head(RV) ::= IF condition(C). {
+	auto sym = gen_sym();
+
+	auto b = BasicLine::Make(SMART_BRANCH, Expression::Identifier(sym));
+	b->branch = branch{branch::invert(C), false};
+	add_line(std::move(b));
+
+	RV = BasicLine::Make(sym);
+}
+
+if_stmt ::= if_head(T) nl block. {
+	add_line(std::move(T));
+}
+
+if_stmt ::= if_head(T) opcode(OP). {
+	add_line(std::move(OP));
+	add_line(std::move(T));
+}
+
+%type do_head {BasicLinePtr}
+
+do_head(RV) ::= DO. {
+	auto sym = gen_sym();
+	add_label(sym, true);
+	
+	auto b = BasicLine::Make(SMART_BRANCH, Expression::Identifier(sym));
+	b->branch = branch{branch::always, false};
+
+	RV = std::move(b);
+}
+
+do_stmt ::= do_head(T) nl block nl WHILE condition(C). {
+
+	T->branch = branch{C, false};
+	add_line(std::move(T));
+}
+
+do_stmt ::= do_head(T) opcode(OP) WHILE condition(C). {
+
+	add_line(std::move(OP));
+
+	T->branch = branch{C, false};
+	add_line(std::move(T));
+}
+
+%type while_head {std::pair<BasicLinePtr, BasicLinePtr>}
+
+while_head(RV) ::= WHILE condition(C). {
+
+	auto ssym = gen_sym();
+	auto esym = gen_sym();
+
+	add_label(ssym, true);
+
+	auto b = BasicLine::Make(SMART_BRANCH, Expression::Identifier(esym));
+	b->branch = branch{branch::invert(C), false};
+	add_line(std::move(b));
+
+	b = BasicLine::Make(SMART_BRANCH, Expression::Identifier(ssym));
+	b->branch = branch{branch::always, false};
+
+	RV = std::make_pair(std::move(b), BasicLine::Make(esym));
+}
+
+while_stmt ::= while_head(T) nl block. {
+
+	add_line(std::move(T.first));
+	add_line(std::move(T.second));
+
+}
+
+while_stmt ::= while_head(T) opcode(OP). {
+
+	add_line(std::move(OP));
+
+	add_line(std::move(T.first));
+	add_line(std::move(T.second));
+}
 
 %type opcode {BasicLinePtr}
+%type block {std::vector<BasicLinePtr> }
 
 /* mvn or mvp  -- two parameters.*/
 opcode(RV) ::= OPCODE_2(INSTR) expr(a) COMMA expr(b). {
@@ -276,6 +545,12 @@ opcode(RV) ::= OPCODE_2(INSTR) expr(a) COMMA expr(b). {
 	b = b->simplify();
 
 	RV = BasicLine::Make(instr.mnemonic(), mode, std::move(a), std::move(b));
+}
+
+opcode(RV) ::= OPCODE_0(INSTR). {
+	
+	auto instr = INSTR.instruction_value();
+	RV = BasicLine::Make(instr.mnemonic(), implied);
 }
 
 opcode(RV) ::= OPCODE(INSTR) operand(op). {
@@ -298,6 +573,73 @@ opcode(RV) ::= OPCODE(INSTR) operand(op). {
 	RV = BasicLine::Make(opcode, std::move(e));
 }
 
+opcode(RV) ::= OPCODE(INSTR) REGISTER_A. {
+	
+	// inc a, dec a, etc.
+	auto instr = INSTR.instruction_value();
+
+	bool ok = false;
+	switch (instr.mnemonic()) {
+	case INC:
+	case DEC:
+	case ASL:
+	case LSR:
+	case ROL:
+	case ROR:
+		ok = true;
+		break;
+	default:
+		break;
+	}
+
+	if (ok) {
+		RV = BasicLine::Make(instr.mnemonic(), implied);
+	} else {
+		error("Invalid address mode.");
+	}
+}
+
+opcode(RV) ::= OPCODE(INSTR) REGISTER_X. {
+
+	// inc x -> inx
+
+	auto instr = INSTR.instruction_value();
+
+	switch (instr.mnemonic()) {
+	case INC:
+		RV = BasicLine::Make(INX, implied);
+		break;
+	case DEC:
+		RV = BasicLine::Make(DEX, implied);
+		break;
+	default:
+		error("Invalid address mode.");
+		break;
+	}
+}
+
+opcode(RV) ::= OPCODE(INSTR) REGISTER_Y. {
+
+	// inc y -> iny
+
+	auto instr = INSTR.instruction_value();
+
+	bool ok = false;
+	switch (instr.mnemonic()) {
+	case INC:
+		RV = BasicLine::Make(INY, implied);
+		break;
+	case DEC:
+		RV = BasicLine::Make(DEY, implied);
+		break;
+	default:
+		error("Invalid address mode.");
+		break;
+	}
+
+	
+}
+
 opcode(RV) ::= BRANCH cc(c) COMMA expr(e). {
 
 	RV = BasicLine::Make(SMART_BRANCH, std::move(e));
@@ -310,8 +652,92 @@ opcode(RV) ::= BRANCH expr(e). {
 	RV->branch = branch{branch::always, false};	
 }
 
-%fallback IDENTIFIER SIGNED UNSIGNED CC.
+
+block_opcode ::= PUSH push_list. 
+
+push_list ::= push_item.
+push_list ::= push_list COMMA push_item.
+
+push_item ::= REGISTER_A. {
+	add_line(BasicLine::Make(PHA, implied));
+}
+
+push_item ::= REGISTER_B. {
+	add_line(BasicLine::Make(PHB, implied));
+}
+
+push_item ::= REGISTER_D. {
+	add_line(BasicLine::Make(PHD, implied));
+}
+
+push_item ::= REGISTER_K. {
+	add_line(BasicLine::Make(PHK, implied));
+}
+
+push_item ::= REGISTER_P. {
+	add_line(BasicLine::Make(PHP, implied));
+}
+
+push_item ::= REGISTER_X. {
+	add_line(BasicLine::Make(PHX, implied));
+}
+
+push_item ::= REGISTER_Y. {
+	add_line(BasicLine::Make(PHY, implied));
+}
+
+push_item ::= REGISTER_Z. {
+	add_line(BasicLine::Make(PHZ, implied));
+}
+
+
+push_item ::= HASH expr(e). {
+	add_line(BasicLine::Make(PEA, absolute, std::move(e)));
+}
+
+push_item ::= dp_register(dp). {
+	add_line(BasicLine::Make(PEI, zp_indirect, std::move(dp)));
+}
+
+block_opcode ::= PULL pull_list. 
+pull_list ::= pull_item.
+pull_list ::= pull_list COMMA pull_item.
+
+
+pull_item ::= REGISTER_A. {
+	add_line(BasicLine::Make(PLA, implied));
+}
+
+pull_item ::= REGISTER_B. {
+	add_line(BasicLine::Make(PLB, implied));
+}
+
+pull_item ::= REGISTER_D. {
+	add_line(BasicLine::Make(PLD, implied));
+}
+
+pull_item ::= REGISTER_P. {
+	add_line(BasicLine::Make(PLP, implied));
+}
+
+pull_item ::= REGISTER_X. {
+	add_line(BasicLine::Make(PLX, implied));
+}
+
+pull_item ::= REGISTER_Y. {
+	add_line(BasicLine::Make(PLY, implied));
+}
+
+pull_item ::= REGISTER_Z. {
+	add_line(BasicLine::Make(PLZ, implied));
+}
+
+
+
 %type cc {branch::branch_type}
+%type condition {branch::branch_type}
+
+condition(RV) ::= LPAREN cc(C) RPAREN. { RV = C; }
 
 cc(RV) ::= CC(c). {
 	RV = c.branch_value();
@@ -349,23 +775,55 @@ opcode(RV) ::= SMART_BRANCH(b) expr(e). {
 
 /* dc.b expression [, expression] */
 
-opcode(RV) ::= DCB expr_list(e). {
-	RV = BasicLine::Make(DCB, std::move(e));
+opcode(RV) ::= DC dc_modifier(M) expr_list(e). {
+	//e = e->simplify();
+	RV = BasicLine::Make(M, std::move(e));
 }
 
+%type dc_modifier {Directive}
+dc_modifier(RV) ::= DOT IDENTIFIER(ID). {
+	const std::string &s = *ID.string_value();
+
+	int type = reparse_modifier(s);
+	switch (type) {
+	case 'b':
+		RV = DCB;
+		break;
+	case 'w':
+		RV = DCW;
+		break;
+	case 'l':
+		RV = DCL;
+		break;
+	default:
+		RV = DCW;
+		error(std::string("Invalid modifier: ") + s);
+		break;
+	}
+}
+
+dc_modifier(RV) ::= . { RV = DCW; }
+
+
+/*
 opcode(RV) ::= DCW expr_list(e). {
+	//e = e->simplify();
 	RV = BasicLine::Make(DCW, std::move(e));
 }
 
 opcode(RV) ::= DCL expr_list(e). {
+	//e = e->simplify();
 	RV = BasicLine::Make(DCL, std::move(e));
 }
+*/
 
 opcode(RV) ::= DS expr(e). {
+	e = e->simplify();
 	RV = BasicLine::Make(DS, std::move(e));
 }
 
 opcode(RV) ::= ALIGN expr(e). {
+	e = e->simplify();
 	RV = BasicLine::Make(ALIGN, std::move(e));
 }
 
@@ -481,15 +939,6 @@ identifier_list(RV) ::= identifier_list(L) COMMA IDENTIFIER(a). {
 	RV.push_back(a.string_value());
 }
 
-/*
-opcode(RV) ::= FX_PROLOGUE. {
-	RV = BasicLine::Make(PROLOGUE);
-}
-
-opcode(RV) ::= FX_EPILOGUE. {
-	RV = BasicLine::Make(EPILOGUE);
-}
-*/
 
 %type expr_list {VectorExpressionPtr}
 
@@ -889,7 +1338,8 @@ dp_register(rv) ::= DP_REGISTER(a) PLUS INTEGER(n). {
 
 	void Parser::syntax_error(int yymajor, token_type &yyminor)
 	{
-		fprintf(stderr, "--> %d: %s\n", yymajor, yyTokenName[yymajor]);
+		auto s = yyminor.string_value();
+		fprintf(stderr, "--> %d: %s (%s)\n", yymajor, yyTokenName[yymajor], s ? s->c_str() : "");
 		error("syntax error.");
 		has_syntax_error = true;
 	}

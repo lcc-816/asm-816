@@ -121,7 +121,6 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 	action eol {
 
 			parse(tkEOL, 0);
-			parse(0, 0);
 
 			line_start = te;
 			line_number++;
@@ -134,14 +133,17 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 
 	action error {
 			fprintf(stderr, "Unable to lex!\n");
-			// clear out the parser
-			parse(0, 0);
 			fgoto error;
 	}
 
 	action parse_identifier {
 			std::string s(ts, te);
 			parse(tkIDENTIFIER, s);	
+	}
+
+	action parse_label {
+			std::string s(ts, te);
+			parse(tkLABEL, s);	
 	}
 
 	action parse_local_identifier {
@@ -153,6 +155,15 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 			parse(tkIDENTIFIER, s);	
 	}
 
+	action parse_local_label {
+			std::string s;
+			if (current_label)
+				s = *current_label;
+
+			s.assign(ts, te);
+			parse(tkLABEL, s);	
+	}
+
 	action parse_dp_register {
 		unsigned type = ts[1];
 		unsigned number = scan10(ts+2, te);
@@ -162,9 +173,9 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 
 
 	# '$' is used for statics w/in a function.
-	identifier = [A-Za-z_.][A-Za-z0-9_$.]*;
+	identifier = [A-Za-z_][A-Za-z0-9_$]*;
 
-	local_identifier = '@' [A-Za-z_.][A-Za-z0-9_$.]*;
+	local_identifier = '@' [A-Za-z_][A-Za-z0-9_$]*;
 
 
 
@@ -183,8 +194,9 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 
 		'\r'|'\n'|'\r\n' {
 			// slightly modified version of eol.
-			//parse(0, 0); happens before we enter.
 	
+			parse(tkEOL, 0);
+
 			line_start = te;
 			line_number++;
 			line_warning = false;
@@ -197,155 +209,6 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 		any {};
 	*|;
 
-
-
-	operand := |*
-
-		# white space
-		'\r'|'\n'|'\r\n' => eol;
-
-		[\t ] {};
-
-		# comments
-
-
-		';' {
-			fgoto comment;
-		};
-
-		# single-char ops
-		'(' { parse(tkLPAREN, 0); };
-		')' { parse(tkRPAREN, 0); };
-		'[' { parse(tkLBRACKET, 0); };
-		']' { parse(tkRBRACKET, 0); };
-		'=' { parse(tkEQ, 0); };
-		'+' { parse(tkPLUS, 0); };
-		'-' { parse(tkMINUS, 0); };
-		'*' { parse(tkSTAR, 0); };
-		'/' { parse(tkSLASH, 0); };
-		'%' { parse(tkPERCENT, 0); };
-		'~' { parse(tkTILDE, 0); };
-		'!' { parse(tkBANG, 0); };
-		'^' { parse(tkCARET, 0); };
-		'&' { parse(tkAMP, 0); };
-		'|' { parse(tkPIPE, 0); };
-		'<' { parse(tkLT, 0); };
-		'>' { parse(tkGT, 0); };
-		'|' { parse(tkPIPE, 0); };
-		'#' { parse(tkHASH, 0); };
-		#':' { parse(tkCOLON, 0); };
-		#'.' { parse(tkPERIOD, 0); };
-		',' { parse(tkCOMMA, 0); };
-
-		'*' { parse(tkSTAR, 0); };
-
-		# dp-registers -- %t0, etc
-		dp_register => parse_dp_register;
-
-		# real registers
-		#'a'i { parse(tkREGISTER_A, std::string(ts, te)); };
-		'x'i { parse(tkREGISTER_X, std::string(ts, te)); };
-		'y'i { parse(tkREGISTER_Y, std::string(ts, te)); };
-		'z'i { parse(tkREGISTER_Z, std::string(ts, te)); };
-		's'i { parse(tkREGISTER_S, std::string(ts, te)); };
-
-		# condition codes.
-		'cc'i { parse(tkCC, std::string(ts, te), branch::cc); };
-		'cs'i { parse(tkCC, std::string(ts, te), branch::cs); };
-
-		'eq'i { parse(tkCC, std::string(ts, te), branch::eq); };
-		'ne'i { parse(tkCC, std::string(ts, te), branch::ne); };
-
-		'mi'i { parse(tkCC, std::string(ts, te), branch::mi); };
-		'pl'i { parse(tkCC, std::string(ts, te), branch::pl); };
-
-		'vc'i { parse(tkCC, std::string(ts, te), branch::vc); };
-		'vs'i { parse(tkCC, std::string(ts, te), branch::vs); };
-
-		'gt'i { parse(tkCC, std::string(ts, te), branch::unsigned_gt); };
-		'ge'i { parse(tkCC, std::string(ts, te), branch::unsigned_ge); };
-
-		'lt'i { parse(tkCC, std::string(ts, te), branch::unsigned_lt); };
-		'le'i { parse(tkCC, std::string(ts, te), branch::unsigned_le); };
-
-		'signed'i { parse(tkSIGNED, std::string(ts, te)); };
-		'unsigned'i { parse(tkUNSIGNED, std::string(ts, te)); };
-
-
-		# numbers
-		'$' xdigit + {
-			uint32_t value = scan16(ts + 1, te);
-			parse(tkINTEGER, value);
-		};
-
-		'0x'i xdigit+ {
-			// hexadecimal
-			uint32_t value = scan16(ts + 2, te);
-			parse(tkINTEGER, value);
-		};
-
-		'0b'i [01][01_]* {
-			// binary
-			uint32_t value = scan2(ts + 2, te);
-			parse(tkINTEGER, value);
-		};
-
-		'%' [01][01_]* {
-			// binary
-			uint32_t value = scan2(ts + 1, te);
-			parse(tkINTEGER, value);
-		};
-
-		digit+ {
-			uint32_t value = scan10(ts, te);
-			parse(tkINTEGER, value);
-		};
-
-		['] [^']{1,4} ['] {
-			// 4 cc code
-
-			uint32_t value = scancc(ts + 1, te - 1);
-			parse(tkINTEGER, value);
-
-		};
-
-		# strings.
-		["] ([^"])* ["] {
-			std::string s(ts + 1, te - 1);
-			parse(tkSTRING, s);
-		};
-
-		'%weak' {
-			parse(tkWEAK, std::string(ts, te));
-		};
-
-		#identifier => parse_identifier;
-
-		identifier => {
-			// may be an equate...
-			std::string s(ts, te);
-			auto id = intern(s);
-
-			ExpressionPtr e = equates.find(id);
-			if (e) {
-				dp_register dp;
-				// register is a special case...
-
-				if (e->is_register(dp)) {
-					parse(tkDP_REGISTER, dp);
-				}
-				else parse(tkEXPRESSION, e);
-			} else {
-				parse(tkIDENTIFIER, s);
-			}
-
-		};
-
-		local_identifier => parse_local_identifier;
-
-		any => error;
-
-	*|;
 
 
 	operand_no_reg := |*
@@ -455,7 +318,7 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 
 		dp_register => parse_dp_register;
 
-		#'a'i { parse(tkREGISTER_A, 0); };
+		'a'i { parse(tkREGISTER_A, 0); };
 		'x'i { parse(tkREGISTER_X, 0); };
 		'y'i { parse(tkREGISTER_Y, 0); };
 		'z'i { parse(tkREGISTER_Z, 0); };
@@ -585,88 +448,179 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 	opcode := |*
 
 		# white space
+		' ' ;
+		'\t';
+
 		'\r'|'\n'|'\r\n' => eol;
 
-		[\t ]+ { 
-			if (next_operand) fgoto *next_operand; 
-			else fgoto operand; 
-		};
 
 		';' { fgoto comment; };
 
+		# single-char ops
+		'{' { parse(tkLBRACKET, 0); };
+		'}' { parse(tkRBRACKET, 0); };
+		'(' { parse(tkLPAREN, 0); };
+		')' { parse(tkRPAREN, 0); };
+		'[' { parse(tkLBRACKET, 0); };
+		']' { parse(tkRBRACKET, 0); };
+		'=' { parse(tkEQ, 0); };
+		'+' { parse(tkPLUS, 0); };
+		'-' { parse(tkMINUS, 0); };
+		'*' { parse(tkSTAR, 0); };
+		'/' { parse(tkSLASH, 0); };
+		'%' { parse(tkPERCENT, 0); };
+		'~' { parse(tkTILDE, 0); };
+		'!' { parse(tkBANG, 0); };
+		'^' { parse(tkCARET, 0); };
+		'&' { parse(tkAMP, 0); };
+		'|' { parse(tkPIPE, 0); };
+		'<' { parse(tkLT, 0); };
+		'>' { parse(tkGT, 0); };
+		'|' { parse(tkPIPE, 0); };
+		'#' { parse(tkHASH, 0); };
+		#':' { parse(tkCOLON, 0); };
+		'.' { parse(tkDOT, 0); };
+		',' { parse(tkCOMMA, 0); };
 
+		'*' { parse(tkSTAR, 0); };
 
-		'dc.b'i {
-			parse(tkDCB, 0);
-			next_operand = lexer_en_operand_no_reg;
+		# dp-registers -- %t0, etc
+		dp_register => parse_dp_register;
+
+		# real registers
+		'a'i { parse(tkREGISTER_A, std::string(ts, te)); };
+		'b'i { parse(tkREGISTER_B, std::string(ts, te)); };
+		'd'i { parse(tkREGISTER_D, std::string(ts, te)); };
+		'k'i { parse(tkREGISTER_K, std::string(ts, te)); };
+		'p'i { parse(tkREGISTER_P, std::string(ts, te)); };
+		'x'i { parse(tkREGISTER_X, std::string(ts, te)); };
+		'y'i { parse(tkREGISTER_Y, std::string(ts, te)); };
+		'z'i { parse(tkREGISTER_Z, std::string(ts, te)); };
+		's'i { parse(tkREGISTER_S, std::string(ts, te)); };
+
+		# condition codes.
+		'cc'i { parse(tkCC, std::string(ts, te), branch::cc); };
+		'cs'i { parse(tkCC, std::string(ts, te), branch::cs); };
+
+		'eq'i { parse(tkCC, std::string(ts, te), branch::eq); };
+		'ne'i { parse(tkCC, std::string(ts, te), branch::ne); };
+
+		'mi'i { parse(tkCC, std::string(ts, te), branch::mi); };
+		'pl'i { parse(tkCC, std::string(ts, te), branch::pl); };
+
+		'vc'i { parse(tkCC, std::string(ts, te), branch::vc); };
+		'vs'i { parse(tkCC, std::string(ts, te), branch::vs); };
+
+		'gt'i { parse(tkCC, std::string(ts, te), branch::unsigned_gt); };
+		'ge'i { parse(tkCC, std::string(ts, te), branch::unsigned_ge); };
+
+		'lt'i { parse(tkCC, std::string(ts, te), branch::unsigned_lt); };
+		'le'i { parse(tkCC, std::string(ts, te), branch::unsigned_le); };
+
+		'signed'i { parse(tkSIGNED, std::string(ts, te)); };
+		'unsigned'i { parse(tkUNSIGNED, std::string(ts, te)); };
+
+		'if'i { parse(tkIF, std::string(ts, te)); };
+		'do'i { parse(tkDO, std::string(ts, te)); };
+		'while'i { parse(tkWHILE, std::string(ts, te)); };
+		'push'i { parse(tkPUSH, std::string(ts, te)); };
+		'pull'i { parse(tkPULL, std::string(ts, te)); };
+
+		# numbers
+		'$' xdigit + {
+			uint32_t value = scan16(ts + 1, te);
+			parse(tkINTEGER, value);
 		};
 
-		'dc.w'i {
-			parse(tkDCW, 0);
-			next_operand = lexer_en_operand_no_reg;
+		'0x'i xdigit+ {
+			// hexadecimal
+			uint32_t value = scan16(ts + 2, te);
+			parse(tkINTEGER, value);
 		};
 
-		'dc.l'i {
-			parse(tkDCL, 0);
-			next_operand = lexer_en_operand_no_reg;
+		'0b'i [01][01_]* {
+			// binary
+			uint32_t value = scan2(ts + 2, te);
+			parse(tkINTEGER, value);
 		};
+
+		'%' [01][01_]* {
+			// binary
+			uint32_t value = scan2(ts + 1, te);
+			parse(tkINTEGER, value);
+		};
+
+		digit+ {
+			uint32_t value = scan10(ts, te);
+			parse(tkINTEGER, value);
+		};
+
+		['] [^']{1,4} ['] {
+			// 4 cc code
+
+			uint32_t value = scancc(ts + 1, te - 1);
+			parse(tkINTEGER, value);
+
+		};
+
+		# strings.
+		["] ([^"])* ["] {
+			std::string s(ts + 1, te - 1);
+			parse(tkSTRING, s);
+		};
+
+		'%weak' {
+			parse(tkWEAK, std::string(ts, te));
+		};
+
+
+
+		'dc'i {
+			parse(tkDC, std::string(ts, te));
+		};
+
+
+#		'dc.b'i {
+#			parse(tkDCB, std::string(ts, te));
+#		};
+#		'dc.w'i {
+#			parse(tkDCW, std::string(ts, te));
+#		};
+#		'dc.l'i {
+#			parse(tkDCL, std::string(ts, te));
+#		};
 
 		'ds'i {
-			parse(tkDS, 0);
-			next_operand = lexer_en_operand_no_reg;
+			parse(tkDS, std::string(ts, te));
 		};
 
 		'align'i {
-			parse(tkALIGN, 0);
-			next_operand = lexer_en_operand_no_reg;
+			parse(tkALIGN, std::string(ts, te));
 		};
 
 		'pragma'i {
-			parse(tkPRAGMA, 0);
-			next_operand = lexer_en_operand_pragma;
+			parse(tkPRAGMA, std::string(ts, te));
 		};
 
 		'equ'i {
-			parse(tkEQU, 0);
+			parse(tkEQU, std::string(ts, te));
 		};
 
-		# create a separate context for first token vs
-		# checking whitespace?
-		'start'i {
-			parse(tkSTART, 0);
-		};
-
-		'data'i {
-			parse(tkDATA, 0);
-		};
-
-		'end'i {
-			parse(tkEND, 0);
-		};
 
 		'export'i {
-			parse(tkEXPORT, 0);
-			next_operand = lexer_en_operand_no_reg;
+			parse(tkEXPORT, std::string(ts, te));
 		};
 
 		'import'i {
-			parse(tkIMPORT, 0);
-			next_operand = lexer_en_operand_no_reg;
+			parse(tkIMPORT, std::string(ts, te));
 		};
 
 		'strong'i {
-			parse(tkSTRONG, 0);
-			next_operand = lexer_en_operand_no_reg;
+			parse(tkSTRONG, std::string(ts, te));
 		};
 
 
-#		'begin_stack'i {
-#			parse(tkFX_PROLOGUE, 0);
-#		};
 
-#		'end_stack'i {
-#			parse(tkFX_EPILOGUE, 0);
-#		};
 
 		# smart branches.
 
@@ -674,84 +628,97 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 			parse(tkBRANCH, std::string(ts, te));
 		};
 
-		'__bra'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::always);
-		};
-		'__beq'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::eq);
-		};
-		'__bne'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::ne);
-		};
+#		'__bra'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::always);
+#		};
+#		'__beq'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::eq);
+#		};
+#		'__bne'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::ne);
+#		};
+#		'__bcc'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::cc);
+#		};
+#		'__bcs'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::cs);
+#		};
+#		'__bvc'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::vc);
+#		};
+#		'__bvs'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::vs);
+#		};
+#		'__bmi'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::mi);
+#		};
+#		'__bpl'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::pl);
+#		};
+#		'__bugt'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_gt);
+#		};
+#		'__buge'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_ge);
+#		};
+#		'__bult'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_lt);
+#		};
+#		'__bule'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_le);
+#		};
+#		'__bsgt'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_gt);
+#		};
+#		'__bsge'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_ge);
+#		};
+#		'__bslt'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_lt);
+#		};
+#		'__bsle'i {
+#			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_le);
+#		};
 
-		'__bcc'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::cc);
-		};
-		'__bcs'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::cs);
-		};
+		local_identifier => parse_local_identifier;
 
-		'__bvc'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::vc);
-		};
-		'__bvs'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::vs);
-		};
-
-		'__bmi'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::mi);
-		};
-		'__bpl'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::pl);
-		};
-
-
-		'__bugt'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_gt);
-		};
-		'__buge'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_ge);
-		};
-		'__bult'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_lt);
-		};
-		'__bule'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_le);
-		};
-		'__bsgt'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_gt);
-		};
-		'__bsge'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_ge);
-		};
-		'__bslt'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_lt);
-		};
-		'__bsle'i {
-			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_le);
-		};
-
-
-		[A-Za-z_][A-Za-z0-9_]* {
+		identifier {
 
 			// mvp or mvn generate tkOPCODE_2.
 			// all others generate tkOPCODE.
 			// check opcode table
 
 			std::string s(ts, te);
+			auto id = intern(s);
 			Instruction instr(m65816, s);
 			if (instr) {
 
 				unsigned tk = tkOPCODE;
+				if (instr.addressModes() == 1 << implied) tk = tkOPCODE_0;
+
 				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
 				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
 				parse(tk, s, instr);
 				//fgoto operand;
 
 			} else {
-				error("Invalid opcode/directive");
-				parse(0, 0);
-				fgoto error;
+
+				// may be an equate...
+
+				ExpressionPtr e = equates.find(id);
+				if (e) {
+					dp_register dp;
+					// register is a special case...
+
+					if (e->is_register(dp)) {
+						parse(tkDP_REGISTER, dp);
+					}
+					else parse(tkEXPRESSION, e);
+				} else {
+					parse(tkIDENTIFIER, s);
+				}
+
+
 			}
 		};
 
@@ -765,26 +732,38 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 		# white space
 		'\r'|'\n'|'\r\n' => eol;
 
-		[\t ]+ { fgoto opcode; };
+		#[\t ]+ { fgoto opcode; };
 
 		# comments
 		'*' { fgoto comment; };
 
 		';' { fgoto comment; };
 
-		identifier => parse_identifier;
 
-		local_identifier => parse_local_identifier;
+		'function'i {
+			parse(tkFUNCTION, std::string(ts, te));
+			fgoto opcode;
+		};
 
-		# this is here so we can have label:
-		# maybe we should just drop the :
-		#':' { parse(tkCOLON, 0); };
+		'data'i {
+			parse(tkDATA, std::string(ts, te));
+			fgoto opcode;
+		};
 
-		any {
-			fprintf(stderr, "Unable to lex!\n");
-			// clear out the parser
-			parse(0, 0);
-			fgoto error;
+		'record'i {
+			parse(tkRECORD, std::string(ts, te));
+			fgoto opcode;
+		};
+
+
+		identifier => parse_label;
+
+		local_identifier => parse_local_label;
+
+
+		any => {
+			fhold;
+			fgoto opcode;
 		};
 
 	*|;
@@ -880,7 +859,7 @@ void Parser::get_segments(SegmentQueue &rv) {
 		if (label && export_set.count(label))
 			seg->global = true;
 
-		for (auto line : seg->lines) {
+		for (auto &line : seg->lines) {
 			identifier label = line->label;
 			if (label && export_set.count(label))
 				line->global = true;
@@ -891,6 +870,11 @@ void Parser::get_segments(SegmentQueue &rv) {
 	rv = std::move(segments);
 }
 
+identifier Parser::gen_sym() {
+	std::string s = "__gs_";
+	s += std::to_string(++_gen_sym);
+	return intern(s);
+}
 
 bool parse_file(FILE *file, SegmentQueue &rv) {
 
@@ -1015,4 +999,26 @@ unsigned reparse_pragma(const std::string &s) {
 %% write exec;
 
 	return 0;
+}
+
+
+char reparse_modifier(const std::string &s) {
+%%{
+	machine modifier;
+
+	main :=
+		  'b'i %{ return 'b'; }
+		| 'l'i %{ return 'l'; }
+		| 'w'i %{ return 'w'; }
+	;
+}%%
+
+	if (s.length() != 1) return 0;
+	switch(tolower(s[0])) {
+	case 'b': return 'b';
+	case 'l': return 'l';
+	case 'w': return 'w';
+	default:
+		return 0;
+	}
 }
