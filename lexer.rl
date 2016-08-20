@@ -619,6 +619,10 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 			parse(tkSTRONG, std::string(ts, te));
 		};
 
+		'include'i {
+			parse(tkINCLUDE, std::string(ts, te));
+		};
+
 
 
 
@@ -755,6 +759,10 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 			fgoto opcode;
 		};
 
+		'macro'i {
+			parse(tkMACRO, std::string(ts, te));
+			fgoto opcode;
+		};
 
 		identifier => parse_label;
 
