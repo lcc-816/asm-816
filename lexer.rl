@@ -22,6 +22,9 @@
 #include "cookie.h"
 #include "grammar.h"
 
+#include "cxx/filesystem.h"
+#include "cxx/mapped_file.h"
+
 
 namespace {
 
@@ -922,43 +925,26 @@ bool parse_file(FILE *file, SegmentQueue &rv) {
 
 bool parse_file(const std::string &filename, SegmentQueue &rv)
 {
-	int fd;
-	struct stat st;
-	void *buffer;
 	int ok;
 
+	filesystem::path path(filename);
+	std::error_code ec;
+	const mapped_file f(path, ec);
+	if (ec) {
 
-	fd = open(filename.c_str(), O_RDONLY);
-	if (fd < 0) {
 		fprintf(stderr, "Unable to open file `%s' : %s\n", filename.c_str(), strerror(errno));
 		return false;
-	}
 
-	ok = fstat(fd, &st);
-	if (ok < 0) {
-		fprintf(stderr, "Unable to fstat file `%s' : %s\n", filename.c_str(), strerror(errno));
-		close(fd);
-		return false;
 	}
-
-	buffer = mmap(nullptr, st.st_size, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
-	if (buffer == MAP_FAILED) {
-		fprintf(stderr, "Unable to mmap file `%s' : %s\n", filename.c_str(), strerror(errno));
-		close(fd);
-		return false;
-	}
-	close(fd);
 
 	auto parser = Parser::make();
 
-	const char *p = (const char *)buffer;
-	const char *pe = (const char *)buffer + st.st_size;
+	const char *p = (const char *)f.begin();
+	const char *pe = (const char *)f.end();
 	const char *eof = pe;
 
 
 	parser->parse_text(p, pe, true);
-
-	munmap(buffer, st.st_size);
 
 	if (parser->error_count > 0) {
 		// todo -- kill data, if needed.
