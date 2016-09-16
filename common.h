@@ -16,6 +16,7 @@
 #include "branch.h"
 
 #include "types.h"
+#include "cxx/filesystem.h"
 
 
 enum Directive {
@@ -186,19 +187,27 @@ typedef std::deque< SegmentPtr> SegmentQueue;
 
 
 // Translation unit aka file
-struct Unit {
+struct Module {
 	std::string filename;
 	SegmentQueue segments;
 	std::vector<identifier> imports;
 	std::vector<identifier> exports;
 };
 
+typedef std::unique_ptr<Module> ModulePtr;
+
+std::unique_ptr<Module> parse_file(int fd);
+std::unique_ptr<Module> parse_file(const filesystem::path &p);
+
+
 bool peephole(BasicBlockPtr);
 bool final_peephole(BasicBlockPtr);
 
 void print(const LineQueue &lines);
 void simplify(LineQueue &lines);
-bool parse_file(const std::string &filename, SegmentQueue &segments);
+
+bool parse_file(const filesystem::path &path, SegmentQueue &segments);
+bool parse_file(FILE *file, SegmentQueue &segments);
 
 unsigned classify(Mnemonic);
 unsigned classify(OpCode);

@@ -28,7 +28,7 @@ struct {
 	bool S = false;
 	bool v = false;
 	int O = 0;
-	std::string o;
+	fs::path o;
 
 } flags;
 
@@ -67,6 +67,23 @@ int set_ftype(int fd, uint16_t fileType, uint32_t auxType) {
 	if (ok < 0) return ok;
 #endif
 
+#ifdef __sun__
+	ok = openat(fd, "com.apple.FinderInfo", O_XATTR | O_WRONLY | O_CREAT | O_TRUNC);
+	if (ok < 0) return ok;
+	write(ok, &finfo, sizeof(finfo));
+	close(ok);
+
+	ok = openat(fd, "prodos.FileType", O_XATTR | O_WRONLY | O_CREAT | O_TRUNC);
+	if (ok < 0) return ok;
+	write(ok, &ft, sizeof(ft));
+	close(ok);
+
+	ok = openat(fd, "prodos.AuxType", O_XATTR | O_WRONLY | O_CREAT | O_TRUNC);
+	if (ok < 0) return ok;
+	write(ok, &at, sizeof(at));
+	close(ok);
+#endif
+
 #ifdef __linux__
 
 #endif
@@ -79,7 +96,6 @@ void simplify(LineQueue &lines) {
 	for (BasicLinePtr line : lines) {
 		for (auto &e : line->operands)
 			if (e) e = e->simplify();
-
 	}
 }
 
@@ -341,9 +357,15 @@ void help() {
 
 int main(int argc, char **argv) {
 
+	std::vector<fs::path> _I;
+
 	int c;
-	while ((c = getopt(argc, argv, "hvSVo:O:")) != -1) {
+	while ((c = getopt(argc, argv, "hI:vSVo:O:")) != -1) {
 		switch(c) {
+
+			case 'I': // include directories.
+				_I.emplace_back(optarg);
+				break;
 
 			case 'S': // output source code
 				flags.S = true;
@@ -394,31 +416,28 @@ int main(int argc, char **argv) {
 
 	if (argc == 0) {
 
-		extern bool parse_file(FILE *file, SegmentQueue &rv);
+		auto m = parse_file(STDIN_FILENO);
+		if (!m) exit(EX_DATAERR);
 
-		SegmentQueue segments;
-
-		bool ok = parse_file(stdin, segments);
-		if (ok) {
+		if (m) {
 
 			// ok if ofn is empty.
 			fs::path ofn  = std::move(flags.o);
 			flags.o.clear();
 
-			process_segments(segments, ofn);
+			process_segments(m->segments, ofn);
 		}
-
-		if (!ok) exit(EX_DATAERR);
 	}
 
 	for (int i = 0 ; i < argc; ++i) {
 
-		SegmentQueue segments;
+		fs::path ifn = argv[i];
 
-		bool ok = parse_file(argv[i], segments);
-		if (ok) {
+		auto m = parse_file(ifn);
+		if (!m) exit(EX_DATAERR);
 
-			fs::path ifn = argv[i];
+		if (m) {
+
 			fs::path ofn = std::move(flags.o);
 			flags.o.clear();
 
@@ -428,10 +447,8 @@ int main(int argc, char **argv) {
 				ofn.replace_extension(".omf");
 			}
 
-			process_segments(segments, ofn);
+			process_segments(m->segments, ofn);
 		}
-
-		if (!ok) exit(EX_DATAERR);
 	}
 
 	return 0;
