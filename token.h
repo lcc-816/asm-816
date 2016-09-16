@@ -11,7 +11,7 @@
 
 struct Token {
 
-	Token() = delete;
+	Token() = default;
 	Token(const Token &) = default;
 	Token(Token &&) = default;
 
@@ -31,6 +31,10 @@ struct Token {
 	~Token() = default;
 
 
+	Token& operator=(const Token &) = default;
+	Token& operator=(Token &&) = default;
+
+
 	identifier id = nullptr;
 	identifier file = nullptr;
 	unsigned type = 0;
@@ -39,32 +43,33 @@ struct Token {
 
 	variant<uint32_t, dp_register, Instruction, Mnemonic, ExpressionPtr, branch::branch_type> value;
 
-	identifier string_value() {
-		return id;
+	const std::string &string_value() const noexcept {
+		static std::string empty;
+		return id ? *id : empty;
 	}
 
-	uint32_t int_value() {
+	uint32_t int_value() const {
 		return get<uint32_t>(value);
 	}
 
-	inline dp_register register_value() {
+	inline dp_register register_value() const {
 		return get<dp_register>(value);
 	}
 
 
-	Mnemonic mnemonic_value() {
+	Mnemonic mnemonic_value() const {
 		return get<Mnemonic>(value);
 	}
 
-	Instruction instruction_value() {
+	Instruction instruction_value() const {
 		return get<Instruction>(value);
 	}
 
-	ExpressionPtr expr_value() {
+	ExpressionPtr expr_value() const {
 		return get<ExpressionPtr>(value);
 	}
 
-	const branch::branch_type branch_value() {
+	const branch::branch_type branch_value() const {
 		return get<branch::branch_type>(value);
 	}
 };
