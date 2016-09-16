@@ -5,7 +5,7 @@
 #include "common.h"
 #include "Expression.h"
 
-#include "cxx/tsv2_deque.h"
+#include "include/tsv2_deque.h"
 
 template<class UnaryFunction>
 void for_each(dp_register r, unsigned reg_count, UnaryFunction fx) {

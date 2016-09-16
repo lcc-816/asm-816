@@ -10,8 +10,8 @@
 #include <cassert>
 
 #include "cxx/defer.h"
-#include "cxx/tsv2_vector.h"
-#include "cxx/tsv2_deque.h"
+#include "include/tsv2_vector.h"
+#include "include/tsv2_deque.h"
 
 bool common_line_consolidation(BasicBlockPtr block);
 bool register_lifetime(BasicBlockPtr block);
@@ -342,6 +342,16 @@ void basic_block(Segment *segment) {
 
 	BlockQueue bq = make_basic_blocks(std::move(segment->lines));
 
+	defer kill_bm([]{ BlockMap.clear(); });
+	defer kill_bq([bq]{ 
+		for (auto &b : bq) {
+			b->prev_set.clear();
+			b->next_set.clear();
+			b->next_block = nullptr;
+		}
+	});
+
+#if 0
 	auto kill_bm = make_defer([]{
 		BlockMap.clear();
 	});
@@ -353,6 +363,7 @@ void basic_block(Segment *segment) {
 			b->next_block = nullptr;
 		}
 	});
+#endif
 
 	// create the map
 	BlockMap.clear();
