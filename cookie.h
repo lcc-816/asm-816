@@ -14,8 +14,7 @@
 
 
 #include "token.h"
-#include "lemon_base.h"
-
+#include <lemon_base.h>
 
 class Parser : public lemon_base<Token>
 {
