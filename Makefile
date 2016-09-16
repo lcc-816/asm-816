@@ -7,18 +7,18 @@ OBJDIR = o
 ifeq ($(OS),Linux)
 CXX = g++
 LD = g++
-CXXFLAGS = -std=c++14 -g -MMD -Wno-multichar -I variant/include
+CXXFLAGS = -std=c++14 -g -MMD -Wno-multichar -I variant/include -I fmt
 endif
 
 
 ifeq ($(OS),Darwin)
 CXX = clang++
 LD = clang++
-CXXFLAGS = -std=c++14 -g -MMD -Wno-multichar -I variant/include
+CXXFLAGS = -std=c++14 -g -MMD -Wno-multichar -I variant/include -I fmt
 endif
 
 
-SRC = grammar.cpp main.cpp lexer.cpp Instruction.cpp Machine.cpp OpCode.cpp \
+SRC = main.cpp grammar.cpp parser.cpp lexer.cpp Instruction.cpp Machine.cpp OpCode.cpp \
 	Expression.cpp Expression_evaluate.cpp Expression_simplify.cpp Expression_visitor.cpp \
 	dp_register_set.cpp classify.cpp peephole.cpp classify.cpp basic_block.cpp \
 	intern.cpp symbol_table.cpp data.cpp omf.cpp assign_pc.cpp assign_reg.cpp \
@@ -44,11 +44,6 @@ clean:
 	$(RM) grammar.cpp grammar.h lexer.cpp
 	$(RM) -rf $(OBJDIR)
 
-# lexer.cpp: lexer.rl
-# 	ragel -G1 -L -C $^ -o $@
-
-# grammar.cpp: grammar.lemon
-# 	lemon++ -Tlempar.cxx $^ 
 
 $(OBJDIR)/%.o : %.cpp
 	$(CXX) -c $(CXXFLAGS) -o $@ $< 
