@@ -1,171 +1,50 @@
 #include <string>
 #include <algorithm>
 #include <numeric>
-#include <unordered_map>
+#include <vector>
+#include <cstdint>
 
-#include <cctype>
-#include <cerrno>
-#include <cstring>
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <stdlib.h>
-
-#include "Machine.h"
-#include "Instruction.h"
-#include "OpCode.h"
-#include "Expression.h"
-#include "common.h"
-#include "intern.h"
-#include "cookie.h"
+#include "lexer.h"
 #include "grammar.h"
-
-#include "cxx/filesystem.h"
-#include "cxx/mapped_file.h"
-
-
-namespace {
-
-
-	int tox(char c)
-	{
-		c |= 0x20; // lowercase it.
-		if (c >= '0' && c <= '9') return c - '0';
-		if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-		return 0;
-	}
-
-	uint32_t scan10(const char *begin, const char *end)
-	{
-		return std::accumulate(begin, end, 0, 
-			[](uint32_t value, char c){
-				return value * 10 + c - '0';
-			});
-	}
-
-	uint32_t scan16(const char *begin, const char *end)
-	{
-		return std::accumulate(begin, end, 0, 
-			[](uint32_t value, char c){
-				return (value << 4) + tox(c);
-			});
-	}
-
-	uint32_t scan2(const char *begin, const char *end)
-	{
-		return std::accumulate(begin, end, 0, 
-			[](uint32_t value, char c){
-				if (c == '_') return value;
-				return (value << 1) + (c & 0x01);
-			});
-	}
-
-	uint32_t scancc(const char *begin, const char *end)
-	{
-		return std::accumulate(begin, end, 0,
-			[](uint32_t value, char c)
-			{
-				return (value << 8) + (unsigned)c;
-			}
-		);
-
-	}
-
-
-}
-
-
-void Parser::parse(int yymajor, const std::string &string_value)
-{
-	Token t(line_number, intern(string_value));
-	parse(yymajor, std::move(t));
-}
-
-void Parser::parse(int yymajor, uint32_t value)
-{
-	Token t(line_number, value);
-	parse(yymajor, std::move(t));
-}
-
-
-void Parser::parse(int yymajor, dp_register value)
-{
-	Token t(line_number, std::move(value));
-	parse(yymajor, std::move(t));
-}
-
-void Parser::parse(int yymajor, ExpressionPtr value)
-{
-	Token t(line_number, std::move(value));
-	parse(yymajor, std::move(t));
-}
-
-
-void Parser::parse(int yymajor, const std::string &string_value, const Instruction &value)
-{
-	Token t(line_number, intern(string_value), std::move(value));
-	parse(yymajor, std::move(t));
-}
-
-void Parser::parse(int yymajor, const std::string &string_value, branch::branch_type value) {
-
-	Token t(line_number, intern(string_value), value);
-	parse(yymajor, std::move(t));
-
-}
-
-
+#include "intern.h"
 
 %%{
 	machine lexer;
 
 	action eol {
+		parse(tkEOL);
+		_line++;
 
-			parse(tkEOL, 0);
-
-			line_start = te;
-			line_number++;
-			line_warning = false;
-			line_error = false;
-
-			next_operand = 0;
-			fgoto main;
+		fgoto main;
 	}
 
+
+	action error_eol {
+		parse(tkEOL);
+		_line++;
+
+		fgoto main;
+	}
+
+
 	action error {
-			fprintf(stderr, "Unable to lex!\n");
-			fgoto error;
+		fprintf(stderr, "#%s:%d unexpected character '%c'\n", _file ? _file->c_str() : "-", _line, fc);
+		_error++;
+		fgoto error;
 	}
 
 	action parse_identifier {
-			std::string s(ts, te);
-			parse(tkIDENTIFIER, s);	
+		std::string s(ts, te);
+		parse(tkIDENTIFIER, std::move(s));	
 	}
 
-	action parse_label {
-			std::string s(ts, te);
-			parse(tkLABEL, s);	
-	}
 
 	action parse_local_identifier {
-			std::string s;
-			if (current_label)
-				s = *current_label;
-
-			s.assign(ts, te);
-			parse(tkIDENTIFIER, s);	
+		std::string s(ts, te);
+		parse(tkAT_IDENTIFIER, std::move(s));
 	}
 
-	action parse_local_label {
-			std::string s;
-			if (current_label)
-				s = *current_label;
-
-			s.assign(ts, te);
-			parse(tkLABEL, s);	
-	}
 
 	action parse_dp_register {
 		unsigned type = ts[1];
@@ -178,84 +57,69 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 	# '$' is used for statics w/in a function.
 	identifier = [A-Za-z_][A-Za-z0-9_$]*;
 
-	local_identifier = '@' [A-Za-z_][A-Za-z0-9_$]*;
+	local_identifier = '@' identifier;
 
 
 
 	ws = [\t ]+;
-	#eol = '\r\n' | \r' | '\n';
+	eol = '\r' | '\n' | '\r\n';
 
 	dp_register = '%' [prtv] digit+;
 
 	comment := |*
 		'\r'|'\n'|'\r\n' => eol;
 
-		any {};
+		any;
 	*|;
 
 	error := |*
 
-		'\r'|'\n'|'\r\n' {
-			// slightly modified version of eol.
-	
-			parse(tkEOL, 0);
+		eol => error_eol;
 
-			line_start = te;
-			line_number++;
-			line_warning = false;
-			line_error = false;
-
-			next_operand = 0;
-			fgoto main;
-		};
-
-		any {};
+		any;
 	*|;
 
 
 
-	operand_no_reg := |*
+	opcode := |*
 
 		# white space
-		'\r'|'\n'|'\r\n' => eol;
+		' ' ;
+		'\t';
 
-		[\t ] {};
-
-		# comments
+		eol => eol;
 
 
-		';' {
-			fgoto comment;
-		};
+		';' { fgoto comment; };
 
 		# single-char ops
-		'(' { parse(tkLPAREN, 0); };
-		')' { parse(tkRPAREN, 0); };
-		'[' { parse(tkLBRACKET, 0); };
-		']' { parse(tkRBRACKET, 0); };
-		'=' { parse(tkEQ, 0); };
-		'+' { parse(tkPLUS, 0); };
-		'-' { parse(tkMINUS, 0); };
-		'*' { parse(tkSTAR, 0); };
-		'/' { parse(tkSLASH, 0); };
-		'%' { parse(tkPERCENT, 0); };
-		'~' { parse(tkTILDE, 0); };
-		'!' { parse(tkBANG, 0); };
-		'^' { parse(tkCARET, 0); };
-		'&' { parse(tkAMP, 0); };
-		'|' { parse(tkPIPE, 0); };
-		'<' { parse(tkLT, 0); };
-		'>' { parse(tkGT, 0); };
-		'|' { parse(tkPIPE, 0); };
-		'#' { parse(tkHASH, 0); };
-		#':' { parse(tkCOLON, 0); };
-		#'.' { parse(tkPERIOD, 0); };
-		',' { parse(tkCOMMA, 0); };
+		'{' { parse(tkLBRACKET); };
+		'}' { parse(tkRBRACKET); };
+		'(' { parse(tkLPAREN); };
+		')' { parse(tkRPAREN); };
+		'[' { parse(tkLBRACKET); };
+		']' { parse(tkRBRACKET); };
+		'=' { parse(tkEQ); };
+		'+' { parse(tkPLUS); };
+		'-' { parse(tkMINUS); };
+		'*' { parse(tkSTAR); };
+		'/' { parse(tkSLASH); };
+		'%' { parse(tkPERCENT); };
+		'~' { parse(tkTILDE); };
+		'!' { parse(tkBANG); };
+		'^' { parse(tkCARET); };
+		'&' { parse(tkAMP); };
+		'|' { parse(tkPIPE); };
+		'<' { parse(tkLT); };
+		'>' { parse(tkGT); };
+		'|' { parse(tkPIPE); };
+		'#' { parse(tkHASH); };
+		#':' { parse(tkCOLON); };
+		'.' { parse(tkDOT); };
+		',' { parse(tkCOMMA); };
 
-		'*' { parse(tkSTAR, 0); };
+		'*' { parse(tkSTAR); };
 
-		'<<' { parse(tkLTLT, 0); };
-		'>>' { parse(tkGTGT, 0); };
 
 		# numbers
 		'$' xdigit + {
@@ -272,6 +136,12 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 		'0b'i [01][01_]* {
 			// binary
 			uint32_t value = scan2(ts + 2, te);
+			parse(tkINTEGER, value);
+		};
+
+		'0q'i [0123][0123_]* {
+			// quaternary
+			uint32_t value = scan4(ts + 2, te);
 			parse(tkINTEGER, value);
 		};
 
@@ -296,196 +166,11 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 
 		# strings.
 		["] ([^"])* ["] {
-			std::string s(ts, te);
-			parse(tkSTRING, s);
-		};
-
-		'%weak' {
-			std::string s(ts, te);
-			parse(tkWEAK, s);
-		};
-
-		identifier => parse_identifier;
-		local_identifier => parse_local_identifier;
-
-		any => error;
-
-	*|;
-
-
-	operand_reg := |*
-
-		'\r'|'\n'|'\r\n' => eol;
-		ws {};
-		';' { fgoto comment; };
-
-		dp_register => parse_dp_register;
-
-		'a'i { parse(tkREGISTER_A, 0); };
-		'x'i { parse(tkREGISTER_X, 0); };
-		'y'i { parse(tkREGISTER_Y, 0); };
-		'z'i { parse(tkREGISTER_Z, 0); };
-		's'i { parse(tkREGISTER_S, 0); };
-
-		any => error;
-	*|;
-
-	operand_pragma := |*
-
-		# white space
-		'\r'|'\n'|'\r\n' => eol;
-
-		[\t ]+ {};
-
-		';' { fgoto comment; };
-
-		'=' { parse(tkEQ, 0); };
-		',' { parse(tkCOMMA, 0); };
-
-		'segment'i {
-			parse(tkSEGMENT, 0);
-		};
-
-		'volatile'i {
-			parse(tkVOLATILE, 0);
-		};
-
-		'noreturn'i {
-			parse(tkNORETURN, 0);
-		};
-
-		'dynamic'i {
-			parse(tkDYNAMIC, 0);
-		};
-
-		'databank'i {
-			parse(tkDATABANK, 0);
-		};
-
-		'debug'i {
-			parse(tkDEBUG, 0);
-		};
-
-		'private'i {
-			parse(tkPRIVATE, 0);
-		};
-
-		'kind'i {
-			parse(tkKIND, 0);
-		};
-
-		'cdecl'i {
-			parse(tkCDECL, 0);
-		};
-		'pascal'i {
-			parse(tkPASCAL, 0);
-		};
-		'stdcall'i {
-			parse(tkSTDCALL, 0);
-		};
-		'naked'i {
-			parse(tkNAKED, 0);
+			std::string s(ts + 1, te - 1);
+			parse(tkSTRING, std::move(s));
 		};
 
 
-		'void'i {
-			parse(tkVOID, 0);
-		};
-
-		'rts'i {
-			parse(tkRTS, 0);
-		};
-
-		'rtl'i {
-			parse(tkRTL, 0);
-		};
-
-		'locals'i {
-			parse(tkLOCALS, 0);
-		};
-
-		'parameters'i {
-			parse(tkPARAMETERS, 0);
-		};
-
-		'return'i {
-			parse(tkRETURN, 0);
-		};
-
-		# numbers
-		'$' xdigit + {
-			uint32_t value = scan16(ts + 1, te);
-			parse(tkINTEGER, value);
-		};
-
-		'0x'i xdigit+ {
-			// hexadecimal
-			uint32_t value = scan16(ts + 2, te);
-			parse(tkINTEGER, value);
-		};
-
-		'0b'i [01][01_]* {
-			// binary
-			uint32_t value = scan2(ts + 2, te);
-			parse(tkINTEGER, value);
-		};
-
-		'%' [01][01_]* {
-			// binary
-			uint32_t value = scan2(ts + 1, te);
-			parse(tkINTEGER, value);
-		};
-
-		digit+ {
-			uint32_t value = scan10(ts, te);
-			parse(tkINTEGER, value);
-		};
-
-		
-		any => error;
-	*|;
-
-
-
-
-	opcode := |*
-
-		# white space
-		' ' ;
-		'\t';
-
-		'\r'|'\n'|'\r\n' => eol;
-
-
-		';' { fgoto comment; };
-
-		# single-char ops
-		'{' { parse(tkLBRACKET, 0); };
-		'}' { parse(tkRBRACKET, 0); };
-		'(' { parse(tkLPAREN, 0); };
-		')' { parse(tkRPAREN, 0); };
-		'[' { parse(tkLBRACKET, 0); };
-		']' { parse(tkRBRACKET, 0); };
-		'=' { parse(tkEQ, 0); };
-		'+' { parse(tkPLUS, 0); };
-		'-' { parse(tkMINUS, 0); };
-		'*' { parse(tkSTAR, 0); };
-		'/' { parse(tkSLASH, 0); };
-		'%' { parse(tkPERCENT, 0); };
-		'~' { parse(tkTILDE, 0); };
-		'!' { parse(tkBANG, 0); };
-		'^' { parse(tkCARET, 0); };
-		'&' { parse(tkAMP, 0); };
-		'|' { parse(tkPIPE, 0); };
-		'<' { parse(tkLT, 0); };
-		'>' { parse(tkGT, 0); };
-		'|' { parse(tkPIPE, 0); };
-		'#' { parse(tkHASH, 0); };
-		#':' { parse(tkCOLON, 0); };
-		'.' { parse(tkDOT, 0); };
-		',' { parse(tkCOMMA, 0); };
-
-		'*' { parse(tkSTAR, 0); };
 
 		# dp-registers -- %t0, etc
 		dp_register => parse_dp_register;
@@ -529,205 +214,34 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 		'push'i { parse(tkPUSH, std::string(ts, te)); };
 		'pull'i { parse(tkPULL, std::string(ts, te)); };
 
-		# numbers
-		'$' xdigit + {
-			uint32_t value = scan16(ts + 1, te);
-			parse(tkINTEGER, value);
-		};
-
-		'0x'i xdigit+ {
-			// hexadecimal
-			uint32_t value = scan16(ts + 2, te);
-			parse(tkINTEGER, value);
-		};
-
-		'0b'i [01][01_]* {
-			// binary
-			uint32_t value = scan2(ts + 2, te);
-			parse(tkINTEGER, value);
-		};
-
-		'%' [01][01_]* {
-			// binary
-			uint32_t value = scan2(ts + 1, te);
-			parse(tkINTEGER, value);
-		};
-
-		digit+ {
-			uint32_t value = scan10(ts, te);
-			parse(tkINTEGER, value);
-		};
-
-		['] [^']{1,4} ['] {
-			// 4 cc code
-
-			uint32_t value = scancc(ts + 1, te - 1);
-			parse(tkINTEGER, value);
-
-		};
-
-		# strings.
-		["] ([^"])* ["] {
-			std::string s(ts + 1, te - 1);
-			parse(tkSTRING, s);
-		};
-
-		'%weak' {
-			parse(tkWEAK, std::string(ts, te));
-		};
-
-
-
-		'dc'i {
-			parse(tkDC, std::string(ts, te));
-		};
-
-
-#		'dc.b'i {
-#			parse(tkDCB, std::string(ts, te));
-#		};
-#		'dc.w'i {
-#			parse(tkDCW, std::string(ts, te));
-#		};
-#		'dc.l'i {
-#			parse(tkDCL, std::string(ts, te));
-#		};
-
-		'ds'i {
-			parse(tkDS, std::string(ts, te));
-		};
-
-		'align'i {
-			parse(tkALIGN, std::string(ts, te));
-		};
-
-		'pragma'i {
-			parse(tkPRAGMA, std::string(ts, te));
-		};
-
-		'equ'i {
-			parse(tkEQU, std::string(ts, te));
-		};
-
-
-		'export'i {
-			parse(tkEXPORT, std::string(ts, te));
-		};
-
-		'import'i {
-			parse(tkIMPORT, std::string(ts, te));
-		};
-
-		'strong'i {
-			parse(tkSTRONG, std::string(ts, te));
-		};
-
-		'include'i {
-			parse(tkINCLUDE, std::string(ts, te));
-		};
-
-
-
-
-		# smart branches.
-
 		'branch'i {
 			parse(tkBRANCH, std::string(ts, te));
 		};
 
-#		'__bra'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::always);
-#		};
-#		'__beq'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::eq);
-#		};
-#		'__bne'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::ne);
-#		};
-#		'__bcc'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::cc);
-#		};
-#		'__bcs'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::cs);
-#		};
-#		'__bvc'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::vc);
-#		};
-#		'__bvs'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::vs);
-#		};
-#		'__bmi'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::mi);
-#		};
-#		'__bpl'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::pl);
-#		};
-#		'__bugt'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_gt);
-#		};
-#		'__buge'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_ge);
-#		};
-#		'__bult'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_lt);
-#		};
-#		'__bule'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::unsigned_le);
-#		};
-#		'__bsgt'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_gt);
-#		};
-#		'__bsge'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_ge);
-#		};
-#		'__bslt'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_lt);
-#		};
-#		'__bsle'i {
-#			parse(tkSMART_BRANCH, std::string(ts, te), branch::signed_le);
-#		};
 
-		local_identifier => parse_local_identifier;
-
-		identifier {
-
-			// mvp or mvn generate tkOPCODE_2.
-			// all others generate tkOPCODE.
-			// check opcode table
-
-			std::string s(ts, te);
-			auto id = intern(s);
-			Instruction instr(m65816, s);
-			if (instr) {
-
-				unsigned tk = tkOPCODE;
-				if (instr.addressModes() == 1 << implied) tk = tkOPCODE_0;
-
-				if (instr.hasAddressMode(block)) tk = tkOPCODE_2;
-				if (instr.hasAddressMode(zp_relative)) tk = tkOPCODE_2;
-				parse(tk, s, instr);
-				//fgoto operand;
-
-			} else {
-
-				// may be an equate...
-
-				ExpressionPtr e = equates.find(id);
-				if (e) {
-					dp_register dp;
-					// register is a special case...
-
-					if (e->is_register(dp)) {
-						parse(tkDP_REGISTER, dp);
-					}
-					else parse(tkEXPRESSION, e);
-				} else {
-					parse(tkIDENTIFIER, s);
-				}
+		'%weak' {parse(tkWEAK, std::string(ts, te)); };
 
 
-			}
-		};
+		'dc'i      { parse(tkDC, std::string(ts, te)); };
+		'ds'i      { parse(tkDS, std::string(ts, te)); };
+		'align'i   { parse(tkALIGN, std::string(ts, te)); };
+		'pragma'i  { parse(tkPRAGMA, std::string(ts, te)); };
+		'equ'i     { parse(tkEQU, std::string(ts, te)); };
+		'export'i  { parse(tkEXPORT, std::string(ts, te)); };
+		'import'i  { parse(tkIMPORT, std::string(ts, te)); };
+		'strong'i  { parse(tkSTRONG, std::string(ts, te)); };
+		'include'i { parse(tkINCLUDE, std::string(ts, te)); };
+
+
+		# handle opcodes / macros later!
+
+		identifier     { parse(tkIDENTIFIER, std::string(ts, te)); };
+		'@' identifier { parse(tkIDENTIFIER, std::string(ts, te)); };
+
+		'&...'               { parse(tkMPARAM, std::string(ts,te), 2); };
+		'&' identifier       { parse(tkMPARAM, std::string(ts,te), 0); };
+		'&' identifier '...' { parse(tkMPARAM, std::string(ts,te), 1); };
+
 
 		any => error;
 	*|;
@@ -737,15 +251,10 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 
 	main := |*
 		# white space
-		'\r'|'\n'|'\r\n' => eol;
-
-		#[\t ]+ { fgoto opcode; };
+		eol => eol;
 
 		# comments
-		'*' { fgoto comment; };
-
-		';' { fgoto comment; };
-
+		[*;#!] { fgoto comment; };
 
 		'function'i {
 			parse(tkFUNCTION, std::string(ts, te));
@@ -767,11 +276,13 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 			fgoto opcode;
 		};
 
-		identifier => parse_label;
+		identifier           { parse(tkLABEL, std::string(ts, te), 0); };
+		'@' identifier       { parse(tkLABEL, std::string(ts, te), 1); };
+		'&' identifier       { parse(tkLABEL, std::string(ts, te), 2); };
+		'&' identifier '...' { parse(tkLABEL, std::string(ts, te), 2); };
 
-		local_identifier => parse_local_label;
-
-
+		# todo -- & identifier is valid in a macro and should convert to a label...
+		# store the column in the token?
 		any => {
 			fhold;
 			fgoto opcode;
@@ -779,181 +290,176 @@ void Parser::parse(int yymajor, const std::string &string_value, branch::branch_
 
 	*|;
 
+
 }%%
 
 
-%% write data;
-%% access fsm.;
+
+namespace {
+
+
+	int tox(char c)
+	{
+		c |= 0x20; // lowercase it.
+		if (c >= '0' && c <= '9') return c - '0';
+		if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+		return 0;
+	}
+
+	uint32_t scan10(const uint8_t *begin, const uint8_t *end)
+	{
+		return std::accumulate(begin, end, 0, 
+			[](uint32_t value, char c){
+				return value * 10 + c - '0';
+			});
+	}
+
+	uint32_t scan16(const uint8_t *begin, const uint8_t *end)
+	{
+		return std::accumulate(begin, end, 0, 
+			[](uint32_t value, char c){
+				return (value << 4) + tox(c);
+			});
+	}
+
+	uint32_t scan2(const uint8_t *begin, const uint8_t *end)
+	{
+		return std::accumulate(begin, end, 0, 
+			[](uint32_t value, char c){
+				if (c == '_') return value;
+				return (value << 1) + (c & 0x01);
+			});
+	}
+
+	uint32_t scan4(const uint8_t *begin, const uint8_t *end)
+	{
+		return std::accumulate(begin, end, 0, 
+			[](uint32_t value, char c){
+				if (c == '_') return value;
+				return (value << 2) + (c & 0x03);
+			});
+	}
+
+
+	uint32_t scancc(const uint8_t *begin, const uint8_t *end)
+	{
+		return std::accumulate(begin, end, 0,
+			[](uint32_t value, char c)
+			{
+				return (value << 8) + (unsigned)c;
+			}
+		);
+
+	}
+
+	%% write data;
+}
+
+#define parse(...) _parse(fx, __VA_ARGS__)
+
+lexer::lexer(const std::string &s) : lexer(intern(s)) {}
+lexer::lexer(std::string &&s) : lexer(intern(std::move(s))) {}
+
+lexer::lexer(identifier file) : _file(file) {
+	char *ts;
+	char *te;
+
+	%%write init;
+}
 
 
 
-void Parser::error(const std::string &s) {
+std::vector<Token> lexer::tokenize(const void *begin, const void *end, bool is_eof) {
+	token_vector rv;
 
-	if (!line_error && !line_warning) {
-		const char *p = fsm.line_start;
-		while (p != fsm.line_end) {
-			char c = *p++;
-			if (c == '\r' || c == '\n') break;
-			fputc(c, stderr);
+	tokenize(begin, end, is_eof, [&rv](Token &&t){ rv.emplace_back(std::move(t)); });
+
+	return rv;
+}
+
+
+void lexer::tokenize(const void *begin, const void *end, bool is_eof, token_function fx) {
+
+	if (!fx) fx = [](Token &&){};
+
+	const uint8_t *p, *pe, *eof;
+	const uint8_t *ts, *te;
+
+
+	auto offset = buffer.size();
+
+	if (offset == 0) {
+		p = (const uint8_t *)begin;
+		pe = (const uint8_t *)end;
+		ts = te = nullptr;
+	} else {
+		buffer.insert(buffer.end(), (const uint8_t *)begin, (const uint8_t *)end);
+		p = buffer.data() + offset;
+		pe = buffer.data() + buffer.size();
+
+		ts = buffer.data();
+		te = buffer.data() + offset;
+	}
+
+	eof = is_eof ? pe : nullptr;
+
+	%%write exec;
+
+	// todo -- store from start of line?
+	if (ts == 0) {
+		buffer.clear();
+	} else {
+		// buffer may or may not have data in it already...
+		if (buffer.empty()) {
+			buffer.insert(buffer.end(), ts, pe);
+		} else {
+			offset = ts - buffer.data();
+			buffer.erase(buffer.begin(), buffer.begin() + offset);
 		}
-		fprintf(stderr, "\n");
+
 	}
 
-	fprintf(stderr, "Error: Line %u: %s\n", line_number, s.c_str());
-
-	line_error = true;
-	error_count++;
-}
-
-void Parser::warn(const std::string &s) {
-
-	if (!line_error && !line_warning) {
-		const char *p = fsm.line_start;
-		while (p != fsm.line_end) {
-			char c = *p++;
-			if (c == '\r' || c == '\n') break;
-			fputc(c, stderr);
-		}
-		fprintf(stderr, "\n");
-	}
-
-	fprintf(stderr, "Error: Line %u: %s\n", line_number, s.c_str());
-
-	line_warning = true;
-	warn_count++;
-}
-
-void Parser::parse_text(const char *p, const char *pe, bool end_of_file) {
-	
-	const char *eof = end_of_file ? pe : nullptr;
-	//int cs, act;
-
-	auto &te = fsm.te;
-	auto &ts = fsm.ts;
-	auto &next_operand = fsm.next_operand;
-	auto &line_start = fsm.line_start;
-	auto &line_end = fsm.line_end;
-
-	line_start = p;
-	line_end = pe;
-
-	%% write exec;
-
-
-	// should return error state?
-
-	if (end_of_file) {
-
-		parse(tkEOL, 0);
-		parse(0, 0);
+	if (eof && _last && _last != tkEOL) {
+		_parse(fx, tkEOL);
 	}
 }
 
+void lexer::_parse(token_function &fx, unsigned type) {
+	Token t(_line, 0);
+	t.file = _file;
+	t.type = type;
+	_last = type;
+	if (fx) fx(std::move(t));
+}
 
-Parser::Parser() {
-	
-	data_segment.reset(new Segment);
-	data_segment->convention = Segment::data;
-
-	%% write init;
+void lexer::_parse(token_function &fx, unsigned type, std::string &&s) {
+	Token t(_line, intern(std::move(s)));
+	t.file = _file;
+	t.type = type;
+	_last = type;
+	if (fx) fx(std::move(t));
 }
 
 
-void Parser::get_segments(SegmentQueue &rv) {
-
-	segments.emplace_back(std::move(data_segment));
-
-	// set exports.
-	for (auto &seg : segments) {
-
-		identifier label = seg->name;
-		if (label && export_set.count(label))
-			seg->global = true;
-
-		for (auto &line : seg->lines) {
-			identifier label = line->label;
-			if (label && export_set.count(label))
-				line->global = true;
-		}
-
-	}
-
-	rv = std::move(segments);
+template<class T>
+void lexer::_parse(token_function &fx, unsigned type, T &&tt) {
+	Token t(_line, std::forward<T>(tt));
+	t.file = _file;
+	t.type = type;
+	_last = type;
+	if (fx) fx(std::move(t));
 }
 
-identifier Parser::gen_sym() {
-	std::string s = "__gs_";
-	s += std::to_string(++_gen_sym);
-	return intern(s);
-}
-
-bool parse_file(FILE *file, SegmentQueue &rv) {
-
-
-	auto parser = Parser::make();
-
-	for(;;) {
-		char *cp;
-		size_t len;
-
-		cp = fgetln(file, &len);
-
-		if (!cp) break;
-
-		// 
-		parser->parse_text(cp, cp + len, false);
-
-	}
-	const char *eofstr="";
-	parser->parse_text(eofstr, eofstr, true);
-
-
-	if (ferror(file)) {
-
-		fprintf(stderr, "Error reading from file\n");
-		return false;
-	}
-
-	if (parser->error_count > 0) {
-		return false;
-	}
-
-	parser->get_segments(rv);
-	return true;
+template<class T>
+void lexer::_parse(token_function &fx, unsigned type, std::string &&s, T &&tt) {
+	Token t(_line, intern(std::move(s)), std::forward<T>(tt));
+	t.file = _file;
+	t.type = type;
+	_last = type;
+	if (fx) fx(std::move(t));
 }
 
 
-bool parse_file(const std::string &filename, SegmentQueue &rv)
-{
-	int ok;
-
-	filesystem::path path(filename);
-	std::error_code ec;
-	const mapped_file f(path, ec);
-	if (ec) {
-
-		fprintf(stderr, "Unable to open file `%s' : %s\n", filename.c_str(), strerror(errno));
-		return false;
-
-	}
-
-	auto parser = Parser::make();
-
-	const char *p = (const char *)f.begin();
-	const char *pe = (const char *)f.end();
-	const char *eof = pe;
-
-
-	parser->parse_text(p, pe, true);
-
-	if (parser->error_count > 0) {
-		// todo -- kill data, if needed.
-		return false;
-	}
-
-	parser->get_segments(rv);
-	return true;
-}
 
 
 unsigned reparse_pragma(const std::string &s) {
@@ -997,18 +503,9 @@ unsigned reparse_pragma(const std::string &s) {
 
 
 char reparse_modifier(const std::string &s) {
-%%{
-	machine modifier;
-
-	main :=
-		  'b'i %{ return 'b'; }
-		| 'l'i %{ return 'l'; }
-		| 'w'i %{ return 'w'; }
-	;
-}%%
 
 	if (s.length() != 1) return 0;
-	switch(tolower(s[0])) {
+	switch(tolower(s.front())) {
 	case 'b': return 'b';
 	case 'l': return 'l';
 	case 'w': return 'w';
@@ -1016,3 +513,5 @@ char reparse_modifier(const std::string &s) {
 		return 0;
 	}
 }
+
+
