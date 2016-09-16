@@ -18,7 +18,7 @@ public:
 	symbol_table& operator=(const symbol_table &) = default;
 
 
-	ExpressionPtr find(identifier key);
+	ExpressionPtr find(identifier key, bool current_level_only = false);
 
 	void insert(identifier key, ExpressionPtr value);
 
