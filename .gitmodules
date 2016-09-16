@@ -4,3 +4,6 @@
 [submodule "cxx"]
 	path = cxx
 	url = https://github.com/ksherlock/cxx.git
+[submodule "fmt"]
+	path = fmt
+	url = https://github.com/fmtlib/fmt.git
