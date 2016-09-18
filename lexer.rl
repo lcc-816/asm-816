@@ -205,21 +205,24 @@
 		'lt'i { parse(tkCC, std::string(ts, te), branch::unsigned_lt); };
 		'le'i { parse(tkCC, std::string(ts, te), branch::unsigned_le); };
 
-		'signed'i { parse(tkSIGNED, std::string(ts, te)); };
+		'signed'i   { parse(tkSIGNED, std::string(ts, te)); };
 		'unsigned'i { parse(tkUNSIGNED, std::string(ts, te)); };
 
-		'if'i { parse(tkIF, std::string(ts, te)); };
-		'do'i { parse(tkDO, std::string(ts, te)); };
-		'while'i { parse(tkWHILE, std::string(ts, te)); };
-		'push'i { parse(tkPUSH, std::string(ts, te)); };
-		'pull'i { parse(tkPULL, std::string(ts, te)); };
+		'if'i      { parse(tkIF, std::string(ts, te)); };
+		'do'i      { parse(tkDO, std::string(ts, te)); };
+		'while'i   { parse(tkWHILE, std::string(ts, te)); };
+		'push'i    { parse(tkPUSH, std::string(ts, te)); };
+		'pull'i    { parse(tkPULL, std::string(ts, te)); };
 
-		'branch'i {
-			parse(tkBRANCH, std::string(ts, te));
-		};
+		'branch'i  { parse(tkBRANCH, std::string(ts, te)); };
 
 
-		'%weak' {parse(tkWEAK, std::string(ts, te)); };
+		'%cdecl'   { parse(tkCDECL, std::string(ts, te)); };
+		'%pascal'  { parse(tkPASCAL, std::string(ts, te)); };
+		'%stdcall' { parse(tkSTDCALL, std::string(ts, te)); };
+		'%weak'    { parse(tkWEAK, std::string(ts, te)); };
+		'%void'    { parse(tkVOID, std::string(ts, te)); };
+		'%sizeof'  { parse(tkSIZEOF, std::string(ts, te)); };
 
 
 		'dc'i      { parse(tkDC, std::string(ts, te)); };
