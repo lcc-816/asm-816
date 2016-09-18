@@ -66,7 +66,9 @@ set(SRC main.cpp grammar.cpp parser.cpp lexer.cpp Instruction.cpp Machine.cpp Op
 	line.cpp branch.cpp propagate_const.cpp reg_const.cpp
 	register_lifetime.cpp register_set.cpp
 	opt_consolidate.cpp opt_dead_block_elimination.cpp opt_data_flow_analysis.cpp
-	opt_merge_blocks.cpp)
+	opt_merge_blocks.cpp
+	printer.cpp
+	)
 
 
 add_executable(asm816 ${SRC})

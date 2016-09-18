@@ -21,6 +21,8 @@
 #include "cxx/filesystem.h"
 #include "intern.h"
 
+#include "printer.h"
+
 namespace fs = filesystem;
 
 struct {
@@ -28,6 +30,7 @@ struct {
 	bool S = false;
 	bool v = false;
 	int O = 0;
+	std::string f;
 	fs::path o;
 
 } flags;
@@ -100,205 +103,12 @@ void simplify(LineQueue &lines) {
 }
 
 
-void print(FILE *file, const LineQueue &lines) {
-
-	for (const BasicLinePtr line : lines) {
-
-		if (line->label) { fprintf(file, "%s\n", line->label->c_str()); }
-
-		if (line->directive) {
-			std::string s;
-			const char *name = "";
-			switch(line->directive) {
-				case DCB: name="DC.B"; break;
-				case DCW: name="DC.W"; break;
-				case DCL: name="DC.L"; break;
-				case DS: name="DS"; break;
-				case START: name="START"; break;
-				case DATA: name="DATA"; break;
-				case END: name="END"; break;
-				case EXPORT: name="EXPORT"; break;
-				case PRAGMA: name="PRAGMA"; break;
-			}
-
-			if (line->operands[0]) {
-				s = line->operands[0]->to_string();
-			}
-			fprintf(file, "    %s %s\n", name, s.c_str());
-			continue;
-		}
-
-		OpCode opcode = line->opcode;
-
-		if (line->opcode) {
-			std::string op;
-			AddressMode mode = line->opcode.addressMode();
-
-			switch(mode) {
-				case kUndefinedAddressMode:
-				case implied:
-				case relative:
-				case relative_long:
-				case block:
-				case interrupt:
-				case stack_relative: // < ?
-					break;
-
-				case stack_relative_y:
-					op = "("; // (< ?
-					break;
-
-				case zp:
-				case zp_x:
-				case zp_y:
-				case zp_relative:
-					op = "<";
-					break;
-
-				case absolute:
-				case absolute_x:
-				case absolute_y:
-					op = "|";
-					break;
-
-				case absolute_long:
-				case absolute_long_x:
-					op = ">";
-					break;
-
-				case immediate:
-					op = "#";
-					break;
-
-				case zp_indirect:
-				case zp_indirect_x:
-				case zp_indirect_y:
-				case zp_indirect_z:
-					op = "(<";
-					break;
-
-				case zp_indirect_long:
-				case zp_indirect_long_y:
-					op = "[<";
-					break;
-
-				case absolute_indirect:
-				case absolute_indirect_x:
-					op = "(|";
-					break;
-
-				case absolute_indirect_long:
-					op = "[|";  // ??
-					break;
-
-			}
-
-			if (mode != implied) {
-				op.append(line->operands[0]->to_string());
-			}
-			if (mode == block || mode == zp_relative) {
-				op.push_back(',');
-				op.append(line->operands[1]->to_string());
-			}
-
-			switch(mode)
-			{
-				case kUndefinedAddressMode:
-				case implied:
-				case relative:
-				case relative_long:
-				case block:
-				case interrupt:
-				case immediate:
-				case zp:
-				case absolute:
-				case absolute_long:
-				case zp_relative:
-					break;
-
-				case zp_x:
-				case absolute_x:
-				case absolute_long_x:
-					op.append(",x");
-					break;
-				case zp_y:
-				case absolute_y:
-					op.append(",y");
-					break;
-				case zp_indirect:
-				case absolute_indirect:
-					op.append(")");
-					break;
-				case zp_indirect_y:
-					op.append("),y");
-					break;
-				case zp_indirect_z:
-					op.append("),z");
-					break;
-				case zp_indirect_x:
-				case absolute_indirect_x:
-					op.append(",x)");
-					break;
-				case stack_relative:
-					op.append(",s");
-					break;
-				case stack_relative_y:
-					op.append(",s),y");
-					break;
-
-				case absolute_indirect_long:
-				case zp_indirect_long:
-					op.append("]");
-					break;
-
-				case zp_indirect_long_y:
-					op.append("],y");
-					break;
-			}
-
-
-			fprintf(file, "    %s %s\n", 
-				line->opcode.toString(), 
-				op.c_str()
-			);
-		}
-	}
-}
-
-void print(FILE *file, const Segment *segment) {
-
-	const char *start = "start";
-	if (segment->convention == Segment::data)
-		start = "data";
-
-	fprintf(file, "%s    %s\n", segment->name ? segment->name->c_str() : "", start);
-	print(file, segment->lines);
-
-	// add any strong references.
-	for (auto id : segment->strong_vector) {
-		if (id) fprintf(file, "    strong %s\n", id->c_str());
-	}
-
-	fprintf(file, "    end\n\n");
-}
-
-
-void process_segments(SegmentQueue &segments, fs::path &outfile) {
+void process_segments(Module &m, fs::path &outfile) {
 
 	int segnum = 1;
-	FILE *f = nullptr;
 	int fd = -1;
 
-	if (flags.S) {
-		if (outfile.empty() || outfile == "-") f = stdout;
-		else {
-			f = fopen(outfile.c_str(), "w");
-			if (!f) {
-				fprintf(stderr, "Unable to open %s : %s\n", outfile.c_str(), strerror(errno));
-				exit(EX_CANTCREAT);
-			}
-		}
-	} else {
+	if (!flags.S) {
 		if (outfile.empty()) outfile = "object.omf";
 
 		fd = open(outfile.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
@@ -310,15 +120,11 @@ void process_segments(SegmentQueue &segments, fs::path &outfile) {
 
 
 
-	for (auto &seg : segments) {
+	for (auto &seg : m.segments) {
 
 		if (seg->convention == Segment::data) {
 
-			if (flags.S) {
-				// -S -- output code.
-				print(f, seg.get());
-				continue;
-			}
+			if (flags.S) continue;
 
 			auto omf = data_to_omf(seg.get());
 			omf.segnum = segnum++;
@@ -329,11 +135,7 @@ void process_segments(SegmentQueue &segments, fs::path &outfile) {
 		//auto &lines = seg->lines;
 		basic_block(seg.get());
 
-		if (flags.S) {
-			// -S -- output code.
-			print(f, seg.get());
-			continue;
-		}
+		if (flags.S) continue;
 
 		auto omf = code_to_omf(seg.get());
 		omf.segnum = segnum++;
@@ -344,7 +146,21 @@ void process_segments(SegmentQueue &segments, fs::path &outfile) {
 		set_ftype(fd, 0xb1, 0x0000);
 		close(fd);
 	}
-	if (f && f != stdout) fclose(f);
+	if (flags.S) {
+		FILE *f = nullptr;
+		if (outfile.empty() || outfile == "-") f = stdout;
+		else {
+			f = fopen(outfile.c_str(), "w");
+			if (!f) {
+				fprintf(stderr, "Unable to open %s : %s\n", outfile.c_str(), strerror(errno));
+				exit(EX_CANTCREAT);
+			}
+		}
+
+		mpw_printer p;
+		p.print(f, m);
+		if (f != stdout) fclose(f);
+	}
 }
 
 
@@ -360,7 +176,7 @@ int main(int argc, char **argv) {
 	std::vector<fs::path> _I;
 
 	int c;
-	while ((c = getopt(argc, argv, "hI:vSVo:O:")) != -1) {
+	while ((c = getopt(argc, argv, "hf:I:vSVo:O:")) != -1) {
 		switch(c) {
 
 			case 'I': // include directories.
@@ -385,6 +201,9 @@ int main(int argc, char **argv) {
 			case 'h':
 				help();
 				exit(0);
+				break;
+			case 'f':
+				flags.f = optarg;
 				break;
 
 			case 'v':
@@ -425,7 +244,7 @@ int main(int argc, char **argv) {
 			fs::path ofn  = std::move(flags.o);
 			flags.o.clear();
 
-			process_segments(m->segments, ofn);
+			process_segments(*m, ofn);
 		}
 	}
 
@@ -447,7 +266,7 @@ int main(int argc, char **argv) {
 				ofn.replace_extension(".omf");
 			}
 
-			process_segments(m->segments, ofn);
+			process_segments(*m, ofn);
 		}
 	}
 
