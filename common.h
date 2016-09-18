@@ -21,7 +21,6 @@
 
 enum Directive {
 	kUndefinedDirective = 0,
-	DATA,
 	EXPORT,
 	PRAGMA,
 	DCB,
@@ -29,8 +28,6 @@ enum Directive {
 	DCL,
 	DS,
 	ALIGN,
-	PROLOGUE,
-	EPILOGUE,
 	SMART_BRANCH,
 };
 

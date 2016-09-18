@@ -76,18 +76,12 @@ void assign_pc(BasicLinePtr line, uint32_t &pc, identifier_map *map = nullptr) {
 
 		switch (line->directive) {
 			case kUndefinedDirective:
-			case DATA:
 			case EXPORT:
 			case PRAGMA:
 			case ALIGN:
 				// should never happen.
 				assert("unexpected directive!");
 				return;
-
-			case PROLOGUE: 
-			case EPILOGUE:
-				// todo -- when does this code generate?
-				break;
 
 			case DCB:
 				assert(operand->is_vector());
