@@ -21,8 +21,6 @@
 
 enum Directive {
 	kUndefinedDirective = 0,
-	START,
-	END,
 	DATA,
 	EXPORT,
 	PRAGMA,
