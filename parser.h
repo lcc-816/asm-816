@@ -20,7 +20,6 @@ public:
 		code,
 		data,
 		record,
-		macro
 	};
 
 	static std::unique_ptr<parser> make();
@@ -32,16 +31,13 @@ public:
 	std::vector<identifier> exports();
 
 
-	void error(const std::string &);
-	void warn(const std::string &);
-
-	void error(const Token &t, const std::string &);
-	void warn(const Token &t, const std::string &);
-
-/*
 	void error(const Token &t, const char *format, ...);
+	void error(const char *format, ...);
+	void verror(const Token &where, const char *format, va_list ap);
+
 	void warn(const Token &t, const char *format, ...);
-*/
+	void warn(const char *format, ...);
+	void vwarn(const Token &where, const char *format, va_list ap);
 
 	int error_count() const { return _error; }
 	int warn_count() const { return _warn; }

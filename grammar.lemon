@@ -236,10 +236,10 @@ attr ::= IDENTIFIER(ID). {
 	unsigned type = reparse_pragma(s);
 	switch(type) {
 	case 0:
-		warn(std::string("Unknown pragma: ") + s);
+		warn(ID, "Unknown pragma: %s", s.c_str());
 		break;
 	default:
-		warn(std::string("Pragma requires a parameter: ") + s);
+		warn(ID, "Pragma requires a parameter: %s", s.c_str());
 		break;
 	case tkCDECL:
 		_segment->convention = Segment::cdecl;
@@ -287,10 +287,10 @@ attr ::= IDENTIFIER(ID) EQ STRING(S). {
 	unsigned type = reparse_pragma(s);
 	switch(type) {
 	case 0:
-		warn(std::string("Unknown pragma: ") + s);
+		warn(ID, "Unknown pragma: %s", s.c_str());
 		break;
 	default:
-		warn(std::string("Pragma does not take a string parameter: ") + s);
+		warn(ID, "Pragma does not take a string parameter: %s", s.c_str());
 		break;
 	case tkSEGMENT:
 		_segment->segment = S.id;
@@ -309,10 +309,10 @@ attr ::= IDENTIFIER(ID) EQ expr(e). {
 
 		switch(type) {
 		case 0:
-			warn(std::string("Unknown pragma: ") + s);
+			warn(ID, "Unknown pragma: %s", s.c_str());
 			break;
 		default:
-			warn(std::string("Pragma does not take a string parameter: ") + s);
+			warn(ID, "Pragma does not take a string parameter: %s", s.c_str());
 			break;
 		case tkLOCALS:
 			_segment->local_size = i;
@@ -330,7 +330,7 @@ attr ::= IDENTIFIER(ID) EQ expr(e). {
 
 	}
 	else {
-		warn(std::string("Expression too complex for pragma ") + s);
+		warn(ID, "Expression too complex for pragma %s", s.c_str());
 	}
 
 
@@ -431,12 +431,14 @@ block_line ::= LABEL(ID) EQU expr(e). {
 	install_equate(ID, e);
 }
 
+/*
 %type label { identifier }
 label(L) ::= LABEL(X). { L = X.id; }
 label(L) ::= AT_LABEL(X). {
 	// todo -- if in a macro, make even more unique.
 	L =  expand_at(X.id);
 }
+*/
 
 block_line ::= opt_label opcode(OP). {
 	add_line(std::move(OP));
@@ -448,8 +450,8 @@ block_line ::= opt_label directive.
 %type opt_label {void}
 
 opt_label ::= .
-opt_label ::= label(id). {
-	add_label(id);
+opt_label ::= LABEL(ID). {
+	add_label(ID);
 }
 
 
@@ -578,7 +580,7 @@ opcode(RV) ::= OPCODE(INSTR) operand(op). {
 	try { 
 		opcode = find_opcode(instr, mode, explicit_mode, e);
 	} catch(std::exception &e) {
-		error(e.what());
+		error(INSTR, e.what());
 	}
 	RV = BasicLine::Make(opcode, std::move(e));
 }
@@ -605,7 +607,7 @@ opcode(RV) ::= OPCODE(INSTR) REGISTER_A. {
 	if (ok) {
 		RV = BasicLine::Make(instr.mnemonic(), implied);
 	} else {
-		error("Invalid address mode.");
+		error(INSTR, "Invalid address mode.");
 	}
 }
 
@@ -623,7 +625,7 @@ opcode(RV) ::= OPCODE(INSTR) REGISTER_X. {
 		RV = BasicLine::Make(DEX, implied);
 		break;
 	default:
-		error("Invalid address mode.");
+		error(INSTR, "Invalid address mode.");
 		break;
 	}
 }
@@ -643,7 +645,7 @@ opcode(RV) ::= OPCODE(INSTR) REGISTER_Y. {
 		RV = BasicLine::Make(DEY, implied);
 		break;
 	default:
-		error("Invalid address mode.");
+		error(INSTR, "Invalid address mode.");
 		break;
 	}
 
@@ -817,7 +819,7 @@ dc_modifier(RV) ::= DOT IDENTIFIER(ID). {
 		break;
 	default:
 		RV = DCW;
-		error(ID, std::string("Invalid modifier: ") + s);
+		error(ID, "Invalid modifier: %s", s.c_str());
 		break;
 	}
 }
@@ -924,12 +926,10 @@ pragma ::= NORETURN. {
 
 
 directive ::= EXPORT identifier_list(L). {
-	for (auto &x : L) _export_set.insert(x);	
+	for (auto &x : L) _export_set.insert(x);
 }
 
-directive ::= IMPORT identifier_list(L). {
-	for (auto &x : L) _import_set.insert(x);		
-}
+directive ::= IMPORT import_list.
 
 directive ::= STRONG identifier_list(L). {
 	if (_segment)
@@ -945,6 +945,26 @@ identifier_list(L) ::= IDENTIFIER(a). {
 identifier_list(L) ::= identifier_list(L) COMMA IDENTIFIER(a). {
 	L.push_back(a.id);
 }
+
+%type import_modifier {unsigned}
+%type import_list {void}
+%type import_item {void}
+
+import_list ::= import_item.
+import_list ::= import_list import_item.
+
+import_item ::= import_modifier(M) IDENTIFIER(ID). {
+	// todo!!
+	_import_set.insert(ID.id);
+}
+
+
+import_modifier(M) ::= . { M = 0; }
+import_modifier(M) ::= import_modifier(M) CDECL.   { M |= 1; }
+import_modifier(M) ::= import_modifier(M) PASCAL.  { M |= 1; }
+import_modifier(M) ::= import_modifier(M) STDCALL. { M |= 1; }
+import_modifier(M) ::= import_modifier(M) WEAK.    { M |= 1; }
+import_modifier(M) ::= import_modifier(M) SIZEOF.  { M |= 1; } // placeholder.
 
 
 %type expr_list {VectorExpressionPtr}
@@ -1347,16 +1367,13 @@ dp_register(rv) ::= DP_REGISTER(a) PLUS INTEGER(n). {
 
 %code {
 	
-#include "fmt/printf.h"
-using fmt::sprintf;
-
 	void parser::syntax_error(int yymajor, token_type &yyminor)
 	{
-		std::string s = sprintf("Unexpected %s %s", 
+
+		error(yyminor, "Unexpected %s %s",
 			yyTokenName[yymajor],
 			yyminor.id ? yyminor.id->c_str() : ""
 		);
-		error(yyminor, s);
 	}
 
 

@@ -4,10 +4,9 @@
 #include "Expression.h"
 #include "cxx/mapped_file.h"
 
-#include <iterator>
+#include <cstdarg>
 
-#include "fmt/printf.h"
-using fmt::sprintf;
+#include <iterator>
 
 bool parser::check_opcode(Token &minor) {
 	Instruction instr(m65816, *minor.id);
@@ -99,17 +98,34 @@ void parser::expand_include(const Token &t, const filesystem::path &p) {
 
 bool parser::install_equate(const Token &t, ExpressionPtr &e) {
 
+	if (!t.id) return false; // ?
+	const std::string &name = t.string_value();
 	// top level vs not top level?
-	auto ee = _equates.find(t.id, true);
-	if (ee) {
-		std::string s = sprintf("Equate %s previously defined", t.id->c_str());
-		warn(t, s);
+
+	if (_seg_type == none && t.int_value() == 1) {
+		error(t, "Local label may only be used inside a segment");
 		return false;
 	}
 
-	// handle *...
-	// @ label illegal in top level.
-	// &... illegal always.
+	if (t.int_value() == 2) {
+		error(t, "Macro label may only be used inside a macro");
+		return false;
+	}
+
+	identifier id = expand_at(t.id);
+
+	auto ee = _equates.find(id, true);
+	if (ee) {
+		warn(t, "Equate %s previously defined", name.c_str());
+		return false;
+	}
+
+	if (_labels.count(id) > 0) {
+		error(t, "Duplicate label");
+		return false;
+	}
+
+	// how to handle *...
 
 	_equates.insert(t.id, e->simplify());
 	return true;
@@ -225,7 +241,7 @@ void parser::expand_macro(const Token &t, std::vector<Token> &&arguments) {
 	auto name = t.string_value();
 	auto iter = _macros.find(t.id);
 	if (iter == _macros.end()) {
-		error(t, sprintf("Undefined macro or opcode: %s.", name.c_str()));
+		error(t, "Undefined macro or opcode: %s", name.c_str());
 		return;
 	}
 
@@ -241,7 +257,10 @@ void parser::expand_macro(const Token &t, std::vector<Token> &&arguments) {
 	for (const auto &t : m.body) {
 		if (t.type == tkMPARAM) {
 			auto iter = find(env, t.id);
-			if (iter == env.end()) { error("unbound macro parameter"); continue; }
+			if (iter == env.end()) {
+				error(t, "Unbound macro parameter: %s", t.string_value().c_str());
+				continue;
+			}
 			const auto &tt = iter->second;
 			v.insert(v.end(), tt.begin(), tt.end());
 			continue;
@@ -250,7 +269,10 @@ void parser::expand_macro(const Token &t, std::vector<Token> &&arguments) {
 		if (t.type == tkLABEL && t.int_value() == 2) {
 			// label is actually macro parameter. expand and convert first token to a label.
 			auto iter = find(env, t.id);
-			if (iter == env.end()) { error("unbound macro parameter"); continue; }
+			if (iter == env.end()) {
+				error(t, "Unbound macro parameter: %s", t.string_value().c_str());
+				continue;
+			}
 			auto tt = iter->second; // copy since it may be modified.
 			if (!tt.empty()) {
 				auto &t = tt.front();
@@ -293,8 +315,7 @@ bool parser::install_macro(const Token &t, const std::vector<Token> &formal) {
 			for (int i = 0; i < formal.size() - 1; ++i) {
 				if (formal[i].int_value() != 0) {
 					const auto &t = formal[i];
-					std::string s = sprintf("%s: Only final parameter may be variadic.", t.id->c_str());
-					error(t, s);
+					error(t, "%s: Only final parameter may be variadic.", t.id->c_str());
 					ok = false;
 				}
 			}
@@ -303,13 +324,11 @@ bool parser::install_macro(const Token &t, const std::vector<Token> &formal) {
 			// todo - allow &...
 			for (const auto &t : formal) {
 				if (t.int_value() > 1) {
-					std::string s = sprintf("%s: Reserved parameter name.", t.id->c_str());
-					error(t, s);
+					error(t, "%s: Reserved parameter name.", t.id->c_str());
 					ok = false;
 				}
 				if (set.count(t.id)) {
-					std::string s = sprintf("%s: Duplicate parameter name.", t.id->c_str());
-					error(t, s);
+					error(t, "%s: Duplicate parameter name.", t.id->c_str());
 					ok = false;
 				}
 			}
@@ -321,13 +340,11 @@ bool parser::install_macro(const Token &t, const std::vector<Token> &formal) {
 		// 
 		for (const auto &t : _tmp_macro.body) {
 			if (t.type == tkMPARAM && !set.count(t.id)) {
-				std::string s = sprintf("%s: Unbound parameter.", t.id->c_str());
-				error(t, s);
+				error(t, "%s: Unbound parameter.", t.id->c_str());
 				ok = false;
 			}
 			if (t.type == tkLABEL && t.int_value() == 2 && !set.count(t.id)) {
-				std::string s = sprintf("%s: Unbound parameter.", t.id->c_str());
-				error(t, s);
+				error(t, "%s: Unbound parameter.", t.id->c_str());
 				ok = false;		
 			}
 		}
@@ -342,8 +359,7 @@ bool parser::install_macro(const Token &t, const std::vector<Token> &formal) {
 		_macros.emplace(t.id, std::move(_tmp_macro) );
 
 	} else {
-		std::string s = sprintf("Macro %s previously defined", t.id->c_str());
-		error(t, s);
+		error(t, "Macro %s previously defined", t.id->c_str());
 		ok = false;
 	}
 
@@ -364,8 +380,7 @@ void parser::drain_queue() {
 void parser::begin_segment(identifier name, SegmentType type) {
 
 	if (_segment) {
-		_error++;
-		fprintf(stdout, "Error: Segment still active.\n");
+		error("Error: Segment still active");
 		end_segment();
 	}
 	if (name == nullptr && type == data) {
@@ -386,8 +401,7 @@ void parser::begin_segment(identifier name, SegmentType type) {
 
 void parser::end_segment() {
 	if (!_segment) {
-		_error++;
-		fprintf(stdout, "Error: No active segment.\n");
+		error("Error: No active segment");
 	} else {
 		_segment->lines = std::move(_lines);
 		_equates.pop();
@@ -409,7 +423,7 @@ void parser::add_label(const Token &t, bool hidden) {
 		return;
 	}
 
-	if (_seg_type != macro && t.int_value() == 2) {
+	if (t.int_value() == 2) {
 		error(t, "Macro label may only be used inside a macro");
 		return;
 	}
@@ -428,8 +442,8 @@ void parser::add_label(const Token &t, bool hidden) {
 		return;
 	}
 	_labels.insert(id);	
-	_lines.emplace_back(BasicLine::Make(label));
-	if (!hidden & t.int_value() == 0) _current_label = id;
+	_lines.emplace_back(BasicLine::Make(id));
+	if (!hidden && t.int_value() == 0) _current_label = id;
 }
 
 void parser::add_label(identifier label, bool hidden) {
@@ -511,22 +525,60 @@ identifier parser::gen_sym() {
 	return intern(s);
 }
 
-void parser::error(const std::string &s) {
-	error(_opcode, s);
+void parser::error(const Token &where, const char *format, ...) {
+	va_list ap;
+	va_start(ap, format);
+	verror(where, format, ap);
+	va_end(ap);
 }
 
-void parser::error(const Token &where, const std::string &s) {
+void parser::error(const char *format, ...) {
+	va_list ap;
+	va_start(ap, format);
+	verror(_opcode, format, ap);
+	va_end(ap);
+}
+
+void parser::verror(const Token &where, const char *format, va_list ap) {
+
 	if (where.file && where.line) {
 		fprintf(stderr, "#%s:%d Error: ", where.file->c_str(), where.line);
 	} else {
 		fprintf(stderr, "# Error: ");
 	}
-	fputs(s.c_str(), stderr);
+	vfprintf(stderr, format, ap);
 	fputc('\n', stderr);
 	_error++;
 }
 
 
+void parser::warn(const Token &where, const char *format, ...) {
+	va_list ap;
+	va_start(ap, format);
+	vwarn(where, format, ap);
+	va_end(ap);
+}
+
+void parser::warn(const char *format, ...) {
+	va_list ap;
+	va_start(ap, format);
+	vwarn(_opcode, format, ap);
+	va_end(ap);
+}
+
+void parser::vwarn(const Token &where, const char *format, va_list ap) {
+
+	if (where.file && where.line) {
+		fprintf(stderr, "#%s:%d Warning: ", where.file->c_str(), where.line);
+	} else {
+		fprintf(stderr, "# Warning: ");
+	}
+	vfprintf(stderr, format, ap);
+	fputc('\n', stderr);
+	_warn++;
+}
+
+/*
 void parser::warn(const Token &where, const std::string &s) {
 	if (where.file && where.line) {
 		fprintf(stderr, "#%s:%d Warning: ", where.file->c_str(), where.line);
@@ -541,4 +593,4 @@ void parser::warn(const Token &where, const std::string &s) {
 void parser::warn(const std::string &s) {
 	warn(_opcode, s);
 }
-
+*/
