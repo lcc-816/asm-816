@@ -21,8 +21,6 @@
 
 enum Directive {
 	kUndefinedDirective = 0,
-	EXPORT,
-	PRAGMA,
 	DCB,
 	DCW,
 	DCL,

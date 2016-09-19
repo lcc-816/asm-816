@@ -76,8 +76,6 @@ void assign_pc(BasicLinePtr line, uint32_t &pc, identifier_map *map = nullptr) {
 
 		switch (line->directive) {
 			case kUndefinedDirective:
-			case EXPORT:
-			case PRAGMA:
 			case ALIGN:
 				// should never happen.
 				assert("unexpected directive!");
