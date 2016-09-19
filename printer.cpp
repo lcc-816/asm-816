@@ -244,6 +244,54 @@ void mpw_printer::print_data(FILE *f, const BasicLinePtr &line) {
 }
 
 
+#pragma mark - merlin
+
+void merlin_printer::begin(FILE *f) {
+	fprintf(f, "    xc\n");
+	fprintf(f, "    xc\n");
+	fprintf(f, "\n");
+}
+
+void merlin_printer::end(FILE *f) {
+}
+
+void merlin_printer::begin_segment(FILE *f, const SegmentPtr &segment) {
+	identifier name = segment->name;
+	fprintf(f, "%s\n", name ? name->c_str() : "");
+}
+
+void merlin_printer::end_segment(FILE *f, const SegmentPtr &segment) {
+}
+
+
+void merlin_printer::print_data(FILE *f, const BasicLinePtr &line) {
+
+	if (!line->directive) return;
+	if (!line->operands[0]) return;
+
+	std::string s = line->operands[0]->to_string();
+
+	switch(line->directive) {
+
+		case DCB:
+			fprintf(f, "    db %s\n", s.c_str());
+			break;
+		case DCW:
+			fprintf(f, "    dw %s\n", s.c_str());
+			break;
+		case DCL:
+			fprintf(f, "    adrl %s\n", s.c_str());
+			break;
+		case DS:
+			fprintf(f, "    ds %s\n", s.c_str());
+			break;
+		default:
+			return;
+	}
+}
+
+
+
 #pragma mark - orca
 
 void orca_printer::begin(FILE *f) {
@@ -299,7 +347,7 @@ void harpoon_printer::begin(FILE *f) {
 
 void harpoon_printer::begin_segment(FILE *f, const SegmentPtr &segment) {
 	identifier name = segment->name;
-	fprintf(f, "funtions %s {\n", name ? name->c_str() : "");
+	fprintf(f, "funtion %s {\n", name ? name->c_str() : "");
 }
 
 void harpoon_printer::end_segment(FILE *f, const SegmentPtr &segment) {

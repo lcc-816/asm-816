@@ -40,6 +40,16 @@ public:
 	virtual void end_segment(FILE *f, const SegmentPtr &segment);
 };
 
+class merlin_printer : public printer {
+public:
+	virtual void begin(FILE *f);
+	virtual void end(FILE *f);
+	virtual void print_data(FILE *f, const BasicLinePtr &line);
+	virtual void begin_segment(FILE *f, const SegmentPtr &segment);
+	virtual void end_segment(FILE *f, const SegmentPtr &segment);
+};
+
+
 
 class harpoon_printer : public printer {
 public:

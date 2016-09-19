@@ -30,7 +30,7 @@ struct {
 	bool S = false;
 	bool v = false;
 	int O = 0;
-	std::string f;
+	unsigned f = 0;
 	fs::path o;
 
 } flags;
@@ -147,6 +147,16 @@ void process_segments(Module &m, fs::path &outfile) {
 		close(fd);
 	}
 	if (flags.S) {
+
+		printer *p = nullptr;
+		switch(flags.f){
+			case 1: { static merlin_printer pp; p = &pp; break; }
+			case 2: { static mpw_printer pp; p = &pp; break; }
+			case 3: { static orca_printer pp; p = &pp; break; }
+			default: { static harpoon_printer pp; p = &pp; break; }
+		}
+
+
 		FILE *f = nullptr;
 		if (outfile.empty() || outfile == "-") f = stdout;
 		else {
@@ -157,8 +167,7 @@ void process_segments(Module &m, fs::path &outfile) {
 			}
 		}
 
-		mpw_printer p;
-		p.print(f, m);
+		p->print(f, m);
 		if (f != stdout) fclose(f);
 	}
 }
@@ -202,8 +211,17 @@ int main(int argc, char **argv) {
 				help();
 				exit(0);
 				break;
+
 			case 'f':
-				flags.f = optarg;
+				{
+					std::string tmp(optarg);
+					if (tmp == "merlin") flags.f = 1;
+					else if (tmp == "mpw") flags.f = 2;
+					else if (tmp == "orca") flags.f = 3;
+					else {
+						fprintf(stderr, "%s: unsupported format\n", optarg);
+					}
+				}
 				break;
 
 			case 'v':
