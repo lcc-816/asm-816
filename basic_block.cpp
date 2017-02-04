@@ -10,8 +10,8 @@
 #include <cassert>
 
 #include "cxx/defer.h"
-#include "include/tsv2_vector.h"
-#include "include/tsv2_deque.h"
+#include "cxx/vector.h"
+#include "cxx/deque.h"
 
 bool common_line_consolidation(BasicBlockPtr block);
 bool register_lifetime(BasicBlockPtr block);

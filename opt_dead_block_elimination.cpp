@@ -1,7 +1,7 @@
 #include "types.h"
 #include "common.h"
 
-#include "include/tsv2_deque.h"
+#include "cxx/deque.h"
 
 /*
  * remove dead blocks, ie, blocks which 
