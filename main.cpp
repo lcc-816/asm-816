@@ -1,5 +1,6 @@
 
 #include <string>
+#include <unordered_set>
 
 #include <cstdio>
 #include <cstring>
@@ -8,7 +9,7 @@
 #include <fcntl.h>
 #include <sysexits.h>
 #include <stdlib.h>
-#include <sys/xattr.h>
+#include <err.h>
 
 #include "common.h"
 #include "Instruction.h"
@@ -16,12 +17,13 @@
 #include "Expression.h"
 
 #include "omf.h"
-#include "unordered_set"
 
 #include "cxx/filesystem.h"
 #include "intern.h"
 
 #include "printer.h"
+
+#include "finder_info_helper.h"
 
 namespace fs = filesystem;
 
@@ -38,60 +40,21 @@ struct {
 extern OMF::Segment data_to_omf(Segment *segment);
 extern OMF::Segment code_to_omf(Segment *segment);
 
-int set_ftype(int fd, uint16_t fileType, uint32_t auxType) {
+bool set_ftype(const filesystem::path &name, uint16_t fileType, uint32_t auxType) {
 
-	int ok;
-	uint8_t finfo[32];
-	uint8_t ft[1];
-	uint8_t at[2];
+	finder_info_helper fi;
+	std::error_code ec;
 
-	ft[0] = fileType & 0xff;
-	at[0] = (auxType >> 0) & 0xff;
-	at[1] = (auxType >> 8) & 0xff;
-
-	std::fill(std::begin(finfo), std::end(finfo), 0);
-	finfo[0] = 'p';
-	finfo[1] = fileType & 0xff;
-	finfo[2] = (auxType >> 8) & 0xff;
-	finfo[3] = (auxType >> 0) & 0xff;
-	finfo[4] = 'p';
-	finfo[5] = 'd';
-	finfo[6] = 'o';
-	finfo[7] = 's';
-
-#ifdef __APPLE__
-	ok = fsetxattr(fd, XATTR_FINDERINFO_NAME, &finfo, sizeof(finfo), 0, 0);
-	if (ok < 0) return ok;
-
-	ok = fsetxattr(fd, "prodos.FileType", &ft, sizeof(ft), 0, 0);
-	if (ok < 0) return ok;
-
-	ok = fsetxattr(fd, "prodos.AuxType", &at, sizeof(at), 0, 0);
-	if (ok < 0) return ok;
-#endif
-
-#ifdef __sun__
-	ok = openat(fd, "com.apple.FinderInfo", O_XATTR | O_WRONLY | O_CREAT | O_TRUNC);
-	if (ok < 0) return ok;
-	write(ok, &finfo, sizeof(finfo));
-	close(ok);
-
-	ok = openat(fd, "prodos.FileType", O_XATTR | O_WRONLY | O_CREAT | O_TRUNC);
-	if (ok < 0) return ok;
-	write(ok, &ft, sizeof(ft));
-	close(ok);
-
-	ok = openat(fd, "prodos.AuxType", O_XATTR | O_WRONLY | O_CREAT | O_TRUNC);
-	if (ok < 0) return ok;
-	write(ok, &at, sizeof(at));
-	close(ok);
-#endif
-
-#ifdef __linux__
-
-#endif
-
-	return 0;
+	if (!fi.open(name, ec, finder_info_helper::read_write)) {
+		warnx("Unable to set file type for %s: %s", name.c_str(), ec.message().c_str());
+		return false;
+	}
+	fi.set_prodos_file_type(fileType, auxType);
+	if (!fi.write(ec)) {
+		warnx("Unable to set file type for %s: %s", name.c_str(), ec.message().c_str());
+		return false;
+	}
+	return true;
 }
 
 void simplify(LineQueue &lines) {
@@ -113,8 +76,7 @@ void process_segments(Module &m, fs::path &outfile) {
 
 		fd = open(outfile.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
 		if (fd < 0) {
-				fprintf(stderr, "Unable to open %s : %s\n", outfile.c_str(), strerror(errno));
-				exit(EX_CANTCREAT);
+			err(EX_CANTCREAT, "Unable to open %s", outfile.c_str());
 		}
 	}
 
@@ -143,7 +105,7 @@ void process_segments(Module &m, fs::path &outfile) {
 
 	}
 	if (fd >= 0) {
-		set_ftype(fd, 0xb1, 0x0000);
+		set_ftype(outfile, 0xb1, 0x0000);
 		close(fd);
 	}
 	if (flags.S) {
@@ -162,8 +124,7 @@ void process_segments(Module &m, fs::path &outfile) {
 		else {
 			f = fopen(outfile.c_str(), "w");
 			if (!f) {
-				fprintf(stderr, "Unable to open %s : %s\n", outfile.c_str(), strerror(errno));
-				exit(EX_CANTCREAT);
+				err(EX_CANTCREAT, "Unable to open %s", outfile.c_str());
 			}
 		}
 
