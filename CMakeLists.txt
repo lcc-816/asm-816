@@ -10,6 +10,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS FALSE)
 
 
+option(EGGS_VARIANT_WITH_TESTS "" OFF)
+
+
 add_subdirectory(variant)
 add_subdirectory(cxx)
 add_subdirectory(fmt)
@@ -75,4 +78,4 @@ add_executable(asm816 ${SRC})
 target_link_libraries(asm816 CXX_LIB fmt)
 target_include_directories(asm816 PRIVATE variant/include)
 target_compile_definitions(asm816 PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
-target_compile_options(asm816 PRIVATE -g -Wno-multichar)
+target_compile_options(asm816 PRIVATE -W -Wno-multichar)
