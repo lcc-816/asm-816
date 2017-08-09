@@ -16,6 +16,7 @@ option(EGGS_VARIANT_WITH_TESTS "" OFF)
 add_subdirectory(variant)
 add_subdirectory(cxx)
 add_subdirectory(fmt)
+add_subdirectory(afp)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -70,13 +71,12 @@ set(SRC main.cpp grammar.cpp parser.cpp lexer.cpp Instruction.cpp Machine.cpp Op
 	register_lifetime.cpp register_set.cpp
 	opt_consolidate.cpp opt_dead_block_elimination.cpp opt_data_flow_analysis.cpp
 	opt_merge_blocks.cpp
-	finder_info_helper.cpp
 	printer.cpp
 	)
 
 
 add_executable(asm816 ${SRC})
-target_link_libraries(asm816 CXX_LIB fmt)
+target_link_libraries(asm816 CXX_LIB fmt afp)
 target_include_directories(asm816 PRIVATE variant/include)
 target_compile_definitions(asm816 PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
 target_compile_options(asm816 PRIVATE -W -Wno-multichar)

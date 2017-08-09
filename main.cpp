@@ -23,7 +23,8 @@
 
 #include "printer.h"
 
-#include "finder_info_helper.h"
+#include <afp/finder_info.h>
+
 
 namespace fs = filesystem;
 
@@ -42,10 +43,10 @@ extern OMF::Segment code_to_omf(Segment *segment);
 
 bool set_ftype(const filesystem::path &name, uint16_t fileType, uint32_t auxType) {
 
-	finder_info_helper fi;
+	afp::finder_info fi;
 	std::error_code ec;
 
-	if (!fi.open(name, ec, finder_info_helper::read_write)) {
+	if (!fi.open(name, afp::finder_info::read_write, ec)) {
 		warnx("Unable to set file type for %s: %s", name.c_str(), ec.message().c_str());
 		return false;
 	}

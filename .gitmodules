@@ -7,3 +7,6 @@
 [submodule "fmt"]
 	path = fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "afp"]
+	path = afp
+	url = https://github.com/ksherlock/afp.git
