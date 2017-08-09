@@ -9,6 +9,12 @@
 #include "Instruction.h"
 #include "branch.h"
 
+
+struct Location {
+	identifier file = nullptr;
+	int line = 0;
+};
+
 struct Token {
 
 	Token() = default;
@@ -69,7 +75,7 @@ struct Token {
 		return get<ExpressionPtr>(value);
 	}
 
-	const branch::branch_type branch_value() const {
+	branch::branch_type branch_value() const {
 		return get<branch::branch_type>(value);
 	}
 };

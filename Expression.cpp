@@ -329,6 +329,38 @@ ExpressionPtr Expression::rename(dp_register from, dp_register to) {
 	return accept(v);
 }
 
+
+
+#pragma mark - replace
+
+	class ReplaceIdentifierVisitor : public Expression::MapVisitor {
+	public:
+		ReplaceIdentifierVisitor(std::function<ExpressionPtr(identifier)> &fx) : _fx(fx)
+		{}
+
+		virtual ExpressionPtr visit(const IdentifierExpression &e) override final {
+
+			identifier id;
+			if (e.is_identifier(id)) {
+				auto e = _fx(id);
+				if (e) return e;
+			}
+
+			return to_expression_ptr(e);
+		}
+
+	private:
+		std::function<ExpressionPtr(identifier)> &_fx;
+	};
+
+
+ExpressionPtr Expression::replace_identifier(std::function<ExpressionPtr(identifier)> &fx) {
+
+	ReplaceIdentifierVisitor v(fx);
+	return accept(v);
+}
+
+
 #pragma mark - identifiers
 
 namespace {

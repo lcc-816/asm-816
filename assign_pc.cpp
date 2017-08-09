@@ -103,7 +103,7 @@ void assign_pc(BasicLinePtr line, uint32_t &pc, identifier_map *map = nullptr) {
 			case DS:
 				// todo -- simplify stuff like
 				// ds 512-*
-				// 
+				//
 				uint32_t x;
 				if (operand->is_integer(x)) {
 					pc += x;
@@ -116,22 +116,6 @@ void assign_pc(BasicLinePtr line, uint32_t &pc, identifier_map *map = nullptr) {
 	if (line->opcode) {
 
 		OpCode op = line->opcode;
-
-#if 0
-		if (op.isRelative() && line->long_branch) {
-			/*
-			 *
-			 * long branches.
-			 * bcc foo      [2 bytes]
-			 * becomes
-			 * bcs *+5      [2 bytes
-			 * brl foo      [3 bytes]
-			 */
-			if (op.mnemonic() == BRA) pc += 3;
-			else pc += 5;
-			return;
-		}
-#endif
 		pc += op.bytes(line->longM, line->longX);
 	}
 }

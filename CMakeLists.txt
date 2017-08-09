@@ -70,6 +70,7 @@ set(SRC main.cpp grammar.cpp parser.cpp lexer.cpp Instruction.cpp Machine.cpp Op
 	register_lifetime.cpp register_set.cpp
 	opt_consolidate.cpp opt_dead_block_elimination.cpp opt_data_flow_analysis.cpp
 	opt_merge_blocks.cpp
+	finder_info_helper.cpp
 	printer.cpp
 	)
 

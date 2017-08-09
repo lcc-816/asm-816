@@ -115,6 +115,16 @@ namespace {
 			return;
 		}
 
+		const std::string *s;
+		if (e->is_string(s)) {
+			builder.data(s->begin(), s->end());
+
+			// zero-pad to boundary.
+			int mod = s->size() % bytes;
+			builder.data(0, mod);
+			return;
+		}
+
 
 		switch(op.mnemonic()) {
 			case JSL:

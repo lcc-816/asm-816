@@ -7,6 +7,22 @@
 #include <cstdarg>
 
 #include <iterator>
+#include <system_error>
+
+namespace {
+
+	// symbol types
+	enum {
+		TypeUnknown,
+		TypeEquate,
+		TypeRecord,
+		TypeMacro,
+		TypeFunction,
+		TypeData,
+		TypeLabel
+	};
+
+};
 
 bool parser::check_opcode(Token &minor) {
 	Instruction instr(m65816, *minor.id);
@@ -29,8 +45,10 @@ bool parser::check_macro(Token &minor) {
 }
 
 bool parser::check_equate(Token &minor) {
-	ExpressionPtr e = _equates.find(minor.id);
-	if (e) {
+	auto iter = _equates.find(minor.id);
+	if (iter != _equates.end()) {
+		ExpressionPtr e = iter->second;
+
 		dp_register dp;
 		if (e->is_register(dp)) {
 			minor.type = tkDP_REGISTER;
@@ -68,15 +86,44 @@ void parser::parse_token(Token &&token) {
 	parse(token.type, std::move(token));
 }
 
+namespace {
+	mapped_file find_include_path(filesystem::path &p, const std::vector<filesystem::path> &include_paths, std::error_code &ec) {
 
-void parser::expand_include(const Token &t, const filesystem::path &p) {
+		ec.clear();
+		if (p.is_absolute()) {
+			return mapped_file(p, ec);
+		}
+
+		auto tmp = filesystem::absolute(p);
+		auto f = mapped_file(tmp, ec);
+		if (f) {
+			p = std::move(tmp);
+			return f;
+		}
+
+		for (auto tmp : include_paths) {
+			tmp /= p;
+			auto f = mapped_file(tmp, ec);
+			if (f) {
+				p = std::move(tmp);
+				return f;
+			}
+		}
+		ec = std::make_error_code(std::errc::no_such_file_or_directory);
+		return mapped_file();
+	}
+}
+
+void parser::expand_include(const Token &t, filesystem::path p) {
 	std::error_code ec;
-	mapped_file f(p, ec);
 
+	if (p.empty()) {
+		error(t, "Invalid include");
+		return;
+	}
+	mapped_file f = find_include_path(p, _include_paths, ec);
 	if (ec) {
-
-		fprintf(stderr, "#%s: %s\n", p.c_str(), ec.message().c_str());
-		_error++;
+		error(t, "error including %s: %s", p.c_str(), ec.message().c_str());
 		return;	
 	}
 
@@ -114,10 +161,11 @@ bool parser::install_equate(const Token &t, ExpressionPtr &e) {
 
 	identifier id = expand_at(t.id);
 
-	auto ee = _equates.find(id, true);
-	if (ee) {
-		warn(t, "Equate %s previously defined", name.c_str());
-		return false;
+	{
+		auto iter = _equates.find(id);
+		if (iter != _equates.end()) {
+			warn(t, "Equate %s previously defined", name.c_str());
+		}
 	}
 
 	if (_labels.count(id) > 0) {
@@ -127,8 +175,8 @@ bool parser::install_equate(const Token &t, ExpressionPtr &e) {
 
 	// how to handle *...
 
-	_equates.insert(t.id, e->simplify());
-	return true;
+	auto rv = _equates.emplace(t.id, e->simplify());
+	return rv.second; // true if inserted, false if duplicate.
 }
 
 
@@ -182,7 +230,7 @@ namespace {
 			return rv;		
 		}
 
-		int j = 0;
+		unsigned j = 0;
 		int bracket = 0;
 		int paren = 0;
 		auto begin = tokens.begin();
@@ -237,6 +285,9 @@ namespace {
 } // namespace
 
 void parser::expand_macro(const Token &t, std::vector<Token> &&arguments) {
+
+	// todo -- capture label as part of macro.
+	// todo -- expand @identifiers in arguments before entering macro scope.
 
 	auto name = t.string_value();
 	auto iter = _macros.find(t.id);
@@ -312,7 +363,7 @@ bool parser::install_macro(const Token &t, const std::vector<Token> &formal) {
 		 	if (formal.back().int_value() == 1)
 				_tmp_macro.variadic = true;
 
-			for (int i = 0; i < formal.size() - 1; ++i) {
+			for (unsigned i = 0; i < formal.size() - 1; ++i) {
 				if (formal[i].int_value() != 0) {
 					const auto &t = formal[i];
 					error(t, "%s: Only final parameter may be variadic.", t.id->c_str());
@@ -368,6 +419,271 @@ bool parser::install_macro(const Token &t, const std::vector<Token> &formal) {
 }
 
 
+
+bool parser::install_record(const Token &t) {
+	// check for @ or &...
+	auto iter = _records.find(t.id);
+	if (iter != _records.end()) {
+		error(t, "Duplicate record %s", t.string_value().c_str());
+		_tmp_record = {};
+		return false;
+	}
+
+	_tmp_record.name = t.id;
+	_tmp_record.file = t.file;
+	_tmp_record.line = t.line;
+	_records.emplace(t.id, std::move(_tmp_record));
+	_tmp_record = {};
+	return true;
+}
+
+identifier parser::install_record_label(const Token &t) {
+
+	// check for duplicates..
+	identifier id = t.id;
+	auto &fields = _tmp_record.fields;
+
+	if (std::any_of(fields.begin(), fields.end(), [id](const field &f){ return f.name == id; })) {
+
+		error(t, "Duplicate record label %s", id->c_str());
+		return nullptr;
+	}
+
+	// check for @ or &....
+
+	if (t.int_value() == 1) {
+		error(t, "Invalid macro parameter %s", id->c_str());
+		return nullptr;
+	}
+
+	if (t.int_value() == 2) {
+		error(t, "Invalid local parameter %s", id->c_str());
+		return nullptr;
+	}
+
+	fields.emplace_back( field{id, _tmp_record.size, nullptr});
+	return id;
+}
+
+bool parser::install_record_ds(const Token &t, identifier label, int modifier, ExpressionPtr e){
+
+	// label has already been installed (and is presumed to be the last entry);
+
+	identifier r;
+	if (e->is_identifier(r)) {
+		// ds recordname
+		auto iter = _records.find(r);
+		if (iter == _records.end()) {
+			error(t, "Unknown record %s", r->c_str());
+			return false;
+		}
+
+		if (modifier) {
+			error(t, "invalid DS modifier for record.");
+		}
+
+		if (label)
+			_tmp_record.fields.back().record = r;
+
+		_tmp_record.size += iter->second.size;
+		return true;
+	}
+
+	e = e->simplify();
+	uint32_t i;
+	if (e->is_integer(i)) {
+		// ds 1
+		// ds.b 1
+		// ds.w 1
+		// ds.l 1
+		if (!modifier) modifier = 1;
+		_tmp_record.size += modifier * i;
+		return true;
+	}
+
+	error(t, "Expression too complex.");
+	return false;
+}
+
+
+int parser::field_offset(const record &rec, std::vector<Token> &tokens) {
+
+	int offset = 0;
+	const record *r = &rec;
+	const field *f = nullptr;
+	identifier prev = nullptr;
+
+	for (const auto &t : tokens) {
+
+		if (!r) {
+			error(t, "Invalid record %s", prev->c_str());
+			return 0;
+		}
+
+		prev = t.id;
+		auto iter = std::find_if(r->fields.begin(), r->fields.end(),
+			[&t](const field &f){ return f.name == t.id; });
+
+		if (iter == r->fields.end()) {
+			error(t, "Invalid field %s", t.id->c_str());
+			return 0;
+		}
+		f = &(*iter);
+		offset += f->offset;
+		r = nullptr;
+		if (f->record) {
+			auto iter = _records.find(f->record);
+			if (iter != _records.end()) r = &(iter->second);
+		}
+
+	}
+	return offset;
+}
+
+
+
+
+void parser::resolve_records() {
+
+	/*
+	 * to handle forward record references, (eg)
+	 * 
+	 *     lda dcb.refNum
+	 *     ...
+	 * dcb ds CloseRecGS
+	 *
+	 * we defer record field resolution until after the segment is finished.
+	 * 
+	 */
+
+	std::unordered_map<identifier, ExpressionPtr> map;
+
+	for (auto &x : _pending_records) {
+		auto id = x.first;
+		auto tokens = std::move(x.second);
+
+		auto t = std::move(tokens.back());
+		tokens.pop_back();
+
+		// always a label.  :record.field handled by parser.
+
+		identifier rid = nullptr;
+		auto iter = _types.find(t.id);
+		if (iter == _types.end()) {
+			error(t, "Undeclared variable %s", t.id->c_str());
+			continue;	
+		}
+
+		auto rIter = _records.find(rid);
+		if (rIter == _records.end()) {
+			error(t, "Invalid record %s", rid->c_str());
+			continue;
+		}
+
+#if 0
+		// check if this is a record or a label.  or both.
+
+		auto tIter = _types.find(t.id);
+		auto rIter = _records.find(t.id);
+
+		if (tIter && rIter != _records.end()) {
+			error(t, "Ambiguous record: %s", t.id->c_str());
+			continue;
+		}
+
+		if (tIter) {
+			rIter = _records.find(tIter);
+			e = Expression::Identifier(t.id);
+		}
+
+		if (rIter == _records.end()) {
+			error(t, "Invalid record: %s", t.id->c_str());
+			continue;
+		}
+#endif
+		int offset = field_offset(rIter->second, tokens);
+
+		ExpressionPtr e = Expression::Identifier(t.id);
+		if (offset) e = Expression::Binary('+', e, Expression::Integer(offset));
+		map.emplace(id, e);
+	}
+
+
+	if (map.empty()) {
+		_pending_records.clear();
+		return;
+
+	}
+	std::function<ExpressionPtr(identifier)> fx([&](identifier id){
+
+		auto iter = map.find(id);
+		if (iter == map.end()) return ExpressionPtr();
+		return iter->second;
+	});
+
+	for(auto &line : _lines) {
+		for (auto &e : line->operands) {
+			if (e) {
+				e = e->replace_identifier(fx);
+			}
+		}
+	}
+
+
+	_pending_records.clear();
+}
+
+
+void parser::verify_identifiers() {
+	/* if -W, verify all identifiers are known */
+
+
+	for(auto &line : _lines) {
+		for (const auto &e : line->operands) {
+			if (e) {
+				auto identifiers = e->identifiers();
+				for (auto id : identifiers) {
+					if (_import_set.find(id) != _import_set.end()) continue;
+					if (_entry_set.find(id) != _entry_set.end()) continue;
+					if (_labels.find(id) != _labels.end()) continue;
+
+					fprintf(stderr, "# Udnefined ID %s", id->c_str());
+					_error++;
+				}
+			}
+		}
+	}	
+
+
+}
+
+
+
+void parser::add_ds(Token &t, identifier label, int modifier, ExpressionPtr e) {
+	identifier id;
+	if (e->is_identifier(id)) {
+		// record?
+		auto iter = _records.find(id);
+		if (iter == _records.end()) {
+			error(t, "Invalid record %s", id->c_str());
+			return;
+		}
+
+		if (modifier) {
+			error(t, "invalid DS modifier for record.");
+		}
+
+		// type the label.
+		if (label) _types.emplace(label, id);
+
+		add_line(BasicLine::Make(DS, Expression::Integer(iter->second.size)));
+		return;
+	}
+	if (modifier > 1) e = Expression::Binary('*', Expression::Integer(modifier), e);
+	e = e->simplify();
+	add_line(BasicLine::Make(DS, std::move(e)));
+}
+
 void parser::drain_queue() {
 	while (!_queue.empty()) {
 		auto t = std::move(_queue.front());
@@ -392,7 +708,10 @@ void parser::begin_segment(identifier name, SegmentType type) {
 	}
 
 	_seg_type = type;
-	_equates.push();
+	_equates.push_scope();
+	_types.push_scope();
+	_import_set.push_scope();
+	_entry_set.push_scope();
 
 	_labels.clear();
 	_labels.insert(name);
@@ -403,9 +722,16 @@ void parser::end_segment() {
 	if (!_segment) {
 		error("Error: No active segment");
 	} else {
+
+		resolve_records();
+		verify_identifiers();
 		_segment->lines = std::move(_lines);
-		_equates.pop();
+		_equates.pop_scope();
+		_types.pop_scope();
+		_import_set.pop_scope();
+		_entry_set.pop_scope();
 	}
+
 
 	_segment = nullptr;
 	_lines.clear();
@@ -414,40 +740,47 @@ void parser::end_segment() {
 }
 
 
-void parser::add_label(const Token &t, bool hidden) {
-	if (!t.id) return;
+identifier parser::add_label(const Token &t, bool hidden) {
+	if (!t.id) return nullptr;
 
 	// local labels only valid in segment/record/macro
 	if (_seg_type == none && t.int_value() == 1) {
 		error(t, "Local label may only be used inside a segment");
-		return;
+		return nullptr;
 	}
 
 	if (t.int_value() == 2) {
 		error(t, "Macro label may only be used inside a macro");
-		return;
+		return nullptr;
 	}
 
 	// expand '@' ...
 	identifier id = expand_at(t.id);
 	// check for duplicates...
-	auto ee = _equates.find(id, true);
-	if (ee) {
-		error(t, "Duplicate label");
-		return;
+	if (_equates.count(id)) {
+		error(t, "Label conflict with equate");
+		return nullptr;
 	}
 
 	if (_labels.count(id) > 0) {
 		error(t, "Duplicate label");
-		return;
+		return nullptr;
 	}
+
+	if (_records.count(id)) {
+		warn(t, "Label conflict with record");
+		// but insert it anyhow to prevent later errors.
+	}
+
 	_labels.insert(id);	
 	_lines.emplace_back(BasicLine::Make(id));
 	if (!hidden && t.int_value() == 0) _current_label = id;
+	return id;
 }
 
-void parser::add_label(identifier label, bool hidden) {
-	if (!label) return;
+// only used for symbol-generated labels.
+identifier parser::add_label(identifier label, bool hidden) {
+	if (!label) return nullptr;
 
 
 	// check for errors...
@@ -457,6 +790,8 @@ void parser::add_label(identifier label, bool hidden) {
 
 	if (!hidden && label->find('@') == label->npos)
 		_current_label = label;
+
+	return label;
 }
 
 void parser::add_line(BasicLinePtr &&line) {
@@ -476,7 +811,10 @@ std::unique_ptr<Module> parser::module() {
 
 	auto m = std::make_unique<Module>();
 
-	m->imports.assign(_import_set.begin(), _import_set.end());
+	std::transform(_import_set.begin(), _import_set.end(), std::back_inserter(m->imports),
+		[](const auto &e){ return e.first; });
+
+	//m->imports.assign(_import_set.begin(), _import_set.end());
 	m->exports.assign(_export_set.begin(), _export_set.end());
 
 
@@ -504,7 +842,7 @@ std::unique_ptr<Module> parser::module() {
 	return m;
 }
 
-identifier parser::expand_at(identifier id) const {
+identifier parser::expand_at(identifier id) {
 	if (!id || id->front() != '@') return id;
 	if (_current_macro) {
 		return intern(*_current_macro + *id);
@@ -515,13 +853,32 @@ identifier parser::expand_at(identifier id) const {
 }
 
 
+identifier parser::expand_at(const Token &t) {
+
+	identifier id = t.id;
+	if (_seg_type == none && id->front() == '@') {
+		error(t, "Local label may only be used inside a segment");
+		return nullptr;
+	}
+
+	if (id->front() == '&') {
+		error(t, "Macro label may only be used inside a macro");
+		return nullptr;
+	}
+
+	return expand_at(t.id);
+}
+
+
+
 void parser::parse_failure()
 {
 	if (!_error) _error = 1;
 }
 
 identifier parser::gen_sym() {
-	std::string s = std::to_string(++_gen_sym) + "--gs";
+	std::string s(":");
+	s += std::to_string(++_gen_sym);
 	return intern(s);
 }
 
@@ -578,19 +935,3 @@ void parser::vwarn(const Token &where, const char *format, va_list ap) {
 	_warn++;
 }
 
-/*
-void parser::warn(const Token &where, const std::string &s) {
-	if (where.file && where.line) {
-		fprintf(stderr, "#%s:%d Warning: ", where.file->c_str(), where.line);
-	} else {
-		fprintf(stderr, "# Warning: ");
-	}
-	fputs(s.c_str(), stderr);
-	fputc('\n', stderr);
-	_warn++;
-}
-
-void parser::warn(const std::string &s) {
-	warn(_opcode, s);
-}
-*/

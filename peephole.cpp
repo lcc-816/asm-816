@@ -815,6 +815,20 @@ bool peephole(BasicBlockPtr block) {
 
 		// TODO -- check m/x bits? before dropping?
 		case REP:
+
+			/* 	rep #a, rep #b -> rep #a|b */
+			if (match(list, REP, REP, [&](BasicLinePtr a, BasicLinePtr b){
+
+				uint32_t value_a, value_b;
+				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
+
+					list.pop_front();
+					a->operands[0] = Expression::Integer(value_a | value_b);
+					return true;
+				}
+				return false;
+			})) continue;
+
 			/* 	rep #$20, sep #$20 -> nop */
 			if (match(list, REP, SEP, [&](BasicLinePtr a, BasicLinePtr b){
 
@@ -832,8 +846,52 @@ bool peephole(BasicBlockPtr block) {
 				return false;
 			})) continue;
 			break;
-#if 0
 		case SEP:
+
+			/* 	sep #a, sep #b -> sep #a|b */
+			if (match(list, SEP, SEP, [&](BasicLinePtr a, BasicLinePtr b){
+
+				uint32_t value_a, value_b;
+				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
+
+					list.pop_front();
+					a->operands[0] = Expression::Integer(value_a | value_b);
+					return true;
+				}
+				return false;
+			})) continue;
+
+
+			/* 	sep #a, rep #b -> sep #a & ~b, rep #b */
+			if (match(list, SEP, REP, [&](BasicLinePtr a, BasicLinePtr b){
+
+				uint32_t value_a, value_b;
+				if (a->operands[0]->is_integer(value_a) && b->operands[0]->is_integer(value_b)) {
+
+					if (value_a & value_b) {
+						a->operands[0] = Expression::Integer(value_a & ~value_b);
+						return true;
+					}
+				}
+				return false;
+			})) continue;
+
+			/* 	sep #0 -> nop */
+			if (match(list, SEP, [&](BasicLinePtr a){
+
+				uint32_t value_a;
+				if (a->operands[0]->is_integer(value_a) && value_a == 0) {
+
+					list.pop_front();
+					return true;
+				}
+				return false;
+			})) continue;
+
+			break;
+
+
+#if 0
 			/* 	sep #$20, rep #$20 -> nop */
 			if (match(list, REP, SEP, [&](BasicLinePtr a, BasicLinePtr b){
 

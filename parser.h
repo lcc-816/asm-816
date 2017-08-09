@@ -8,8 +8,10 @@
 
 #include "types.h"
 #include "token.h"
-#include "symbol_table.h"
+//#include "symbol_table.h"
 #include "common.h"
+#include "include/scoped_map.h"
+
 
 class parser : public lemon_base<Token> {
 
@@ -19,7 +21,6 @@ public:
 		none,
 		code,
 		data,
-		record,
 	};
 
 	static std::unique_ptr<parser> make();
@@ -51,13 +52,17 @@ protected:
 
 
 
-	identifier expand_at(identifier id) const;
+	identifier expand_at(identifier id);
+	identifier expand_at(const Token &t);
 
-	void add_label(identifier label, bool hidden = false);
-	void add_label(const Token &t, bool hidden = false);
+	identifier add_label(identifier label, bool hidden = false);
+	identifier add_label(const Token &t, bool hidden = false);
 
 	void add_line(BasicLinePtr &&line);
 	void add_lines(std::vector<BasicLinePtr> &&line);
+
+	//void add_dc(Token &t, int size, ExpressionPtr e);
+	void add_ds(Token &t, identifier label, int size, ExpressionPtr e);
 
 	void begin_segment(identifier name, SegmentType type);
 	void end_segment();
@@ -66,7 +71,7 @@ protected:
 
 	virtual void syntax_error(int yymajor, token_type &yyminor) override;
 	virtual void parse_failure() override;
-	void expand_include(const Token &t, const filesystem::path &p);
+	void expand_include(const Token &t, filesystem::path p);
 	void expand_macro(const Token &t, std::vector<Token> &&arguments);
 
 	bool check_macro(Token &t);
@@ -77,11 +82,17 @@ protected:
 
 	std::deque<Token> _queue;
 	std::unordered_set<identifier> _export_set;
-	std::unordered_set<identifier> _import_set;
-	std::unordered_set<identifier> _labels; // labels in the current segment.
+
+	scoped_map<identifier, identifier> _import_set;
+	scoped_map<identifier, int> _entry_set;
+
+	// labels in the current segment.
+	std::unordered_set<identifier> _labels; 
 
 	// records...
-	symbol_table _equates;
+	//symbol_table _equates;
+	scoped_map<identifier, ExpressionPtr> _equates;
+	scoped_map<identifier, identifier> _types;
 
 
 	SegmentQueue _segments;
@@ -131,6 +142,52 @@ protected:
 	macro _tmp_macro;
 	std::unordered_map<identifier, macro> _macros;
 
+protected:
+	/*
+	 * record stuff
+	 */
+
+	struct field {
+		identifier name = nullptr;
+		int offset = 0;
+		identifier record = nullptr;
+	};
+
+	struct record {
+		identifier name = nullptr;
+		identifier file = nullptr;
+		int line = 0;
+		int offset = 0;
+		int size = 0;
+		std::vector< field > fields;
+
+	};
+	record _tmp_record;
+	std::unordered_map<identifier, record> _records;
+
+	identifier install_record_label(const Token &t);
+	bool install_record_ds(const Token &t, identifier label, int modifier, ExpressionPtr e);
+	bool install_record(const Token &t);
+
+
+	/*
+	 * record . field resolution is deferred until the end of the segment so
+	 * labels can be defined later in the segment.   
+	 */
+	std::unordered_map<identifier, std::vector<Token>> _pending_records;
+
+
+	void resolve_records();
+	void verify_identifiers();
+	int field_offset(const record &r, std::vector<Token> &tokens);
+
+
+protected:
+	/*
+	 * include stuff.
+	 */
+
+	std::vector<filesystem::path> _include_paths;
 };
 
 

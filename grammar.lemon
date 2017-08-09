@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cassert>
 #include <utility>
+#include <numeric>
 #include <unistd.h>
 
 #include "Machine.h"
@@ -33,11 +34,11 @@
 // allow X, Y, Z to be used as identifiers if appropriate.
 %fallback IDENTIFIER REGISTER_X REGISTER_Y REGISTER_S REGISTER_Z REGISTER_A REGISTER_B REGISTER_K REGISTER_D.
 %fallback IDENTIFIER SIGNED UNSIGNED CC.
-%fallback IDENTIFIER OPCODE OPCODE_0 OPCODE_2.
+%fallback IDENTIFIER OPCODE OPCODE_0 OPCODE_2 OPCODE_3 DS DC DCB.
 %fallback IDENTIFIER DO WHILE IF.
 
 %token_class fallback REGISTER_X REGISTER_Y REGISTER_S REGISTER_Z REGISTER_A REGISTER_B REGISTER_K REGISTER_D
-SIGNED UNSIGNED CC OPCODE OPCODE_0 OPCODE_2 DO WHILE IF.
+SIGNED UNSIGNED CC OPCODE OPCODE_0 OPCODE_2 OPCODE_3 DS DC DCB DO WHILE IF.
 
 %left PIPEPIPE.
 %left AMPAMP.
@@ -175,9 +176,44 @@ tl_directive ::= EXPORT identifier_list(L). {
 	for (auto &x : L) _export_set.insert(x);	
 }
 
-tl_directive ::= IMPORT identifier_list(L). {
-	for (auto &x : L) _import_set.insert(x);		
+/*
+ * IMPORT name [, name...]
+ * IMPORT name:type
+ * IMPORT (name, name):type
+ * todo -- IMPORT %cdecl name? IMPORT name:%cdecl?
+ */
+tl_directive ::= IMPORT import_list.
+
+%type import_list {void}
+%type import_item {void}
+import_list ::= import_item.
+import_list ::= import_item COMMA nl import_list.
+
+import_item ::= IDENTIFIER(t) . {
+	identifier id = expand_at(t);
+	if (id) _import_set.emplace(id, nullptr);
 }
+import_item ::= IDENTIFIER(id) COLON IDENTIFIER(type). {
+	identifier id = expand_at(id); //?
+	if (id) {
+		_import_set.emplace(id, type.id);
+		_types.emplace(id, type.id);
+	}
+}
+
+import_item ::= LPAREN identifier_list(l) RPAREN. {
+	for(auto id : l) {
+		_import_set.emplace(id, nullptr);
+	}
+}
+
+import_item ::= LPAREN identifier_list(l) RPAREN COLON IDENTIFIER(type). {
+	for(auto id : l) {
+		_import_set.emplace(id, type.id);
+		_types.emplace(id, type.id);
+	}
+}
+
 
 tl_directive ::= LABEL(id) EQU expr(e). {
 	install_equate(id, e);
@@ -195,7 +231,9 @@ segment ::= segment_start segment_attr nl block . {
 	end_segment();
 }
 
-record ::= record_start nl record_block. {
+record ::= record_start(R) nl record_block. {
+
+	install_record(R);
 }
 
 macro ::= macro_start(M) opt_macro_parms(P) nl macro_block. {
@@ -354,7 +392,10 @@ segment_start ::= DATA opt_identifier(name). {
 /*
  * records
  */
-record_start ::= RECORD IDENTIFIER. {
+%type record_start {Token}
+record_start(R) ::= RECORD IDENTIFIER(X). {
+	R = std::move(X);
+	_tmp_record = {};
 }
 
 
@@ -369,11 +410,42 @@ record_block_lines ::= record_block_lines EOL record_block_line.
 record_block_line ::= error EOL .
 
 record_block_line ::= .
-record_block_line ::= LABEL.
-record_block_line ::= LABEL EQU expr .
-record_block_line ::= LABEL DS expr .
-record_block_line ::= DS expr .
+record_block_line ::= record_label.
+record_block_line ::= record_label(L) DS(DS) dc_modifier(M) expr(E) . {
+	install_record_ds(DS, L, M, std::move(E));	
+}
 
+record_block_line ::= DS(DS) dc_modifier(M) expr(E) . {
+	install_record_ds(DS, nullptr, M, std::move(E));
+}
+
+%type record_label {identifier}
+record_label(L) ::= LABEL(ID). {
+	L = install_record_label(ID);
+}
+
+%type dc_modifier {int}
+dc_modifier(RV) ::= . { RV = 0; }
+dc_modifier(RV) ::= DOT IDENTIFIER(ID). {
+
+	const std::string &s = ID.string_value();
+	int type = reparse_modifier(s);
+	switch (type) {
+	case 'b':
+		RV = 1;
+		break;
+	case 'w':
+		RV = 2;
+		break;
+	case 'l':
+		RV = 4;
+		break;
+	default:
+		RV = 1;
+		error(ID, "Invalid modifier: %s", s.c_str());
+		break;
+	}
+}
 
 
 /*
@@ -386,7 +458,7 @@ record_block_line ::= DS expr .
 %type macro_rbracket { void }
 
 macro_start(M) ::= MACRO IDENTIFIER(X). {
-	M = X;
+	M = std::move(X);
 	_tmp_macro = {};
 }
 
@@ -431,14 +503,14 @@ block_line ::= LABEL(ID) EQU expr(e). {
 	install_equate(ID, e);
 }
 
-/*
-%type label { identifier }
-label(L) ::= LABEL(X). { L = X.id; }
-label(L) ::= AT_LABEL(X). {
-	// todo -- if in a macro, make even more unique.
-	L =  expand_at(X.id);
+block_line ::= EQU(E) expr(e). {
+	warn(E, "Missing label");
 }
-*/
+
+block_line ::= opt_label(L) DS(DS) dc_modifier(M) expr(e). {
+	
+	add_ds(DS, L, M, std::move(e));
+}
 
 block_line ::= opt_label opcode(OP). {
 	add_line(std::move(OP));
@@ -447,12 +519,10 @@ block_line ::= opt_label opcode(OP). {
 block_line ::= opt_label block_opcode.
 block_line ::= opt_label directive.
 
-%type opt_label {void}
+%type opt_label {identifier}
 
-opt_label ::= .
-opt_label ::= LABEL(ID). {
-	add_label(ID);
-}
+opt_label(RV) ::= .          { RV = nullptr; }
+opt_label(RV) ::= LABEL(ID). { RV = add_label(ID); }
 
 
 block_opcode ::= .
@@ -558,6 +628,20 @@ opcode(RV) ::= OPCODE_2(INSTR) expr(a) COMMA expr(b). {
 
 	RV = BasicLine::Make(instr.mnemonic(), mode, std::move(a), std::move(b));
 }
+
+/* bbs, bbr, etc  -- three parameters.*/
+opcode(RV) ::= OPCODE_3(INSTR) expr(a) COMMA expr(b) COMMA expr(c). {
+
+	auto instr = INSTR.instruction_value();
+
+	a = a->simplify();
+	b = b->simplify();
+	c = c->simplify();
+
+	// not yet!
+	RV = nullptr;
+}
+
 
 opcode(RV) ::= OPCODE_0(INSTR). {
 	
@@ -798,38 +882,78 @@ opcode(RV) ::= SMART_BRANCH(b) expr(e). {
 /* dc.b expression [, expression] */
 
 opcode(RV) ::= DC dc_modifier(M) expr_list(e). {
+	Directive op;
+	switch(M) {
+	case 0:
+	case 2: op = DCW; break;
+	case 1: op = DCB; break;
+	case 4: op = DCL; break;
+	}
 	//e = e->simplify();
-	RV = BasicLine::Make(M, std::move(e));
+	RV = BasicLine::Make(op, std::move(e));
 }
 
-%type dc_modifier {Directive}
-dc_modifier(RV) ::= DOT IDENTIFIER(ID). {
-	const std::string &s = ID.string_value();
 
-	int type = reparse_modifier(s);
-	switch (type) {
-	case 'b':
-		RV = DCB;
-		break;
-	case 'w':
-		RV = DCW;
-		break;
-	case 'l':
-		RV = DCL;
-		break;
-	default:
-		RV = DCW;
-		error(ID, "Invalid modifier: %s", s.c_str());
-		break;
+/* dcb count,expression */
+opcode(RV) ::= DCB(t) dc_modifier(M) expr(count) COMMA expr(e). {
+	Directive op;
+	switch(M) {
+	case 0:
+	case 2: op = DCW; break;
+	case 1: op = DCB; break;
+	case 4: op = DCL; break;
+	}
+	count = count->simplify();
+	e = e->simplify();
+	uint32_t i;
+	if (count->is_integer(i)) {
+		if (i == 0) warn(t, "Invalid DCB count");
+
+		// assign_pc expects a vector.
+		std::vector<ExpressionPtr> tmp(i, e);
+
+		RV = BasicLine::Make(op, Expression::Vector(std::move(tmp)));
+	} else {
+		error(t, "Invalid DCB count");
 	}
 }
 
-dc_modifier(RV) ::= . { RV = DCW; }
 
+/*
+ * str   - raw string
+ * str.b - pascal string
+ * str.w - gsos string
+ * str.l - longword
+ *
+ * str "hello",$00  to make c string.
+ * str.b "hello" -> 5,'h','e','l','l','o'
+ */
+%type str_list {std::vector<ExpressionPtr>}
+str_list(l) ::= expr(e).   { l.emplace_back(std::move(e));}
+str_list(l) ::= STRING(s).  { l.emplace_back(Expression::String(s.id)); }
 
-opcode(RV) ::= DS expr(e). {
-	e = e->simplify();
-	RV = BasicLine::Make(DS, std::move(e));
+str_list(l) ::= str_list(l) COMMA expr(e).   { l.emplace_back(std::move(e));}
+str_list(l) ::= str_list(l) COMMA STRING(s).  { l.emplace_back(Expression::String(s.id)); }
+
+opcode(RV) ::= STR(t) dc_modifier(M) str_list(l). {
+
+	size_t size = 0;
+	for (const auto &e : l) {
+		const std::string *s;
+		if (e->is_string(s)) {
+			size += s->length();
+		}
+		else size += 1;
+	}
+
+	Directive op = kUndefinedDirective;
+	switch(M) {
+	case 2: op = DCW; break;
+	case 1: op = DCB; break;
+	case 4: op = DCL; break;
+	}
+
+	RV = nullptr;
 }
 
 opcode(RV) ::= ALIGN expr(e). {
@@ -945,27 +1069,6 @@ identifier_list(L) ::= IDENTIFIER(a). {
 identifier_list(L) ::= identifier_list(L) COMMA IDENTIFIER(a). {
 	L.push_back(a.id);
 }
-
-%type import_modifier {unsigned}
-%type import_list {void}
-%type import_item {void}
-
-import_list ::= import_item.
-import_list ::= import_list import_item.
-
-import_item ::= import_modifier(M) IDENTIFIER(ID). {
-	// todo!!
-	_import_set.insert(ID.id);
-}
-
-
-import_modifier(M) ::= . { M = 0; }
-import_modifier(M) ::= import_modifier(M) CDECL.   { M |= 1; }
-import_modifier(M) ::= import_modifier(M) PASCAL.  { M |= 1; }
-import_modifier(M) ::= import_modifier(M) STDCALL. { M |= 1; }
-import_modifier(M) ::= import_modifier(M) WEAK.    { M |= 1; }
-import_modifier(M) ::= import_modifier(M) SIZEOF.  { M |= 1; } // placeholder.
-
 
 %type expr_list {VectorExpressionPtr}
 
@@ -1222,11 +1325,6 @@ operand(rv) ::= LBRACKET opt_modifier(m) expr(e) RBRACKET. {
 	rv = std::make_tuple(mode, explicit_mode, std::move(e));
 }
 
-/*
-operand(rv) ::= LBRACKET expr(e) RBRACKET. {
-	rv = std::make_tuple(zp_indirect_long, false, std::move(e));
-}
-*/
 
 /* [dp],y */
 operand(rv) ::= LBRACKET opt_modifier(m) expr(e) RBRACKET COMMA REGISTER_Y. {
@@ -1255,11 +1353,6 @@ operand(rv) ::= LBRACKET opt_modifier(m) expr(e) RBRACKET COMMA REGISTER_Y. {
 	rv = std::make_tuple(mode, explicit_mode, std::move(e));
 }
 
-/*
-operand(rv) ::= LBRACKET expr(e) RBRACKET COMMA REGISTER_Y. {
-	rv = std::make_tuple(zp_indirect_long_y, false, std::move(e));
-}
-*/
 
 /* modifier -  <, >, | */
 %type modifier {AddressMode}
@@ -1328,15 +1421,82 @@ unary(rv) ::= BANG unary(rhs). [BANG] {
 unary(rv) ::= term(a). { rv = std::move(a); }
 
 %type identifier { identifier }
-identifier(X) ::= IDENTIFIER(a). { X = a.id; }
-identifier(X) ::= AT_IDENTIFIER(a). {
-	X = expand_at(a.id);
+identifier(X) ::= IDENTIFIER(t). { X = expand_at(t); }
+
+
+
+term(rv) ::= identifier(id). {
+	rv = id ? Expression::Identifier(id) : Expression::Integer(0);
 }
 
 
-term(rv) ::= identifier(a). {
-	rv = Expression::Identifier(a);
+term(rv) ::= IDENTIFIER(t) DOT dot_identifier_list(etc). {
+	identifier id = expand_at(t);
+	if (id) {
+		std::string tmp = std::accumulate(etc.begin(), etc.end(), *id,
+			[](std::string s, const Token &t){
+				return s + "." + t.string_value();
+			});
+
+		id = intern(std::move(tmp));
+		etc.emplace_back(std::move(t));
+		_pending_records.emplace(id, std::move(etc));
+	}
+	rv = id ? Expression::Identifier(id) : Expression::Integer(0);
 }
+
+%type dot_identifier_list {std::vector<Token> }
+dot_identifier_list(L) ::= IDENTIFIER(ID).                            { L.emplace_back(std::move(ID)); }
+dot_identifier_list(L) ::= dot_identifier_list(L) DOT IDENTIFIER(ID). { L.emplace_back(std::move(ID)); }
+
+
+//%type dot_identifier {std::vector<Token> }
+//dot_identifier ::= .
+//dot_identifier(L) ::= dot_identifier DOT IDENTIFIER(ID). { L.emplace_back(std::move(ID)); }
+
+// eventually ... sizeof record.field ?
+term(rv) ::= SIZEOF(S) identifier(id). {
+	auto iter = _records.find(id);
+	if (iter == _records.end()) {
+		error(S, "Unknown record %s", id->c_str());
+		rv = Expression::Integer(0);
+	} else {
+		rv = Expression::Integer(iter->second.size);
+	}
+}
+
+/*
+ * :record.field
+ * looks up field offset in record.
+ */
+term(rv) ::= COLON(colon) identifier(id) DOT dot_identifier_list(etc). {
+
+	int offset = 0;
+	if (id) {
+		auto iter = _records.find(id);
+		if (iter == _records.end()) {
+			error(colon, "Unknown record %s", id->c_str());
+		} else {
+			offset = field_offset(iter->second, etc);
+		}
+	}
+	rv = Expression::Integer(offset);
+}
+
+term(rv) ::= COLON(colon) identifier(id). {
+
+	int offset = 0;
+	if (id) {
+		auto iter = _records.find(id);
+		if (iter == _records.end()) {
+			error(colon, "Unknown record %s", id->c_str());
+		} else {
+			warn(colon, "Use %%sizeof %s for record size", id->c_str());
+		}
+	}
+	rv = Expression::Integer(offset);
+}
+
 
 // todo -- jsl %pascal/%cdecl/%stdcall identifier
 term(rv) ::= WEAK identifier(a). {

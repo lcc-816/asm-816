@@ -114,7 +114,7 @@
 		'>' { parse(tkGT); };
 		'|' { parse(tkPIPE); };
 		'#' { parse(tkHASH); };
-		#':' { parse(tkCOLON); };
+		':' { parse(tkCOLON); };
 		'.' { parse(tkDOT); };
 		',' { parse(tkCOMMA); };
 
@@ -226,6 +226,7 @@
 
 
 		'dc'i      { parse(tkDC, std::string(ts, te)); };
+		'dcb'i     { parse(tkDCB, std::string(ts, te)); };
 		'ds'i      { parse(tkDS, std::string(ts, te)); };
 		'align'i   { parse(tkALIGN, std::string(ts, te)); };
 		'pragma'i  { parse(tkPRAGMA, std::string(ts, te)); };
@@ -238,8 +239,8 @@
 
 		# handle opcodes / macros later!
 
-		identifier     { parse(tkIDENTIFIER, std::string(ts, te)); };
-		'@' identifier { parse(tkIDENTIFIER, std::string(ts, te)); };
+		identifier           { parse(tkIDENTIFIER, std::string(ts, te), 0); };
+		'@' identifier       { parse(tkIDENTIFIER, std::string(ts, te), 1); };
 
 		'&...'               { parse(tkMPARAM, std::string(ts,te), 2); };
 		'&' identifier       { parse(tkMPARAM, std::string(ts,te), 0); };

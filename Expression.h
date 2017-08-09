@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <utility>
 #include <memory>
+#include <functional>
 
 #include "dp_register.h"
 #include "intern.h"
@@ -137,6 +138,8 @@ public:
 
 	ExpressionPtr rename(identifier oldname, identifier newname);
 	ExpressionPtr rename(dp_register oldname, dp_register newname);
+
+	ExpressionPtr replace_identifier(std::function<ExpressionPtr(identifier)> &fx);
 
 	ExpressionPtr make_relative(uint32_t pc) /* const */;
 	ExpressionPtr make_relative(uint32_t pc, const identifier_map &env) /* const */;
