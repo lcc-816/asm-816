@@ -52,7 +52,9 @@ SIGNED UNSIGNED CC OPCODE OPCODE_0 OPCODE_2 OPCODE_3 DS DC DCB DO WHILE IF.
 %left STAR SLASH PERCENT.
 %right BANG TILDE.
 
-
+// pragmas
+%token KIND RETURN PARAMETERS LOCALS SEGMENT NORETURN VOLATILE DEBUG DATABANK DYNAMIC VOID PRIVATE .
+%token RTI RTS RTL NAKED STDCALL PASCAL CDECL .
 
 %include {
 
@@ -353,7 +355,7 @@ attr ::= IDENTIFIER(ID) EQ expr(e). {
 			warn(ID, "Unknown pragma: %s", s.c_str());
 			break;
 		default:
-			warn(ID, "Pragma does not take a string parameter: %s", s.c_str());
+			warn(ID, "Pragma does not take an expression parameter: %s", s.c_str());
 			break;
 		case tkLOCALS:
 			_segment->local_size = i;
@@ -971,89 +973,9 @@ directive ::= PRAGMA(P) pragma_list. {
 }
 
 
-
-pragma_list ::= pragma.
-pragma_list ::= pragma_list COMMA pragma.
-
-
-/*
- * segment = "string"
- * kind = int
- * locals = int
- * parameters = int
- * rts
- * databank
- */
-pragma ::= SEGMENT EQ STRING(a). {
-	if (_segment) _segment->segment = a.id;
-}  
-pragma ::= LOCALS EQ INTEGER(a). {
-	if (_segment) _segment->local_size = a.int_value();
-}
-pragma ::= PARAMETERS EQ INTEGER(a). {
-	if (_segment) _segment->parm_size = a.int_value();
-}
-pragma ::= RETURN EQ INTEGER(a). {
-	if (_segment) _segment->return_size = a.int_value();
-}
-pragma ::= KIND EQ INTEGER(a). {
-	if (_segment) _segment->kind = a.int_value();
-}
-pragma ::= PRIVATE. {
-	// mark omf kind.
-	if (_segment) _segment->kind |= 0x4000;
-}
-pragma ::= RTS. {
-	if (_segment) _segment->return_type = Segment::rts;	
-}
-
-pragma ::= RTL. {
-	if (_segment) _segment->return_type = Segment::rtl;	
-}
-
-pragma ::= RTI. {
-	if (_segment) _segment->return_type = Segment::rti;	
-}
-
-pragma ::= VOID. {
-	if (_segment) _segment->return_size = 0;
-}
-pragma ::= CDECL. {
-	if (_segment) _segment->convention = Segment::cdecl;	
-}
-
-pragma ::= STDCALL. {
-	if (_segment) _segment->convention = Segment::stdcall;	
-}
-
-pragma ::= PASCAL. {
-	if (_segment) _segment->convention = Segment::pascal;
-}
-
-pragma ::= NAKED. {
-	if (_segment) _segment->convention = Segment::naked;
-}
-
-pragma ::= DYNAMIC. {
-	if (_segment) _segment->dynamic = true;
-}
-
-pragma ::= DATABANK. {
-	if (_segment) _segment->databank = true;
-}
-
-
-pragma ::= DEBUG. {
-	if (_segment) _segment->debug = true;
-}
-
-pragma ::= VOLATILE. {
-	if (_segment) _segment->has_volatile = true;
-}
-
-pragma ::= NORETURN. {
-	if (_segment) _segment->noreturn = true;
-}
+// differes from attr_list in that nl not allowed.
+pragma_list ::= attr.
+pragma_list ::= pragma_list COMMA attr.
 
 
 directive ::= EXPORT identifier_list(L). {
