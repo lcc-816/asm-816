@@ -153,11 +153,17 @@ public:
 	unsigned kind = 0;
 	bool dynamic = false;
 	bool debug = false;
-	bool rts = false;
 	bool global = false;
 	bool databank = false;
 	bool noreturn = false;
 	bool has_volatile = false;
+
+
+	enum {
+		rtl = 0,
+		rts,
+		rti
+	} return_type = rtl;
 
 	enum {
 		naked = 0,

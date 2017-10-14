@@ -292,10 +292,13 @@ attr ::= IDENTIFIER(ID). {
 		_segment->convention = Segment::naked;
 		break;
 	case tkRTS:
-		_segment->rts = true;
+		_segment->return_type = Segment::rts;
 		break;
 	case tkRTL:
-		_segment->rts = false;
+		_segment->return_type = Segment::rtl;
+		break;
+	case tkRTI:
+		_segment->return_type = Segment::rti;
 		break;
 	case tkPRIVATE:
 		_segment->kind |= 0x4000;
@@ -1001,11 +1004,15 @@ pragma ::= PRIVATE. {
 	if (_segment) _segment->kind |= 0x4000;
 }
 pragma ::= RTS. {
-	if (_segment) _segment->rts = true;	
+	if (_segment) _segment->return_type = Segment::rts;	
 }
 
 pragma ::= RTL. {
-	if (_segment) _segment->rts = false;	
+	if (_segment) _segment->return_type = Segment::rtl;	
+}
+
+pragma ::= RTI. {
+	if (_segment) _segment->return_type = Segment::rti;	
 }
 
 pragma ::= VOID. {

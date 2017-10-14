@@ -473,6 +473,7 @@ unsigned reparse_pragma(const std::string &s) {
 	main := 
 		  'rtl'i        %{ return tkRTL; }
 		| 'rts'i        %{ return tkRTS; }
+		| 'rti'i        %{ return tkRTI; }
 		| 'cdecl'i      %{ return tkCDECL; }
 		| 'pascal'i     %{ return tkPASCAL; }
 		| 'stdcall'i    %{ return tkSTDCALL; }

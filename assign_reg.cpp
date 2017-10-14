@@ -192,8 +192,20 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	Expression::register_info ri;
 
 	unsigned rtlb = 0;
-	if (segment->rts) rtlb = 2;
-	else rtlb = 3;
+	switch (segment->return_type) {
+		default:
+		case Segment::rtl:
+			rtlb = 3;
+			break;
+		case Segment::rts:
+			rtlb = 2;
+			break;
+		case Segment::rti:
+			rtlb = 4; // + p
+			// todo -- + 6 for pha, phx, phy
+			// and need extra code to rep #30.
+			break;
+	}
 
 	if (segment->databank) rtlb++;
 
@@ -422,10 +434,20 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	if (segment->databank)
 		tmp.emplace_back(BasicLine::Make(PLB, implied));
 
-	if (segment->rts)
-		tmp.emplace_back(BasicLine::Make(RTS, implied));
-	else
-		tmp.emplace_back(BasicLine::Make(RTL, implied));
+	switch(segment->return_type) {
+		case Segment::rtl:
+			tmp.emplace_back(BasicLine::Make(RTL, implied));
+			break;
+
+		case Segment::rts:
+			tmp.emplace_back(BasicLine::Make(RTS, implied));
+			break;
+
+		case Segment::rti:
+			// todo -- also push/pop a/x/y ... 
+			tmp.emplace_back(BasicLine::Make(RTI, implied));
+			break;
+	}
 
 	segment->epilogue_code = std::move(tmp);
 
