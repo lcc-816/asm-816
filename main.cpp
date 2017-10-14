@@ -138,6 +138,19 @@ void process_segments(Module &m, fs::path &outfile) {
 
 void help() {
 
+	fputs(
+		"asm-816 [options] [file]\n\n"
+		"options:\n"
+		"-I directory         Specify include directory path\n"
+		"-S                   Generate source code\n"
+		"-o file              Specify output file name\n"
+		"-f format            Specify output source format (merlin, mpw, orca)\n"
+		"-O level             Specify optimization level\n"
+		"-v                   Be verbose\n"
+		"-V                   Display version\n"
+		"-h                   Dusplay help\n"
+
+		, stdout);
 
 }
 
