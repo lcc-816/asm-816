@@ -24,6 +24,7 @@
 
 #include "pragma.h"
 
+#include "omf.h"
 #define LEMON_SUPER parser
 #define YYSTACKDEPTH 0
 // dynamic stack size!
@@ -38,6 +39,7 @@
 %fallback IDENTIFIER SIGNED UNSIGNED CC.
 %fallback IDENTIFIER OPCODE OPCODE_0 OPCODE_2 OPCODE_3 DS DC DCB.
 %fallback IDENTIFIER DO WHILE IF.
+%fallback IDENTIFIER EXPORT .
 
 %left PIPEPIPE.
 %left AMPAMP.
@@ -302,13 +304,16 @@ attr ::= IDENTIFIER(ID). {
 		_segment->return_type = Segment::rti;
 		break;
 	case p_PRIVATE:
-		_segment->kind |= 0x4000;
+		_segment->kind |= OMF::ATTR_PRIVATE;
+		break;
+	case p_PUBLIC:
+		_segment->kind &= ~OMF::ATTR_PRIVATE;
 		break;
 	case p_VOID:
 		_segment->return_size = 0;
 		break;
 	case p_DYNAMIC:
-		_segment->dynamic = true;
+		_segment->kind |= OMF::ATTR_DYNAMIC;
 		break;
 	case p_DATABANK:
 		_segment->databank = true;

@@ -19,9 +19,12 @@ enum {
 	p_VOLATILE,
 	p_DEBUG,
 	p_DATABANK,
-	p_DYNAMIC,
 	p_VOID,
+
+	// omf attributes
+	p_DYNAMIC,
 	p_PRIVATE,
+	p_PUBLIC,
 
 
 	p_RTI,

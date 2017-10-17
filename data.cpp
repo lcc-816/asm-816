@@ -204,8 +204,8 @@ OMF::Segment data_to_omf(Segment *segment) {
 	seg.length = builder.length;
 	seg.body = std::move(builder.body);
 	seg.kind = segment->kind;
-	if (seg.kind == 0) seg.kind = 0x4001; // data, static, private
-	if (segment->global) seg.kind &= ~0x4000; // public.
+	if (seg.kind == 0) seg.kind = OMF::KIND_DATA | OMF::ATTR_PRIVATE; // data, static, private
+	if (segment->global) seg.kind &= ~OMF::ATTR_PRIVATE; // public.
 
 	// orca has a banksize of $10000 for ~GLOBALS (and code segments), 0 for ~ARRAYS
 	// orca/c uses code, static, private. ($4000)
@@ -307,9 +307,7 @@ OMF::Segment code_to_omf(Segment *segment) {
 	seg.length = builder.length;
 	seg.body = std::move(builder.body);
 	seg.kind = segment->kind;
-	if (seg.kind == 0) seg.kind = 0x4000; // code, static, private
-	if (segment->global) seg.kind &= ~0x4000; // public.
-	if (segment->dynamic) seg.kind |= 0x8000; // dynamic segment.
+	if (segment->global) seg.kind &= OMF::ATTR_PRIVATE; // public.
 	seg.banksize = 0x010000;
 
 	if (segment->name) seg.segname = *segment->name;

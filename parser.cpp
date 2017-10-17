@@ -9,6 +9,8 @@
 #include <iterator>
 #include <system_error>
 
+#include "omf.h"
+
 namespace {
 
 	// symbol types
@@ -700,11 +702,27 @@ void parser::begin_segment(identifier name, SegmentType type) {
 		end_segment();
 	}
 	if (name == nullptr && type == data) {
+		if (!_data_segment) {
+			_data_segment = std::make_unique<Segment>();
+			_data_segment->kind = OMF::KIND_DATA | OMF::ATTR_PRIVATE;
+			_data_segment->convention = Segment::data;
+		}
 		_segment = _data_segment.get();
 	} else {
 		_segments.emplace_back(std::make_unique<Segment>());
 		_segment = _segments.back().get();
 		_segment->name = name;
+		switch (type) {
+			case code:
+				_segment->kind = OMF::KIND_CODE | OMF::ATTR_PRIVATE;
+				_segment->convention = Segment::naked;
+				break;
+			case data:
+			case none:
+				_segment->kind = OMF::KIND_DATA | OMF::ATTR_PRIVATE;
+				_segment->convention = Segment::data;
+				break;
+		}
 	}
 
 	_seg_type = type;

@@ -151,7 +151,6 @@ public:
 	unsigned temp_size = 0;
 	unsigned return_size = 0;
 	unsigned kind = 0;
-	bool dynamic = false;
 	bool debug = false;
 	bool global = false;
 	bool databank = false;

@@ -486,6 +486,8 @@ unsigned reparse_pragma(const std::string &s) {
 		| 'noreturn'i   %{ return p_NORETURN; }
 		| 'volatile'i   %{ return p_VOLATILE; }
 		| 'private'i    %{ return p_PRIVATE; }
+		| 'public'i     %{ return p_PUBLIC; }
+		| 'export'i     %{ return p_PUBLIC; }
 		| 'kind'i       %{ return p_KIND; }
 		| 'void'i       %{ return p_VOID; }
 		| 'locals'i     %{ return p_LOCALS; }

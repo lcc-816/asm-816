@@ -2,7 +2,7 @@
 
 #include "printer.h"
 #include "Expression.h"
-
+#include "omf.h"
 namespace {
 
 	const std::string prefix(AddressMode mode) {
@@ -347,7 +347,53 @@ void harpoon_printer::begin(FILE *f) {
 
 void harpoon_printer::begin_segment(FILE *f, const SegmentPtr &segment) {
 	identifier name = segment->name;
-	fprintf(f, "function %s {\n", name ? name->c_str() : "");
+	const char *type = "function";
+	int kind = segment->kind;
+	int attr = kind & 0xff00;
+
+	switch(kind & 0xff) {
+		case OMF::KIND_DATA:
+			type = "data";
+			break;
+		case OMF::KIND_CODE:
+			type = "function";
+			break;
+		default:
+			type = "function";
+			break;
+	}
+
+
+	fprintf(f, "%s %s {\n", type, name ? name->c_str() : "");
+
+	switch(kind & 0xff) {
+		case OMF::KIND_CODE:
+		case OMF::KIND_DATA:
+			switch (attr) {
+				case 0:
+					fprintf(f, "    pragma public\n");
+					break;
+				case OMF::ATTR_PRIVATE:
+					fprintf(f, "    pragma private\n");
+					break;
+				case OMF::ATTR_DYNAMIC:
+					fprintf(f, "    pragma dynamic,public\n");
+					break;
+
+				case OMF::ATTR_PRIVATE | OMF::ATTR_DYNAMIC:
+					fprintf(f, "    pragma dynamic,private\n");
+					break;
+				default:
+					fprintf(f, "    pragma kind=$%04x\n", kind);
+					break;
+			}
+			break;
+		default:
+			fprintf(f, "    pragma kind=$%04x\n", kind);
+			break;
+	}
+
+
 }
 
 void harpoon_printer::end_segment(FILE *f, const SegmentPtr &segment) {
