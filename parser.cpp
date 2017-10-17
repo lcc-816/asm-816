@@ -698,7 +698,7 @@ void parser::drain_queue() {
 void parser::begin_segment(identifier name, SegmentType type) {
 
 	if (_segment) {
-		error("Error: Segment still active");
+		error("Segment still active");
 		end_segment();
 	}
 	if (name == nullptr && type == data) {
@@ -738,7 +738,7 @@ void parser::begin_segment(identifier name, SegmentType type) {
 
 void parser::end_segment() {
 	if (!_segment) {
-		error("Error: No active segment");
+		error("No active segment");
 	} else {
 
 		resolve_records();
