@@ -201,7 +201,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 			rtlb = 2;
 			break;
 		case Segment::rti:
-			rtlb = 4; // + p
+			rtlb = 4 + 6; // + p + a, x, y
 			// todo -- + 6 for pha, phx, phy
 			// and need extra code to rep #30.
 			break;
@@ -332,6 +332,14 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 	}
 
 
+	if (segment->return_type == Segment::rti) {
+		tmp.emplace_back(BasicLine::Make(REP, immediate, Expression::Integer(0x30)));
+		tmp.emplace_back(BasicLine::Make(PHA, implied));
+		tmp.emplace_back(BasicLine::Make(PHX, implied));
+		tmp.emplace_back(BasicLine::Make(PHY, implied));
+	}
+
+
 	if (segment->databank) {
 		tmp.emplace_back(BasicLine::Make(PHB, implied));
 		tmp.emplace_back(BasicLine::Make(PEA, absolute, 
@@ -341,6 +349,7 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 		tmp.emplace_back(BasicLine::Make(PLB, implied));
 
 	}
+
 
 
 
@@ -444,7 +453,9 @@ void assign_registers(Segment *segment, BlockQueue &blocks) {
 			break;
 
 		case Segment::rti:
-			// todo -- also push/pop a/x/y ... 
+			tmp.emplace_back(BasicLine::Make(PLY, implied));
+			tmp.emplace_back(BasicLine::Make(PLX, implied));
+			tmp.emplace_back(BasicLine::Make(PLA, implied));
 			tmp.emplace_back(BasicLine::Make(RTI, implied));
 			break;
 	}
