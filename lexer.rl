@@ -238,6 +238,9 @@
 		'include'i { parse(tkINCLUDE, std::string(ts, te)); };
 
 
+		# lcc currently uses .# for labels...
+		'.' digit+			 { parse(tkIDENTIFIER, std::string(ts, te), 0); };
+
 		# handle opcodes / macros later!
 
 		identifier           { parse(tkIDENTIFIER, std::string(ts, te), 0); };
@@ -281,6 +284,7 @@
 			fgoto opcode;
 		};
 
+		'.' digit+           { parse(tkLABEL, std::string(ts, te), 0); };
 		identifier           { parse(tkLABEL, std::string(ts, te), 0); };
 		'@' identifier       { parse(tkLABEL, std::string(ts, te), 1); };
 		'&' identifier       { parse(tkLABEL, std::string(ts, te), 2); };
