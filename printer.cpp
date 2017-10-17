@@ -323,13 +323,13 @@ void orca_printer::print_data(FILE *f, const BasicLinePtr &line) {
 	switch(line->directive) {
 
 		case DCB:
-			fprintf(f, "    dc.i1 '%s'\n", s.c_str());
+			fprintf(f, "    dc i1'%s'\n", s.c_str());
 			break;
 		case DCW:
-			fprintf(f, "    dc.i2 '%s'\n", s.c_str());
+			fprintf(f, "    dc i2'%s'\n", s.c_str());
 			break;
 		case DCL:
-			fprintf(f, "    dc.i4 '%s'\n", s.c_str());
+			fprintf(f, "    dc i4'%s'\n", s.c_str());
 			break;
 		case DS:
 			fprintf(f, "    ds %s\n", s.c_str());
@@ -347,7 +347,7 @@ void harpoon_printer::begin(FILE *f) {
 
 void harpoon_printer::begin_segment(FILE *f, const SegmentPtr &segment) {
 	identifier name = segment->name;
-	fprintf(f, "funtion %s {\n", name ? name->c_str() : "");
+	fprintf(f, "function %s {\n", name ? name->c_str() : "");
 }
 
 void harpoon_printer::end_segment(FILE *f, const SegmentPtr &segment) {

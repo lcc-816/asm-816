@@ -647,7 +647,7 @@ void parser::verify_identifiers() {
 					if (_entry_set.find(id) != _entry_set.end()) continue;
 					if (_labels.find(id) != _labels.end()) continue;
 
-					fprintf(stderr, "# Udnefined ID %s", id->c_str());
+					fprintf(stderr, "# Undefined ID %s", id->c_str());
 					_error++;
 				}
 			}
