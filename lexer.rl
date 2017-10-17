@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include "grammar.h"
 #include "intern.h"
+#include "pragma.h"
 
 %%{
 	machine lexer;
@@ -221,7 +222,7 @@
 		'%pascal'  { parse(tkPASCAL, std::string(ts, te)); };
 		'%stdcall' { parse(tkSTDCALL, std::string(ts, te)); };
 		'%weak'    { parse(tkWEAK, std::string(ts, te)); };
-		'%void'    { parse(tkVOID, std::string(ts, te)); };
+#		'%void'    { parse(tkVOID, std::string(ts, te)); };
 		'%sizeof'  { parse(tkSIZEOF, std::string(ts, te)); };
 
 
@@ -471,25 +472,25 @@ unsigned reparse_pragma(const std::string &s) {
 	machine pragma;
 
 	main := 
-		  'rtl'i        %{ return tkRTL; }
-		| 'rts'i        %{ return tkRTS; }
-		| 'rti'i        %{ return tkRTI; }
-		| 'cdecl'i      %{ return tkCDECL; }
-		| 'pascal'i     %{ return tkPASCAL; }
-		| 'stdcall'i    %{ return tkSTDCALL; }
-		| 'naked'i      %{ return tkNAKED; }
-		| 'dynamic'i    %{ return tkDYNAMIC; }
-		| 'databank'i   %{ return tkDATABANK; }
-		| 'debug'i      %{ return tkDEBUG; }
-		| 'segment'i    %{ return tkSEGMENT; }
-		| 'noreturn'i   %{ return tkNORETURN; }
-		| 'volatile'i   %{ return tkVOLATILE; }
-		| 'private'i    %{ return tkPRIVATE; }
-		| 'kind'i       %{ return tkKIND; }
-		| 'void'i       %{ return tkVOID; }
-		| 'locals'i     %{ return tkLOCALS; }
-		| 'parameters'i %{ return tkPARAMETERS; }
-		| 'return'i     %{ return tkRETURN; }
+		  'rtl'i        %{ return p_RTL; }
+		| 'rts'i        %{ return p_RTS; }
+		| 'rti'i        %{ return p_RTI; }
+		| 'cdecl'i      %{ return p_CDECL; }
+		| 'pascal'i     %{ return p_PASCAL; }
+		| 'stdcall'i    %{ return p_STDCALL; }
+		| 'naked'i      %{ return p_NAKED; }
+		| 'dynamic'i    %{ return p_DYNAMIC; }
+		| 'databank'i   %{ return p_DATABANK; }
+		| 'debug'i      %{ return p_DEBUG; }
+		| 'segment'i    %{ return p_SEGMENT; }
+		| 'noreturn'i   %{ return p_NORETURN; }
+		| 'volatile'i   %{ return p_VOLATILE; }
+		| 'private'i    %{ return p_PRIVATE; }
+		| 'kind'i       %{ return p_KIND; }
+		| 'void'i       %{ return p_VOID; }
+		| 'locals'i     %{ return p_LOCALS; }
+		| 'parameters'i %{ return p_PARAMETERS; }
+		| 'return'i     %{ return p_RETURN; }
 	;
 }%%
 

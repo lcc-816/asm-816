@@ -22,6 +22,8 @@
 #include "parser.h"
 #include "cxx/mapped_file.h"
 
+#include "pragma.h"
+
 #define LEMON_SUPER parser
 #define YYSTACKDEPTH 0
 // dynamic stack size!
@@ -37,9 +39,6 @@
 %fallback IDENTIFIER OPCODE OPCODE_0 OPCODE_2 OPCODE_3 DS DC DCB.
 %fallback IDENTIFIER DO WHILE IF.
 
-%token_class fallback REGISTER_X REGISTER_Y REGISTER_S REGISTER_Z REGISTER_A REGISTER_B REGISTER_K REGISTER_D
-SIGNED UNSIGNED CC OPCODE OPCODE_0 OPCODE_2 OPCODE_3 DS DC DCB DO WHILE IF.
-
 %left PIPEPIPE.
 %left AMPAMP.
 %left PIPE.
@@ -52,9 +51,9 @@ SIGNED UNSIGNED CC OPCODE OPCODE_0 OPCODE_2 OPCODE_3 DS DC DCB DO WHILE IF.
 %left STAR SLASH PERCENT.
 %right BANG TILDE.
 
-// pragmas
-%token KIND RETURN PARAMETERS LOCALS SEGMENT NORETURN VOLATILE DEBUG DATABANK DYNAMIC VOID PRIVATE .
-%token RTI RTS RTL NAKED STDCALL PASCAL CDECL .
+
+// % qualifiers.
+%token CDECL PASCAL STDCALL WEAK SIZEOF .
 
 %include {
 
@@ -281,46 +280,46 @@ attr ::= IDENTIFIER(ID). {
 	default:
 		warn(ID, "Pragma requires a parameter: %s", s.c_str());
 		break;
-	case tkCDECL:
+	case p_CDECL:
 		_segment->convention = Segment::cdecl;
 		break;
-	case tkPASCAL:
+	case p_PASCAL:
 		_segment->convention = Segment::pascal;
 		break;
-	case tkSTDCALL:
+	case p_STDCALL:
 		_segment->convention = Segment::stdcall;
 		break;
-	case tkNAKED:
+	case p_NAKED:
 		_segment->convention = Segment::naked;
 		break;
-	case tkRTS:
+	case p_RTS:
 		_segment->return_type = Segment::rts;
 		break;
-	case tkRTL:
+	case p_RTL:
 		_segment->return_type = Segment::rtl;
 		break;
-	case tkRTI:
+	case p_RTI:
 		_segment->return_type = Segment::rti;
 		break;
-	case tkPRIVATE:
+	case p_PRIVATE:
 		_segment->kind |= 0x4000;
 		break;
-	case tkVOID:
+	case p_VOID:
 		_segment->return_size = 0;
 		break;
-	case tkDYNAMIC:
+	case p_DYNAMIC:
 		_segment->dynamic = true;
 		break;
-	case tkDATABANK:
+	case p_DATABANK:
 		_segment->databank = true;
 		break;
-	case tkDEBUG:
+	case p_DEBUG:
 		_segment->debug = true;
 		break;
-	case tkVOLATILE:
+	case p_VOLATILE:
 		_segment->has_volatile = true;
 		break;
-	case tkNORETURN:
+	case p_NORETURN:
 		_segment->noreturn = true;
 		break;
 	}	
@@ -335,7 +334,7 @@ attr ::= IDENTIFIER(ID) EQ STRING(S). {
 	default:
 		warn(ID, "Pragma does not take a string parameter: %s", s.c_str());
 		break;
-	case tkSEGMENT:
+	case p_SEGMENT:
 		_segment->segment = S.id;
 		break;
 	}
@@ -357,16 +356,16 @@ attr ::= IDENTIFIER(ID) EQ expr(e). {
 		default:
 			warn(ID, "Pragma does not take an expression parameter: %s", s.c_str());
 			break;
-		case tkLOCALS:
+		case p_LOCALS:
 			_segment->local_size = i;
 			break;
-		case tkPARAMETERS:
+		case p_PARAMETERS:
 			_segment->parm_size = i;
 			break;
-		case tkRETURN:
+		case p_RETURN:
 			_segment->return_size = i;
 			break;
-		case tkKIND:
+		case p_KIND:
 			_segment->kind = i;
 			break;
 		}
