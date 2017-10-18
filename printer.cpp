@@ -305,7 +305,32 @@ void orca_printer::print_label(FILE *f, const BasicLinePtr &line) {
 
 void orca_printer::begin_segment(FILE *f, const SegmentPtr &segment) {
 	identifier name = segment->name;
-	fprintf(f, "%s    START\n", name ? name->c_str() : "");
+	const char *type;
+
+	int attr = segment->kind & 0xff00;
+	int kind = segment->kind & 0x00ff;
+	switch (kind) {
+		case OMF::KIND_DATA:
+			type = attr & OMF::ATTR_PRIVATE ? "PRIVDATA" : "DATA";
+			break;
+		case OMF::KIND_CODE:
+		default:
+			type = attr & OMF::ATTR_PRIVATE ? "PRIVATE" : "START";
+			break;
+	}
+
+	fprintf(f, "%s    %s\n", name ? name->c_str() : "", type);
+
+	switch(segment->kind) {
+		case OMF::KIND_DATA:
+		case OMF::KIND_CODE:
+		case OMF::KIND_DATA | OMF::ATTR_PRIVATE:
+		case OMF::KIND_CODE | OMF::ATTR_PRIVATE:
+			break;
+		default:
+			fprintf(f, "    KIND $%04x\n", segment->kind);
+			break;
+	}
 }
 
 void orca_printer::end_segment(FILE *f, const SegmentPtr &segment) {
