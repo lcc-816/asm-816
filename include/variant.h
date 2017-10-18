@@ -1,4 +1,4 @@
-#include <eggs/variant/variant.hpp>
+#include <mpark/variant.hpp>
 
-using eggs::variants::variant;
-using eggs::variants::get;
+using mpark::variant;
+using mpark::get;

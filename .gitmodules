@@ -7,3 +7,6 @@
 [submodule "afp"]
 	path = afp
 	url = https://github.com/ksherlock/afp.git
+[submodule "variant"]
+	path = variant
+	url = https://github.com/mpark/variant.git

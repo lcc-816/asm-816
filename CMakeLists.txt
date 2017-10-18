@@ -74,8 +74,7 @@ set(SRC main.cpp grammar.cpp parser.cpp lexer.cpp Instruction.cpp Machine.cpp Op
 
 
 add_executable(asm-816 ${SRC})
-target_link_libraries(asm-816 CXX_LIB fmt afp)
-target_include_directories(asm-816 PRIVATE variant/include)
+target_link_libraries(asm-816 CXX_LIB fmt afp mpark_variant)
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	# Clang or AppleClang
