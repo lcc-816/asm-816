@@ -208,12 +208,75 @@ void mpw_printer::end(FILE *f) {
 }
 
 void mpw_printer::begin_segment(FILE *f, const SegmentPtr &segment) {
+
+
 	identifier name = segment->name;
-	fprintf(f, "%s    PROC\n", name ? name->c_str() : "");
+	const char *type;
+
+	int attr = segment->kind & 0xff00;
+	int kind = segment->kind & 0x00ff;
+	switch (kind) {
+		case OMF::KIND_DATA:
+			type = "RECORD";
+			break;
+		case OMF::KIND_CODE:
+		default:
+			type = "PROC";
+			break;
+		case OMF::KIND_INIT:
+			type = "INIT";
+			break;
+		case OMF::KIND_DP:
+			type = "STACKDP";
+			break;
+	}
+
+	// todo -- align, org, skip included w/ header line
+	std::string sa;
+	if (attr & OMF::ATTR_RELOAD) {
+		sa += "RELOAD";
+	} else {
+		sa += "NORELOAD";
+	}
+	// todo BANK xx / NOBANK
+	if (attr & OMF::ATTR_SPECMEM) {
+		sa += ",SPECIAL";
+	} else {
+		sa += ",NOSPECIAL";
+	}
+
+	if (attr & OMF::ATTR_DYNAMIC) {
+		sa += ",DYNAMIC";
+	} else {
+		sa += ",STATIC";
+	}
+
+
+	fprintf(f, "    SEGATTR %s\n", sa.c_str());
+
+	fprintf(f, "%s    %s\n", name ? name->c_str() : "", type);
+
 }
 
 void mpw_printer::end_segment(FILE *f, const SegmentPtr &segment) {
-	fprintf(f, "    ENDP\n\n");
+	int kind = segment->kind & 0x00ff;
+	const char *type;
+	switch (kind) {
+		case OMF::KIND_DATA:
+			type = "ENDR";
+			break;
+		case OMF::KIND_CODE:
+		default:
+			type = "ENDP";
+			break;
+		case OMF::KIND_INIT:
+			type = "ENDI";
+			break;
+		case OMF::KIND_DP:
+			type = "ENDS";
+			break;
+	}
+	fprintf(f, "    %s\n\n", type);
 }
 
 
