@@ -1,8 +1,6 @@
 
-project(asm816)
 cmake_minimum_required(VERSION 3.1)
-set (PROJECT_TYPE "CXX")
-set (PROJECT_NAME "asm816")
+project(asm-816 VERSION 0.0 LANGUAGES CXX C)
 
 
 set(CMAKE_CXX_STANDARD 14)
@@ -75,8 +73,17 @@ set(SRC main.cpp grammar.cpp parser.cpp lexer.cpp Instruction.cpp Machine.cpp Op
 	)
 
 
-add_executable(asm816 ${SRC})
-target_link_libraries(asm816 CXX_LIB fmt afp)
-target_include_directories(asm816 PRIVATE variant/include)
-target_compile_definitions(asm816 PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
-target_compile_options(asm816 PRIVATE -W -Wno-multichar)
+add_executable(asm-816 ${SRC})
+target_link_libraries(asm-816 CXX_LIB fmt afp)
+target_include_directories(asm-816 PRIVATE variant/include)
+
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+	# Clang or AppleClang
+	target_compile_definitions(asm-816 PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
+	target_compile_options(asm-816 PRIVATE -Wall -Wno-multichar)
+endif()
+
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+	# gcc
+	target_compile_options(asm-816 PRIVATE -Wall -Wno-multichar)
+endif()
