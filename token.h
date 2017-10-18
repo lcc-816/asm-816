@@ -41,10 +41,13 @@ struct Token {
 	Token& operator=(Token &&) = default;
 
 
-	identifier id = nullptr;
-	identifier file = nullptr;
+
 	unsigned type = 0;
 	unsigned line = 0;
+
+	identifier id = nullptr;
+	identifier file = nullptr;
+
 
 
 	variant<uint32_t, dp_register, Instruction, Mnemonic, ExpressionPtr, branch::branch_type> value;

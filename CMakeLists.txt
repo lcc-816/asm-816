@@ -80,7 +80,7 @@ target_include_directories(asm-816 PRIVATE variant/include)
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	# Clang or AppleClang
 	target_compile_definitions(asm-816 PRIVATE _LIBCPP_DISABLE_AVAILABILITY)
-	target_compile_options(asm-816 PRIVATE -Wall -Wno-multichar)
+	target_compile_options(asm-816 PRIVATE -Wall -Wno-multichar -Wno-unused-const-variable)
 endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")

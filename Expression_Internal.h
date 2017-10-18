@@ -196,8 +196,8 @@ public:
 	bool operator==(const IdentifierExpression &) const;
 
 private:
-	bool _weak = false;
 	identifier _value;
+	bool _weak = false;
 };
 
 
@@ -227,7 +227,7 @@ public:
 	typedef std::array<ExpressionPtr, 1> children_type;
 
 	UnaryExpression(unsigned op, ExpressionPtr a) :
-	Expression(type_unary), _op(op), _children{a}
+	Expression(type_unary), _op(op), _children{{a}}
 	{}
 
 	virtual void to_string(std::string &) const override final;
@@ -259,7 +259,7 @@ public:
 	typedef std::array<ExpressionPtr, 2> children_type;
 
 	BinaryExpression(unsigned op, ExpressionPtr a, ExpressionPtr b) :
-	Expression(type_binary), _op(op), _children{a, b}
+	Expression(type_binary), _op(op), _children{{a, b}}
 	{}
 
 	virtual void to_string(std::string &) const override final;

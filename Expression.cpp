@@ -605,7 +605,8 @@ namespace {
 
 		virtual ExpressionPtr visit(const PCExpression &) override final {
 			return Expression::Rel(_pc);
-		} 
+		}
+		using SimplifyVisitor::visit;
 
 	private:
 		uint32_t _pc;
@@ -627,7 +628,7 @@ namespace {
 			}
 			return to_expression_ptr(e);
 		}
-
+		using SetPCVisitor::visit;
 	private:
 		const identifier_map &_env;
 	};
