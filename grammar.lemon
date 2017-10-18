@@ -729,7 +729,6 @@ opcode(RV) ::= OPCODE(INSTR) REGISTER_Y. {
 
 	auto instr = INSTR.instruction_value();
 
-	bool ok = false;
 	switch (instr.mnemonic()) {
 	case INC:
 		RV = BasicLine::Make(INY, implied);
@@ -877,6 +876,7 @@ cc(RV) ::= expr(e). {
 		RV = i ? branch::always : branch::never;
 	}
 	else {
+		RV = branch::always;
 		error("Expression too complex for branch");
 	}
 }
@@ -1225,7 +1225,7 @@ operand(rv) ::= LPAREN expr(e) COMMA REGISTER_S RPAREN COMMA REGISTER_Y. {
 	bool explicit_mode = false;
 	AddressMode mode = stack_relative_y;
 
-	rv = std::make_tuple(stack_relative_y, false, std::move(e));
+	rv = std::make_tuple(mode, explicit_mode, std::move(e));
 }
 
 /* [dp] */
