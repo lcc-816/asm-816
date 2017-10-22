@@ -6,6 +6,7 @@
 
 #include <cstdarg>
 
+#include <algorithm>
 #include <iterator>
 #include <system_error>
 
