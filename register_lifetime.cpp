@@ -3,6 +3,8 @@
 #include "register_set.h"
 #include "Expression.h"
 
+#include <algorithm>
+
 
 /*
  * checks for dead-writes to wdc registers (a, x, y, etc.)
