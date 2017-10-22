@@ -1,6 +1,7 @@
 
 #include <array>
 #include <deque>
+#include <algorithm>
 
 #include "common.h"
 #include "Instruction.h"
