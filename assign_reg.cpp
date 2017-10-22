@@ -1,6 +1,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
 
 #include "Expression.h"
 #include "dp_register_set.h"
