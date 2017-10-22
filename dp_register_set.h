@@ -7,9 +7,6 @@
 #include <functional>
 #include <initializer_list>
 
-#include <experimental/optional>
-
-using namespace std::experimental;
 #include "dp_register.h"
 
 
@@ -69,11 +66,10 @@ public:
 private:
 
 	void reset();
-	void normalize_extra();
 	
 	// any overflow goes into the _extra vector which is sorted.
 	std::array< std::bitset<64>, 4> _data;
-	optional<std::vector<dp_register>> _extra;
+	std::vector<dp_register> _extra;
 };
 
 #endif

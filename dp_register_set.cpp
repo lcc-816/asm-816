@@ -80,13 +80,12 @@ dp_register_set::dp_register_set(std::initializer_list<dp_register> l) {
 		int ix = reg_to_index(r);
 		if (r.number < _data[ix].size()) { _data[ix][r.number] = true; }
 		else {
-			if (!_extra) _extra = std::vector<dp_register>();
-			_extra->push_back(r);
+			_extra.push_back(r);
 		}
 	}
-	if (_extra) {
-		std::sort(_extra->begin(), _extra->end());
-		_extra->erase( std::unique(_extra->begin(), _extra->end()), _extra->end());
+	if (!_extra.empty()) {
+		std::sort(_extra.begin(), _extra.end());
+		_extra.erase( std::unique(_extra.begin(), _extra.end()), _extra.end());
 	}
 }
 
@@ -95,13 +94,12 @@ dp_register_set::dp_register_set(const std::vector<dp_register> &v) {
 		int ix = reg_to_index(r);
 		if (r.number < _data[ix].size()) { _data[ix][r.number] = true; }
 		else {
-			if (!_extra) _extra = std::vector<dp_register>();
-			_extra->push_back(r);
+			_extra.push_back(r);
 		}
 	}
-	if (_extra) {
-		std::sort(_extra->begin(), _extra->end());
-		_extra->erase( std::unique(_extra->begin(), _extra->end()), _extra->end());
+	if (!_extra.empty()) {
+		std::sort(_extra.begin(), _extra.end());
+		_extra.erase( std::unique(_extra.begin(), _extra.end()), _extra.end());
 	}
 }
 
@@ -111,7 +109,7 @@ bool dp_register_set::includes(dp_register r) {
 
 	if (_data[ix].size() > r.number) return _data[ix][r.number]; 
 
-	if (_extra) return std::binary_search(_extra->begin(), _extra->end(), r);
+	if (!_extra.empty()) return std::binary_search(_extra.begin(), _extra.end(), r);
 
 	return false;
 
@@ -129,9 +127,9 @@ bool dp_register_set::includes(dp_register r, unsigned count) {
 	}
 
 	if (!count) return true;
-	if (_extra) {
-		auto iter = std::lower_bound(_extra->begin(), _extra->end(), r);
-		if (iter == _extra->end()) return false;
+	if (!_extra.empty()) {
+		auto iter = std::lower_bound(_extra.begin(), _extra.end(), r);
+		if (iter == _extra.end()) return false;
 
 		dp_register begin = r;
 		dp_register end = r + count;
@@ -157,9 +155,9 @@ bool dp_register_set::includes_any(dp_register r, unsigned count) {
 
 
 	if (!count) return false;
-	if (_extra && count) {
-		auto iter = std::lower_bound(_extra->begin(), _extra->end(), r);
-		if (iter == _extra->end()) return false;
+	if (!_extra.empty()) {
+		auto iter = std::lower_bound(_extra.begin(), _extra.end(), r);
+		if (iter == _extra.end()) return false;
 		// iter is >= r.
 		if (*iter == r) return true;
 		if (iter->type == r.type && iter->number < r.number + count * 2) return true;
@@ -179,13 +177,8 @@ bool dp_register_set::includes(const dp_register_set &rhs) {
 		if (tmp.count()) return false;
 	}
 
-	if (_extra && rhs._extra) {
-		return std::includes(_extra->begin(), _extra->end(), rhs._extra->begin(), rhs._extra->end());		
-	}
+	return std::includes(_extra.begin(), _extra.end(), rhs._extra.begin(), rhs._extra.end());		
 
-	if (rhs._extra && ! _extra) return false;
-
-	return true;
 }
 
 dp_register_set &dp_register_set::operator += (dp_register r) {
@@ -194,17 +187,15 @@ dp_register_set &dp_register_set::operator += (dp_register r) {
 
 
 	if (_data[ix].size() < r.number) {
-		//throw std::runtime_error("too many registers (bitset exceeded)");
 
-		if (_extra) {
-			auto iter = std::lower_bound(_extra->begin(), _extra->end(), r);
+		if (_extra.empty()) {
+			_extra.emplace_back(r);
+		} else {
+			auto iter = std::lower_bound(_extra.begin(), _extra.end(), r);
 
 			// insert inserts *before* the iterator.
-			if (iter == _extra->end() || *iter != r)
-				_extra->insert(iter, r);
-		}
-		else {
-			_extra = std::vector<dp_register>({r});
+			if (iter == _extra.end() || *iter != r)
+				_extra.insert(iter, r);
 		}
 		return *this;
 	}
@@ -239,17 +230,16 @@ dp_register_set &dp_register_set::operator += (const dp_register_set &rhs) {
 		_data[ix] |= rhs._data[ix];
 	}
 
-	if (rhs._extra) {
-		if (!_extra) _extra = rhs._extra;
-		else {
-			std::vector<dp_register> tmp;
-			std::merge(
-				_extra->begin(), _extra->end(),
-				rhs._extra->begin(), rhs._extra->end(),
-				std::back_inserter(tmp)
-			);
-			_extra = std::move(tmp);
-		}
+	if (_extra.empty()) {
+		_extra = rhs._extra;
+	} else {
+		std::vector<dp_register> tmp;
+		std::merge(
+			_extra.begin(), _extra.end(),
+			rhs._extra.begin(), rhs._extra.end(),
+			std::back_inserter(tmp)
+		);
+		_extra = std::move(tmp);
 	}
 
 	return *this;
@@ -263,9 +253,8 @@ dp_register_set &dp_register_set::operator -= (dp_register r) {
 	if (_data[ix].size() > r.number)
 		_data[ix][r.number] = false;
 
-	if (_extra) erase(*_extra, r);
+	if (!_extra.empty()) erase(_extra, r);
 
-	normalize_extra();
 	return *this;	
 }
 
@@ -278,17 +267,16 @@ dp_register_set &dp_register_set::operator -= (const dp_register_set &r) {
 		_data[ix] &= tmp;
 	}
 
-	if (_extra && r._extra) {
+	if (!_extra.empty() && !r._extra.empty()) {
 		std::vector<dp_register> tmp;
 		std::set_difference(
-			_extra->begin(), _extra->end(), 
-			r._extra->begin(), r._extra->end(),
+			_extra.begin(), _extra.end(), 
+			r._extra.begin(), r._extra.end(),
 			std::back_inserter(tmp)
 		);
 		_extra = std::move(tmp);
 	}
 
-	normalize_extra();
 	return *this;
 }
 
@@ -306,26 +294,25 @@ dp_register_set &dp_register_set::operator &= (const dp_register_set &r) {
 		_data[ix] &= r._data[ix];
 	}
 
-	if (!r._extra) _extra = nullopt;
-
-	if (_extra && r._extra) {
+	if (r._extra.empty()) {
+		_extra.clear();
+	} else {
 		std::vector<dp_register> tmp;
 		std::set_intersection(
-			_extra->begin(), _extra->end(), 
-			r._extra->begin(), r._extra->end(),
+			_extra.begin(), _extra.end(), 
+			r._extra.begin(), r._extra.end(),
 			std::back_inserter(tmp)
 		);
 		_extra = std::move(tmp);
 	}
 
-	normalize_extra();
 	return *this;
 }
 
 void dp_register_set::reset(void) {
 
 	for (auto &bits : _data) bits.reset();
-	_extra = nullopt;
+	_extra.clear();
 }
 
 
@@ -334,7 +321,7 @@ dp_register_set::operator bool() const {
 	for (unsigned ix = 0; ix < IndexCount; ++ix) {
 		if (_data[ix].any()) return true;
 	}
-	if (_extra && _extra->size()) return true;
+	if (!_extra.empty()) return true;
 
 	return false;
 }
@@ -357,7 +344,7 @@ std::vector<dp_register> dp_register_set::registers(char type) const {
 		}
 	}
 
-	if (_extra) for (const auto &dp : *_extra) {
+	for (const auto &dp : _extra) {
 		if (dp.type == type) rv.push_back(dp);
 	}
 
@@ -374,31 +361,27 @@ std::vector<dp_register> dp_register_set::registers() const {
 		if (data.none()) continue;
 		char type = index_to_reg(ix);
 
-		for(unsigned i = 0; i < data.size(); ++i) {
+		for (unsigned i = 0; i < data.size(); ++i) {
 			if (data.test(i)) {
 				rv.push_back(dp_register{(unsigned)type, i});
 			}
 		}
 	}
 
-	if (_extra) for (const auto &dp : *_extra) {
+	for (const auto &dp : _extra) {
 		rv.push_back(dp);
 	}
 
 	return rv;
 }
 
-void dp_register_set::normalize_extra() {
-	if (_extra && _extra->empty()) _extra = nullopt;
-}
-
 namespace { 
-	void dump_one(char type, const std::bitset<64> &data, const optional<std::vector<dp_register>> &extra) {
+	void dump_one(char type, const std::bitset<64> &data, const std::vector<dp_register> &extra) {
 		printf("%c:", type);
 		for (unsigned i = 0; i < data.size(); ++i) {
 			if (data[i]) printf(" %u", i);
 		}
-		if (extra) for (const auto &dp : *extra) {
+		for (const auto &dp : extra) {
 			if (dp.type == type) printf(" %u", dp.number);
 		}
 		printf("\n");
