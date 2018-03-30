@@ -38,6 +38,8 @@ public:
 	virtual void print_data(FILE *f, const BasicLinePtr &line);
 	virtual void begin_segment(FILE *f, const SegmentPtr &segment);
 	virtual void end_segment(FILE *f, const SegmentPtr &segment);
+private:
+	int seg_attr = 0;
 };
 
 class merlin_printer : public printer {

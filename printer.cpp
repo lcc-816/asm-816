@@ -5,6 +5,14 @@
 #include "omf.h"
 namespace {
 
+	std::string to_x(unsigned x, int bytes, char prefix = 0) {
+		std::string rv;
+		rv.reserve(8 + prefix ? 1 : 0);
+		if (prefix) rv.push_back(prefix);
+
+		return rv;
+	}
+
 	const std::string prefix(AddressMode mode) {
 		switch(mode) {
 			case kUndefinedAddressMode:
@@ -232,29 +240,53 @@ void mpw_printer::begin_segment(FILE *f, const SegmentPtr &segment) {
 	}
 
 	// todo -- align, org, skip included w/ header line
-	std::string sa;
-	if (attr & OMF::ATTR_RELOAD) {
-		sa += "RELOAD";
+	int diff = attr ^ seg_attr;
+
+	std::string pa;
+	if (attr & OMF::ATTR_PRIVATE) {
+		pa = "ENTRY";
 	} else {
-		sa += "NORELOAD";
+		pa = "EXPORT";
 	}
-	// todo BANK xx / NOBANK
-	if (attr & OMF::ATTR_SPECMEM) {
-		sa += ",SPECIAL";
-	} else {
-		sa += ",NOSPECIAL";
+	if (attr & OMF::ATTR_SKIP) {
+		pa += ",SKIP";
+	}
+	// todo -- align, org
+	attr &= ~(OMF::ATTR_SKIP | OMF::ATTR_PRIVATE);
+
+	if (diff) {
+		std::string sa;
+		if (diff & OMF::ATTR_RELOAD) {
+			if (attr & OMF::ATTR_RELOAD) {
+				sa += "RELOAD";
+			} else {
+				sa += "NORELOAD";
+			}
+		}
+
+		// todo BANK xx / NOBANK
+
+		if (diff & OMF::ATTR_SPECMEM) {
+			if (attr & OMF::ATTR_SPECMEM) {
+				sa += ",SPECIAL";
+			} else {
+				sa += ",NOSPECIAL";
+			}
+		}
+
+		if (diff & OMF::ATTR_DYNAMIC) {
+			if (attr & OMF::ATTR_DYNAMIC) {
+				sa += ",DYNAMIC";
+			} else {
+				sa += ",STATIC";
+			}
+		}
+
+		fprintf(f, "    SEGATTR %s\n", sa.c_str());
+		seg_attr = attr;
 	}
 
-	if (attr & OMF::ATTR_DYNAMIC) {
-		sa += ",DYNAMIC";
-	} else {
-		sa += ",STATIC";
-	}
-
-
-	fprintf(f, "    SEGATTR %s\n", sa.c_str());
-
-	fprintf(f, "%s    %s\n", name ? name->c_str() : "", type);
+	fprintf(f, "%s    %s %s\n", name ? name->c_str() : "", type, pa.c_str());
 
 }
 
