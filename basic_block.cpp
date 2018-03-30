@@ -311,6 +311,11 @@ BlockQueue make_basic_blocks(LineQueue &&lines) {
 		}
 
 		if (line->directive == SMART_BRANCH) {
+
+			// remove branch never, xxx
+			if (line->branch.type == branch::never)
+				continue;
+
 			current->exit_branch = line;
 			prev = current;
 			current = nullptr;
