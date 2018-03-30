@@ -794,6 +794,7 @@ bool peephole(BasicBlockPtr block) {
 
 
 
+		// ugh, need to check if N or Z are required.
 		case PHX:
 			/* PHX, PLX -> NOP */
 			if (match(list, PHX, PLX, [&](BasicLinePtr a, BasicLinePtr b){
@@ -1488,7 +1489,7 @@ bool final_peephole(BasicBlockPtr block) {
 
 		case JSL:
 			// JSL, RTL -> JML
-			if (match(list, JSL/absolute_long, RTL, [&](BasicLinePtr a, BasicLinePtr b){
+			if (false && match(list, JSL/absolute_long, RTL, [&](BasicLinePtr a, BasicLinePtr b){
 				list.pop_front();
 				list.pop_front();
 
@@ -1552,7 +1553,7 @@ bool final_peephole(BasicBlockPtr block) {
 		case JSR:
 
 			// JSL, RTL -> JMP
-			if (match(list, JSR/absolute, RTS, [&](BasicLinePtr a, BasicLinePtr b){
+			if (false && match(list, JSR/absolute, RTS, [&](BasicLinePtr a, BasicLinePtr b){
 				list.pop_front();
 				list.pop_front();
 
@@ -1563,6 +1564,7 @@ bool final_peephole(BasicBlockPtr block) {
 
 				return true;
 			})) continue;
+			break;
 
 		// AND xxx, cmp #0
 		// ORA xxx, cmp #0
@@ -1587,6 +1589,8 @@ bool final_peephole(BasicBlockPtr block) {
 				return false;
 			})) continue;
 
+			// fall through.
+
 		case PLA:
 		case TYA:
 		case TXA:
@@ -1602,9 +1606,12 @@ bool final_peephole(BasicBlockPtr block) {
 			if (match(list, opcode.mnemonic(), CMP/immediate, eof, [&](BasicLinePtr a, BasicLinePtr b){
 				uint32_t value;
 				if (!exit_branch) return false;
+				if (exit_branch->branch.reads_c()) return false;
+				// ADC/SBC could set V but CMP won't touch it.
+				//if (exit_branch->branch.reads_v()) return false;
 
 				if (b->operands[0]->is_integer(value)) {
-					if (value == 0 && !exit_branch->branch.reads_c() && !exit_branch->branch.reads_v()) {
+					if (value == 0) {
 						// drop the cmp
 						list.pop_front();
 						list.pop_front();
@@ -1626,13 +1633,17 @@ bool final_peephole(BasicBlockPtr block) {
 
 				return true;
 			})) continue;
+			break;
 
-#if 0
+		// cpx / cpy set carry flag.  need to verify no C dependency.
 		case LDX:
 			/* LDX xxx, CPX #0 -> LDX xxx */
-			if (match(list, LDX, CPX, [&](BasicLinePtr a, BasicLinePtr b){
+			if (match(list, LDX, CPX/immediate, eof, [&](BasicLinePtr a, BasicLinePtr b){
 				uint32_t value;
-				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
+				if (!exit_branch) return false;
+				if (exit_branch->branch.reads_c()) return false;
+
+				if (b->operands[0]->is_integer(value)) {
 					if (value == 0) {
 						list.pop_front();
 						list.pop_front();
@@ -1647,9 +1658,12 @@ bool final_peephole(BasicBlockPtr block) {
 
 		case LDY:
 			/* LDY xxx, CPY #0 -> LDY xxx */
-			if (match(list, LDY, CPY, [&](BasicLinePtr a, BasicLinePtr b){
+			if (match(list, LDY, CPY, eof, [&](BasicLinePtr a, BasicLinePtr b){
 				uint32_t value;
-				if (b->opcode.addressMode() == immediate && b->operands[0]->is_integer(value)) {
+				if (!exit_branch) return false;
+				if (exit_branch->branch.reads_c()) return false;
+
+				if (b->operands[0]->is_integer(value)) {
 					if (value == 0) {
 						list.pop_front();
 						list.pop_front();
@@ -1661,7 +1675,6 @@ bool final_peephole(BasicBlockPtr block) {
 				return false;
 			})) continue;
 			break;
-#endif
 
 		}
 
@@ -1674,5 +1687,5 @@ bool final_peephole(BasicBlockPtr block) {
 	block->lines = std::move(optimized);
 	if (recalc) block->recalc_next_set();
 
-	return (delta|| recalc);
+	return (delta || recalc);
 }
